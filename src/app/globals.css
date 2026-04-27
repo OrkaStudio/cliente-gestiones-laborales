@@ -1,0 +1,224 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+}
+
+:root {
+  /* M1 — base shadcn limpio con accent GL olivo */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: #45602A;
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: #45602A;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: #45602A;
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: #45602A;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    font-family: var(--font-sans);
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ─── Variant A: Agro editorial ─────────────────────────────────────── */
+.agro-shell {
+  --agro-paper: #f5f1e8;
+  --agro-paper-edge: #ebe4d3;
+  --agro-ink: #1f1d18;
+  --agro-ink-soft: #6b665a;
+  --agro-rule: #d8d1bd;
+  --agro-olive: #45602A;
+  --agro-olive-soft: #6f8a4d;
+  --agro-amber: #b07c2c;
+
+  background-color: var(--agro-paper);
+  color: var(--agro-ink);
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  background-image:
+    radial-gradient(rgba(31, 29, 24, 0.035) 1px, transparent 1px),
+    radial-gradient(rgba(31, 29, 24, 0.025) 1px, transparent 1px);
+  background-size: 18px 18px, 32px 32px;
+  background-position: 0 0, 9px 16px;
+}
+
+.agro-shell .font-display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-feature-settings: "ss01", "ss02";
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  letter-spacing: -0.01em;
+}
+
+.agro-shell .agro-rule {
+  border-color: var(--agro-rule);
+}
+
+.agro-shell .agro-card {
+  background-color: rgba(255, 253, 247, 0.7);
+  border: 1px solid var(--agro-rule);
+  backdrop-filter: blur(2px);
+}
+
+.agro-shell .agro-divider {
+  background-image: linear-gradient(
+    to right,
+    transparent,
+    var(--agro-rule) 20%,
+    var(--agro-rule) 80%,
+    transparent
+  );
+  height: 1px;
+}
+
+.agro-shell .agro-tab {
+  position: relative;
+}
+.agro-shell .agro-tab[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background-color: var(--agro-olive);
+}
+
+/* ─── Variant C: Estudio (M1 structure + Agro warmth) ───────────────── */
+.studio-shell {
+  /* Mismas bases de agro */
+  --studio-paper: #f5f1e8;
+  --studio-paper-deep: #ebe4d3;
+  --studio-cream: #fbf7ed;
+  --studio-card: #fdfaf2;
+  --studio-ink: #1f1d18;
+  --studio-ink-soft: #6b665a;
+  --studio-ink-dim: #948e7d;
+  --studio-rule: #d8d1bd;
+  --studio-rule-soft: #e6dfca;
+  --studio-olive: #45602A;
+  --studio-olive-soft: #6f8a4d;
+  --studio-olive-tint: #e3e9d4;
+  --studio-amber: #b07c2c;
+  --studio-amber-tint: #f0e2c5;
+  --studio-clay: #a85d3c;
+  --studio-clay-tint: #f0d6c7;
+
+  background-color: var(--studio-paper);
+  color: var(--studio-ink);
+  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
+  background-image:
+    radial-gradient(rgba(31, 29, 24, 0.035) 1px, transparent 1px),
+    radial-gradient(rgba(31, 29, 24, 0.025) 1px, transparent 1px);
+  background-size: 18px 18px, 32px 32px;
+  background-position: 0 0, 9px 16px;
+}
+
+.studio-shell .font-display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-feature-settings: "ss01", "ss02";
+  font-variation-settings: "opsz" 144, "SOFT" 100;
+  letter-spacing: -0.012em;
+}
+
+.studio-shell .studio-card {
+  background-color: var(--studio-card);
+  border: 1px solid var(--studio-rule);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 0 rgba(31, 29, 24, 0.02),
+    0 6px 16px -8px rgba(31, 29, 24, 0.08);
+}
+
+.studio-shell .studio-card-cream {
+  background-color: var(--studio-cream);
+  border: 1px solid var(--studio-rule);
+  border-radius: 14px;
+}
+
+.studio-shell .studio-rule {
+  border-color: var(--studio-rule);
+}
+
+.studio-shell .studio-rule-soft {
+  border-color: var(--studio-rule-soft);
+}
+
+.studio-shell ::selection {
+  background-color: var(--studio-olive);
+  color: var(--studio-cream);
+}
