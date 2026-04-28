@@ -9,18 +9,30 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { busquedas, candidatos, gestiones, stats } from "@/lib/mock/data";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
-  const today = new Date("2026-04-25").toLocaleDateString("es-AR", {
+export default async function Home() {
+  const supabase = await createClient();
+
+  const [
+    { count: candidatosActivos },
+    { count: busquedasActivas },
+    { count: gestionesEnCurso },
+    { data: busquedasData },
+    { data: candidatosData },
+  ] = await Promise.all([
+    supabase.from("candidatos").select("*", { count: "exact", head: true }).eq("estado", "activo"),
+    supabase.from("busquedas").select("*", { count: "exact", head: true }).eq("estado", "activa"),
+    supabase.from("gestiones").select("*", { count: "exact", head: true }).neq("estado", "contratado").neq("estado", "descartado"),
+    supabase.from("busquedas").select("*, gestiones(id)").eq("estado", "activa"),
+    supabase.from("candidatos").select("*").eq("estado", "activo").order("fecha_ingreso", { ascending: false }).limit(4),
+  ]);
+
+  const today = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
-  const busquedasActivas = busquedas.filter((b) => b.estado === "activa");
-  const ultimosCandidatos = candidatos
-    .filter((c) => c.estado === "activo")
-    .slice(0, 4);
 
   return (
     <div className="mx-auto max-w-6xl px-8 py-8">
@@ -38,26 +50,10 @@ export default function Home() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <StatCard
-          icon={Users}
-          label="Candidatos activos"
-          value={stats.candidatosActivos}
-        />
-        <StatCard
-          icon={Briefcase}
-          label="Busquedas abiertas"
-          value={stats.busquedasActivas}
-        />
-        <StatCard
-          icon={FileText}
-          label="Gestiones en curso"
-          value={stats.gestionesEnCurso}
-        />
-        <StatCard
-          icon={Sparkles}
-          label="CVs ult. 7 dias"
-          value={stats.cvsProcesadosUltimos7d}
-        />
+        <StatCard icon={Users}     label="Candidatos activos"  value={candidatosActivos ?? 0} />
+        <StatCard icon={Briefcase} label="Busquedas abiertas"  value={busquedasActivas ?? 0} />
+        <StatCard icon={FileText}  label="Gestiones en curso"  value={gestionesEnCurso ?? 0} />
+        <StatCard icon={Sparkles}  label="CVs ult. 7 dias"     value={0} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -65,7 +61,7 @@ export default function Home() {
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
               <CardTitle>Busquedas activas</CardTitle>
-              <CardDescription>{busquedasActivas.length} abiertas</CardDescription>
+              <CardDescription>{busquedasData?.length ?? 0} abiertas</CardDescription>
             </div>
             <Link href="/busquedas">
               <Button variant="ghost" size="sm" className="gap-1">
@@ -75,28 +71,23 @@ export default function Home() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
-            {busquedasActivas.map((b) => {
-              const cands = gestiones.filter((g) => g.busquedaId === b.id).length;
-              return (
-                <Link
-                  key={b.id}
-                  href={`/busquedas/${b.id}`}
-                  className="block rounded-md border p-3 hover:bg-secondary/40 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="font-medium text-sm truncate">{b.puesto}</div>
-                      <div className="text-xs text-muted-foreground truncate mt-0.5">
-                        {b.cliente}
-                      </div>
-                    </div>
-                    <Badge variant="secondary" className="shrink-0">
-                      {cands} cands.
-                    </Badge>
+            {busquedasData?.map((b) => (
+              <Link
+                key={b.id}
+                href={`/busquedas/${b.id}`}
+                className="block rounded-md border p-3 hover:bg-secondary/40 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="font-medium text-sm truncate">{b.puesto}</div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">{b.cliente}</div>
                   </div>
-                </Link>
-              );
-            })}
+                  <Badge variant="secondary" className="shrink-0">
+                    {b.gestiones.length} cands.
+                  </Badge>
+                </div>
+              </Link>
+            ))}
           </CardContent>
         </Card>
 
@@ -114,27 +105,21 @@ export default function Home() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
-            {ultimosCandidatos.map((c) => (
+            {candidatosData?.map((c) => (
               <Link
                 key={c.id}
                 href={`/candidatos/${c.id}`}
                 className="flex items-center gap-3 rounded-md border p-3 hover:bg-secondary/40 transition-colors"
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
-                  {c.nombre[0]}
-                  {c.apellido[0]}
+                  {c.nombre[0]}{c.apellido[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {c.nombre} {c.apellido}
-                  </div>
+                  <div className="text-sm font-medium truncate">{c.nombre} {c.apellido}</div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {c.ultimoPuesto} · {c.ubicacion}
+                    {c.ultimo_puesto} · {c.ubicacion}
                   </div>
                 </div>
-                {c.matchScore ? (
-                  <Badge variant="outline">{c.matchScore}%</Badge>
-                ) : null}
               </Link>
             ))}
           </CardContent>

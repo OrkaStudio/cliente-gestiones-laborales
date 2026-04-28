@@ -12,17 +12,25 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { candidatos } from "@/lib/mock/data";
+import { createClient } from "@/lib/supabase/server";
 
-export default function CandidatosPage() {
+export default async function CandidatosPage() {
+  const supabase = await createClient();
+  const { data: candidatos } = await supabase
+    .from("candidatos")
+    .select("*")
+    .order("fecha_ingreso", { ascending: false });
+
+  const total = candidatos?.length ?? 0;
+  const activos = candidatos?.filter((c) => c.estado === "activo").length ?? 0;
+
   return (
     <div className="mx-auto max-w-6xl px-8 py-8">
       <div className="flex items-end justify-between gap-6 mb-6">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Candidatos</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            {candidatos.length} en la base ·{" "}
-            {candidatos.filter((c) => c.estado === "activo").length} activos
+            {total} en la base · {activos} activos
           </p>
         </div>
         <Button className="gap-2">
@@ -49,12 +57,11 @@ export default function CandidatosPage() {
                 <TableHead>Ultimo puesto</TableHead>
                 <TableHead>Ubicacion</TableHead>
                 <TableHead>Ingreso</TableHead>
-                <TableHead className="text-right">Match</TableHead>
                 <TableHead className="text-right">Estado</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {candidatos.map((c) => (
+              {candidatos?.map((c) => (
                 <TableRow key={c.id} className="cursor-pointer">
                   <TableCell>
                     <Link
@@ -62,28 +69,16 @@ export default function CandidatosPage() {
                       className="flex items-center gap-3 hover:text-primary"
                     >
                       <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
-                        {c.nombre[0]}
-                        {c.apellido[0]}
+                        {c.nombre[0]}{c.apellido[0]}
                       </div>
-                      <span className="font-medium">
-                        {c.nombre} {c.apellido}
-                      </span>
+                      <span className="font-medium">{c.nombre} {c.apellido}</span>
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {c.ultimoPuesto}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{c.ultimo_puesto}</TableCell>
                   <TableCell className="text-muted-foreground">{c.ubicacion}</TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {c.fechaIngreso}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {c.matchScore ? `${c.matchScore}%` : "—"}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground tabular-nums">{c.fecha_ingreso}</TableCell>
                   <TableCell className="text-right">
-                    <Badge
-                      variant={c.estado === "activo" ? "default" : "outline"}
-                    >
+                    <Badge variant={c.estado === "activo" ? "default" : "outline"}>
                       {c.estado}
                     </Badge>
                   </TableCell>
