@@ -2,6 +2,8 @@ import Link from "next/link";
 import { ArrowUpRight, Search } from "lucide-react";
 import { candidatos } from "@/lib/mock/data";
 
+export const dynamic = "force-dynamic";
+
 export default function AgroCandidatosPage() {
   const activos = candidatos.filter((c) => c.estado === "activo");
 

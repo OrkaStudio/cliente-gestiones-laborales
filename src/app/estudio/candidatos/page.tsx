@@ -2,6 +2,8 @@ import Link from "next/link";
 import { Filter, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { candidatos } from "@/lib/mock/data";
 
+export const dynamic = "force-dynamic";
+
 export default function EstudioCandidatosPage() {
   const sorted = [...candidatos].sort(
     (a, b) => (b.matchScore ?? 0) - (a.matchScore ?? 0),
