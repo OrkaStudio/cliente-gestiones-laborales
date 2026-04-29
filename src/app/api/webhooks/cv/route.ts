@@ -16,14 +16,7 @@ const BodySchema = z.object({
   fecha: z.string(),
   archivo_nombre: z.string(),
   archivo_base64: z.string(),
-  archivo_mime: z.enum([
-    "application/pdf",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/msword",
-    "image/jpeg",
-    "image/png",
-    "image/webp",
-  ]),
+  archivo_mime: z.string(),
 });
 
 export async function POST(req: NextRequest) {
@@ -32,7 +25,8 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await req.json();
     body = BodySchema.parse(raw);
-  } catch {
+  } catch (err) {
+    console.error("[webhook/cv] bad_request:", JSON.stringify(err));
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
@@ -73,10 +67,24 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 6. Parsear CV con Claude API
+  // 6. Parsear CV con Claude API — normalizar MIME si viene como octet-stream
+  const ext = body.archivo_nombre.split(".").pop()?.toLowerCase() ?? "";
+  const mimeMap: Record<string, string> = {
+    pdf: "application/pdf",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    doc: "application/msword",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+  };
+  const mimeEfectivo = body.archivo_mime === "application/octet-stream" && mimeMap[ext]
+    ? mimeMap[ext]
+    : body.archivo_mime;
+
   let candidatoParseado;
   try {
-    candidatoParseado = await parsearCV(buffer, body.archivo_mime, body.archivo_nombre);
+    candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
   } catch (err) {
     return NextResponse.json(
       { error: "parse_failed", detail: err instanceof Error ? err.message : "unknown" },
