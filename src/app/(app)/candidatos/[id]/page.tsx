@@ -3,15 +3,35 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
-const estadoLabels: Record<string, string> = {
-  preseleccionado: "Preseleccionado",
-  entrevista_orka: "Entrevista Orka",
-  presentado_cliente: "Presentado",
-  entrevista_cliente: "Entrevista",
-  ofertado: "Ofertado",
-  contratado: "Contratado",
-  descartado: "Descartado",
-};
+const STAGES = [
+  { key: "preseleccionado",    label: "Preseleccionado" },
+  { key: "entrevista_orka",    label: "Entrevista Orka" },
+  { key: "presentado_cliente", label: "Presentado" },
+  { key: "entrevista_cliente", label: "2ª Entrevista" },
+  { key: "ofertado",           label: "Ofertado" },
+  { key: "contratado",         label: "Contratado" },
+];
+
+function calcYearsExp(exp: Array<{ desde: string; hasta: string | null }>) {
+  if (!exp?.length) return 0;
+  const years = exp.map((e) => parseInt(e.desde?.substring(0, 4)) || new Date().getFullYear());
+  return new Date().getFullYear() - Math.min(...years);
+}
+
+function calcCompleteness(c: Record<string, unknown>, exp: unknown[]) {
+  const checks = [
+    !!c.email,
+    !!c.telefono,
+    !!c.educacion,
+    !!c.disponibilidad,
+    !!c.fecha_nacimiento,
+    !!c.pretension_salarial,
+    Array.isArray(c.idiomas) && c.idiomas.length > 0,
+    !!c.notas_recruiter,
+    exp?.length > 0,
+  ];
+  return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
 
 export default async function CandidatoDetailPage({
   params,
@@ -30,17 +50,23 @@ export default async function CandidatoDetailPage({
 
   if (!candidato) notFound();
 
+  const yearsExp = calcYearsExp(experiencia ?? []);
+  const completeness = calcCompleteness(candidato, experiencia ?? []);
+  const inBaseSince = candidato.fecha_ingreso?.substring(0, 4) ?? "—";
+  const gestionesActivas = gestionesData?.filter(
+    (g) => g.estado !== "contratado" && g.estado !== "descartado",
+  ).length ?? 0;
+
   const infoContacto = [
-    { label: "Email", value: candidato.email },
+    { label: "Email",    value: candidato.email },
     { label: "Teléfono", value: candidato.telefono },
-    { label: "Ubicación", value: candidato.ubicacion },
   ].filter((f) => f.value);
 
   const infoPerfil = [
-    { label: "Educación", value: candidato.educacion },
+    { label: "Educación",    value: candidato.educacion },
     { label: "Disponibilidad", value: candidato.disponibilidad },
-    { label: "Nacimiento", value: candidato.fecha_nacimiento },
-    { label: "Pretensión", value: candidato.pretension_salarial },
+    { label: "Nacimiento",   value: candidato.fecha_nacimiento },
+    { label: "Pretensión",   value: candidato.pretension_salarial },
   ].filter((f) => f.value);
 
   return (
@@ -53,7 +79,8 @@ export default async function CandidatoDetailPage({
         Candidatos
       </Link>
 
-      <header className="pb-10 border-b agro-rule">
+      {/* Header */}
+      <header className="pb-8 border-b agro-rule">
         <div className="flex items-start justify-between gap-6">
           <div className="flex items-start gap-6">
             <div className="h-16 w-16 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-xl">
@@ -96,43 +123,92 @@ export default async function CandidatoDetailPage({
             </button>
           </div>
         </div>
+
+        {/* Completeness bar */}
+        <div className="flex items-center gap-3 mt-6">
+          <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] shrink-0 w-16">
+            Perfil
+          </span>
+          <div className="flex-1 h-px bg-[var(--agro-rule)] relative overflow-visible">
+            <div
+              className="absolute top-0 left-0 h-px bg-[var(--agro-olive)] transition-all"
+              style={{ width: `${completeness}%` }}
+            />
+          </div>
+          <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] shrink-0">
+            {completeness}%
+          </span>
+        </div>
       </header>
 
+      {/* Quick stats */}
+      <section className="grid grid-cols-4 border-b agro-rule">
+        <QuickStat label="Años exp."       value={yearsExp > 0 ? `${yearsExp}` : "—"} />
+        <QuickStat label="Empleadores"     value={`${experiencia?.length ?? 0}`} />
+        <QuickStat label="En base desde"   value={inBaseSince} />
+        <QuickStat
+          label="Gestiones act."
+          value={`${gestionesActivas}`}
+          accent={gestionesActivas > 0}
+        />
+      </section>
+
+      {/* Content grid */}
       <div className="grid gap-16 lg:grid-cols-3 mt-12">
+        {/* Left — trayectoria + notas */}
         <div className="lg:col-span-2 space-y-12">
-          <section>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
-              Trayectoria
-            </div>
-            <div className="space-y-px">
-              {experiencia?.map((exp) => (
-                <div key={exp.id} className="py-5 border-t agro-rule">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <h3 className="font-display text-lg">{exp.rol}</h3>
-                    <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] shrink-0">
-                      {exp.desde} — {exp.hasta ?? "actual"}
-                    </span>
-                  </div>
-                  <p className="text-sm text-[var(--agro-olive)] mt-1 italic">{exp.empresa}</p>
-                  <p className="text-sm text-[var(--agro-ink-soft)] leading-relaxed mt-2">
-                    {exp.descripcion}
-                  </p>
+          {experiencia && experiencia.length > 0 ? (
+            <section>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
+                Trayectoria
+              </div>
+              <div className="relative">
+                {/* Vertical timeline line */}
+                <div className="absolute left-[4px] top-3 bottom-3 w-px bg-[var(--agro-rule)]" />
+                <div className="space-y-px">
+                  {experiencia.map((exp, i) => (
+                    <div key={exp.id} className="relative pl-8 py-5 border-t agro-rule">
+                      {/* Timeline dot */}
+                      <div
+                        className={`absolute left-0 top-[26px] h-2.5 w-2.5 rounded-full border z-10 ${
+                          i === 0
+                            ? "bg-[var(--agro-olive)] border-[var(--agro-olive)]"
+                            : "bg-[var(--agro-paper)] border-[var(--agro-rule)]"
+                        }`}
+                      />
+                      <div className="flex items-baseline justify-between gap-3">
+                        <h3 className="font-display text-lg">{exp.rol}</h3>
+                        <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] shrink-0">
+                          {exp.desde} — {exp.hasta ?? "actual"}
+                        </span>
+                      </div>
+                      <p className="text-sm text-[var(--agro-olive)] mt-1 italic">{exp.empresa}</p>
+                      {exp.descripcion ? (
+                        <p className="text-sm text-[var(--agro-ink-soft)] leading-relaxed mt-2">
+                          {exp.descripcion}
+                        </p>
+                      ) : null}
+                    </div>
+                  ))}
+                  <div className="border-t agro-rule" />
                 </div>
-              ))}
-              <div className="border-t agro-rule" />
-            </div>
-          </section>
+              </div>
+            </section>
+          ) : null}
 
           {candidato.notas_recruiter ? (
             <section>
               <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
                 Notas del recruiter
               </div>
-              <p className="text-sm leading-relaxed">{candidato.notas_recruiter}</p>
+              <p className="text-sm leading-relaxed text-[var(--agro-ink-soft)] border-l-2 border-[var(--agro-olive)] pl-4">
+                {candidato.notas_recruiter}
+              </p>
             </section>
           ) : null}
         </div>
 
+        {/* Right — contacto, perfil, gestiones */}
         <div className="space-y-10">
           {infoContacto.length > 0 ? (
             <section>
@@ -178,32 +254,100 @@ export default async function CandidatoDetailPage({
 
           {gestionesData && gestionesData.length > 0 ? (
             <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-5">
                 Gestiones · {gestionesData.length}
               </div>
-              <div className="space-y-px">
-                {gestionesData.map((g) => (
-                  <Link
-                    key={g.id}
-                    href={g.busquedas ? `/busquedas/${g.busquedas.id}` : "#"}
-                    className="group flex items-baseline justify-between gap-3 py-3 border-t agro-rule hover:text-[var(--agro-olive)] transition-colors"
-                  >
-                    <div>
-                      <div className="text-sm">{g.busquedas?.puesto}</div>
-                      <div className="text-xs text-[var(--agro-ink-soft)] mt-0.5 italic">
+              <div className="space-y-6">
+                {gestionesData.map((g) => {
+                  const stageIdx = STAGES.findIndex((s) => s.key === g.estado);
+                  const isDescartado = g.estado === "descartado";
+                  return (
+                    <Link
+                      key={g.id}
+                      href={g.busquedas ? `/busquedas/${g.busquedas.id}` : "#"}
+                      className="group block"
+                    >
+                      <div className="text-sm group-hover:text-[var(--agro-olive)] transition-colors">
+                        {g.busquedas?.puesto}
+                      </div>
+                      <div className="text-xs text-[var(--agro-ink-soft)] italic mt-0.5">
                         {g.busquedas?.cliente}
                       </div>
-                    </div>
-                    <span className="text-[10px] uppercase tracking-[0.18em] text-[var(--agro-ink-soft)] shrink-0">
-                      {estadoLabels[g.estado] ?? g.estado}
-                    </span>
-                  </Link>
-                ))}
-                <div className="border-t agro-rule" />
+
+                      {/* Stage track */}
+                      {!isDescartado ? (
+                        <div className="flex items-center gap-0.5 mt-3">
+                          {STAGES.map((stage, i) => (
+                            <div key={stage.key} className="flex items-center gap-0.5">
+                              <div
+                                className={`rounded-full transition-all ${
+                                  i < stageIdx
+                                    ? "h-1.5 w-1.5 bg-[var(--agro-olive-soft)]"
+                                    : i === stageIdx
+                                      ? "h-2 w-2 bg-[var(--agro-olive)]"
+                                      : "h-1.5 w-1.5 bg-[var(--agro-rule)]"
+                                }`}
+                              />
+                              {i < STAGES.length - 1 && (
+                                <div
+                                  className={`h-px w-3 ${
+                                    i < stageIdx
+                                      ? "bg-[var(--agro-olive-soft)]"
+                                      : "bg-[var(--agro-rule)]"
+                                  }`}
+                                />
+                              )}
+                            </div>
+                          ))}
+                          <span className="ml-2 font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)]">
+                            {stageIdx + 1}/{STAGES.length}
+                          </span>
+                        </div>
+                      ) : null}
+
+                      <div
+                        className={`text-[10px] uppercase tracking-[0.15em] mt-1.5 ${
+                          isDescartado
+                            ? "text-[var(--agro-ink-soft)]/50 line-through"
+                            : stageIdx === STAGES.length - 1
+                              ? "text-[var(--agro-olive)]"
+                              : "text-[var(--agro-ink-soft)]"
+                        }`}
+                      >
+                        {STAGES.find((s) => s.key === g.estado)?.label ?? g.estado}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
             </section>
           ) : null}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function QuickStat({
+  label,
+  value,
+  accent,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className="border-r agro-rule last:border-r-0 px-5 py-5 first:pl-0">
+      <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
+        {label}
+      </div>
+      <div
+        className={`font-display text-3xl tabular-nums mt-1.5 leading-none ${
+          accent ? "text-[var(--agro-olive)]" : ""
+        }`}
+      >
+        {value}
       </div>
     </div>
   );

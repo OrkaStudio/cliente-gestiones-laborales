@@ -1,6 +1,10 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+
+function calcDaysOpen(fecha: string) {
+  if (!fecha) return 0;
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+}
 
 export default async function BusquedasPage() {
   const supabase = await createClient();
@@ -30,44 +34,86 @@ export default async function BusquedasPage() {
         </div>
       </header>
 
-      <div className="mt-8">
-        <div className="grid grid-cols-[3fr_2fr_2fr_1fr] gap-6 text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] py-3 border-b agro-rule">
-          <span>Puesto</span>
-          <span>Cliente</span>
-          <span>Ubicación</span>
-          <span className="text-right">Candidatos</span>
-        </div>
+      <div className="mt-10 grid grid-cols-2 gap-3">
+        {busquedas?.map((b) => {
+          const days = calcDaysOpen(b.fecha_apertura);
+          const count = b.gestiones.length;
+          const dots = Math.min(count, 10);
+          const extra = count > 10 ? count - 10 : 0;
 
-        {busquedas?.map((b) => (
-          <Link
-            key={b.id}
-            href={`/busquedas/${b.id}`}
-            className="group grid grid-cols-[3fr_2fr_2fr_1fr] gap-6 items-center py-5 border-b agro-rule hover:bg-[rgba(255,253,247,0.7)] -mx-3 px-3 transition-colors"
-          >
-            <div>
-              <div className="font-display text-base group-hover:text-[var(--agro-olive)] transition-colors">
-                {b.puesto}
+          return (
+            <Link
+              key={b.id}
+              href={`/busquedas/${b.id}`}
+              className="agro-card p-5 group hover:border-[var(--agro-olive)] transition-all block"
+            >
+              {/* Estado + días */}
+              <div className="flex items-center justify-between gap-3">
+                <span
+                  className={`text-[10px] uppercase tracking-[0.2em] ${
+                    b.estado === "activa"
+                      ? "text-[var(--agro-olive)]"
+                      : "text-[var(--agro-ink-soft)]"
+                  }`}
+                >
+                  {b.estado}
+                </span>
+                <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)]">
+                  {days}d
+                </span>
               </div>
-              <div
-                className={`text-[10px] uppercase tracking-[0.18em] mt-1 ${
-                  b.estado === "activa"
-                    ? "text-[var(--agro-olive)]"
-                    : "text-[var(--agro-ink-soft)]"
-                }`}
-              >
-                {b.estado}
+
+              {/* Puesto */}
+              <div className="mt-3">
+                <div className="font-display text-xl leading-tight group-hover:text-[var(--agro-olive)] transition-colors">
+                  {b.puesto}
+                </div>
+                <div className="text-xs text-[var(--agro-ink-soft)] italic mt-1.5 truncate">
+                  {b.cliente}
+                  {b.ubicacion ? ` · ${b.ubicacion}` : ""}
+                </div>
               </div>
-            </div>
-            <div className="text-sm text-[var(--agro-ink-soft)] italic">{b.cliente}</div>
-            <div className="text-sm text-[var(--agro-ink-soft)]">{b.ubicacion ?? "—"}</div>
-            <div className="flex items-center justify-end gap-2">
-              <span className="font-display text-2xl tabular-nums text-[var(--agro-olive)]">
-                {b.gestiones.length}
-              </span>
-              <ArrowUpRight className="h-4 w-4 text-[var(--agro-ink-soft)] group-hover:text-[var(--agro-olive)] transition-colors" />
-            </div>
-          </Link>
-        ))}
+
+              {/* Divider */}
+              <div className="my-4 h-px bg-[var(--agro-rule)]" />
+
+              {/* Candidatos — dots + count */}
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: dots }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="h-2 w-2 rounded-full bg-[var(--agro-olive-soft)]"
+                    />
+                  ))}
+                  {extra > 0 && (
+                    <span className="font-mono text-[10px] text-[var(--agro-ink-soft)] ml-1">
+                      +{extra}
+                    </span>
+                  )}
+                  {count === 0 && (
+                    <span className="text-[10px] text-[var(--agro-ink-soft)] italic">
+                      sin candidatos
+                    </span>
+                  )}
+                </div>
+                {count > 0 && (
+                  <span className="text-[var(--agro-ink-soft)] text-xs">
+                    <span className="font-display text-xl text-[var(--agro-olive)]">{count}</span>
+                    {" "}cand.
+                  </span>
+                )}
+              </div>
+
+              {/* Rango salarial si existe */}
+              {b.rango_salarial ? (
+                <div className="mt-3 text-[10px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
+                  {b.rango_salarial}
+                </div>
+              ) : null}
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

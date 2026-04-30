@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CandidatosPage() {
@@ -30,7 +30,7 @@ export default async function CandidatosPage() {
         </div>
       </header>
 
-      <div className="mt-8 mb-2 flex items-center gap-3 border-b agro-rule pb-3">
+      <div className="mt-8 mb-8 flex items-center gap-3 border-b agro-rule pb-3">
         <Search className="h-4 w-4 text-[var(--agro-ink-soft)]" />
         <input
           placeholder="Buscar por nombre, ubicación, puesto..."
@@ -41,45 +41,30 @@ export default async function CandidatosPage() {
         </span>
       </div>
 
-      <div className="mt-6">
-        <div className="grid grid-cols-[3fr_2fr_2fr_2fr_1fr] gap-6 text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] py-3 border-b agro-rule">
-          <span>Persona</span>
-          <span>Último puesto</span>
-          <span>Ubicación</span>
-          <span>Ingreso</span>
-          <span className="text-right">Estado</span>
-        </div>
-
-        {candidatos?.map((c, idx) => (
+      <div className="grid grid-cols-2 gap-3">
+        {candidatos?.map((c) => (
           <Link
             key={c.id}
             href={`/candidatos/${c.id}`}
-            className="group grid grid-cols-[3fr_2fr_2fr_2fr_1fr] gap-6 items-center py-5 border-b agro-rule hover:bg-[rgba(255,253,247,0.7)] -mx-3 px-3 transition-colors"
+            className="agro-card p-5 group hover:border-[var(--agro-olive)] transition-all block"
           >
-            <div className="flex items-center gap-4">
-              <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)] w-5 text-right">
-                {String(idx + 1).padStart(2, "0")}
-              </span>
-              <div className="h-10 w-10 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-sm">
-                {c.nombre[0]}{c.apellido[0]}
-              </div>
-              <div className="min-w-0">
-                <div className="font-display text-base leading-tight group-hover:text-[var(--agro-olive)] transition-colors">
-                  {c.nombre} {c.apellido}
+            {/* Nombre + estado */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3 min-w-0">
+                <div className="h-10 w-10 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-sm">
+                  {c.nombre[0]}{c.apellido[0]}
                 </div>
-                <div className="text-xs text-[var(--agro-ink-soft)] mt-0.5 italic truncate">
-                  {c.disponibilidad ?? "—"}
+                <div className="min-w-0">
+                  <div className="font-display text-base leading-tight group-hover:text-[var(--agro-olive)] transition-colors">
+                    {c.nombre} {c.apellido}
+                  </div>
+                  <div className="text-xs text-[var(--agro-ink-soft)] italic mt-0.5 truncate">
+                    {c.ultimo_puesto}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="text-sm text-[var(--agro-ink-soft)]">{c.ultimo_puesto}</div>
-            <div className="text-sm text-[var(--agro-ink-soft)]">{c.ubicacion}</div>
-            <div className="font-mono text-xs tabular-nums text-[var(--agro-ink-soft)]">
-              {c.fecha_ingreso}
-            </div>
-            <div className="text-right">
               <span
-                className={`text-[10px] uppercase tracking-[0.18em] ${
+                className={`text-[10px] uppercase tracking-[0.18em] shrink-0 mt-0.5 ${
                   c.estado === "activo"
                     ? "text-[var(--agro-olive)]"
                     : "text-[var(--agro-ink-soft)]"
@@ -87,7 +72,38 @@ export default async function CandidatosPage() {
               >
                 {c.estado}
               </span>
-              <ArrowUpRight className="inline h-3 w-3 ml-2 text-[var(--agro-ink-soft)] group-hover:text-[var(--agro-olive)] transition-colors" />
+            </div>
+
+            {/* Divider */}
+            <div className="my-4 h-px bg-[var(--agro-rule)]" />
+
+            {/* Ubicación + disponibilidad */}
+            <div className="space-y-1.5 min-h-[2.5rem]">
+              {c.ubicacion ? (
+                <div className="text-xs text-[var(--agro-ink-soft)]">{c.ubicacion}</div>
+              ) : null}
+              {c.disponibilidad ? (
+                <div className="text-xs text-[var(--agro-ink)] italic truncate">
+                  {c.disponibilidad}
+                </div>
+              ) : null}
+            </div>
+
+            {/* Footer: idiomas + fecha */}
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center gap-1.5">
+                {c.idiomas?.slice(0, 2).map((i: string) => (
+                  <span
+                    key={i}
+                    className="text-[9px] uppercase tracking-[0.18em] border agro-rule px-1.5 py-0.5 text-[var(--agro-ink-soft)]"
+                  >
+                    {i}
+                  </span>
+                ))}
+              </div>
+              <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)]">
+                {c.fecha_ingreso}
+              </span>
             </div>
           </Link>
         ))}
