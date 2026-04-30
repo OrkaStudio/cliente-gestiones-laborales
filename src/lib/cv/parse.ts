@@ -72,10 +72,8 @@ const CVParseadoSchema = z.object({
 
 export type CVParseado = z.infer<typeof CVParseadoSchema>;
 
-const MIMES_DOCX = new Set([
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/msword",
-]);
+const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MIME_DOC = "application/msword";
 
 export async function parsearCV(
   buffer: Buffer,
@@ -88,11 +86,25 @@ export async function parsearCV(
 
   let partes: Parte[];
 
-  if (MIMES_DOCX.has(mimeType)) {
+  if (mimeType === MIME_DOCX) {
     const { value: texto } = await mammoth.extractRawText({ buffer });
     partes = [
       { type: "text", text: `Archivo: ${nombreArchivo}\n\nContenido:\n${texto}` },
     ];
+  } else if (mimeType === MIME_DOC) {
+    // .doc (Word binario antiguo) — mammoth no lo soporta.
+    // Intentamos extracción de texto con mammoth de todas formas (a veces funciona
+    // para .doc que son en realidad DOCX con extensión incorrecta).
+    try {
+      const { value: texto } = await mammoth.extractRawText({ buffer });
+      partes = [
+        { type: "text", text: `Archivo: ${nombreArchivo}\n\nContenido:\n${texto}` },
+      ];
+    } catch {
+      throw new Error(
+        `El archivo "${nombreArchivo}" está en formato .doc (Word 97-2003) que no se puede procesar. Por favor convertilo a .docx o .pdf y reenvialo.`,
+      );
+    }
   } else {
     partes = [{ type: "file", data: buffer, mediaType: mimeType }];
   }

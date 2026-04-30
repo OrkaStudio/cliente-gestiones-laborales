@@ -2,7 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 
 // Parsear CVs con Claude puede tomar hasta 30s
 export const maxDuration = 60;
@@ -21,13 +21,31 @@ const BodySchema = z.object({
 
 export async function POST(req: NextRequest) {
   // 1. Parsear y validar body
+  // Usamos arrayBuffer en lugar de req.json() — Next.js 16 falla con req.json()
+  // en bodies grandes (bug conocido con Turbopack + serverless).
   let body: z.infer<typeof BodySchema>;
   try {
-    const raw = await req.json();
-    body = BodySchema.parse(raw);
+    const ab = await req.arrayBuffer();
+    const text = new TextDecoder().decode(ab);
+    console.log("[webhook/cv] byteLength:", ab.byteLength, "preview:", text.slice(0, 200));
+    let raw: unknown;
+    try {
+      raw = JSON.parse(text);
+    } catch (jsonErr) {
+      console.error("[webhook/cv] json_parse_failed:", jsonErr instanceof Error ? jsonErr.message : String(jsonErr));
+      return NextResponse.json({ error: "bad_request", detail: "invalid_json" }, { status: 400 });
+    }
+    try {
+      body = BodySchema.parse(raw);
+    } catch (zodErr) {
+      if (zodErr instanceof ZodError) {
+        console.error("[webhook/cv] zod_error:", JSON.stringify(zodErr.issues));
+      }
+      return NextResponse.json({ error: "bad_request", detail: "schema_mismatch" }, { status: 400 });
+    }
   } catch (err) {
-    console.error("[webhook/cv] bad_request:", JSON.stringify(err));
-    return NextResponse.json({ error: "bad_request" }, { status: 400 });
+    console.error("[webhook/cv] body_unreadable:", err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: "bad_request", detail: "body_unreadable" }, { status: 400 });
   }
 
   // 2. Validar secret — rechazar sin dar pistas sobre la URL
@@ -82,12 +100,18 @@ export async function POST(req: NextRequest) {
     ? mimeMap[ext]
     : body.archivo_mime;
 
+  console.log("[webhook/cv] pre_parse mimeEfectivo:", mimeEfectivo, "bufferLen:", buffer.length);
   let candidatoParseado;
   try {
     candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
   } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    const errName = err instanceof Error ? err.constructor.name : typeof err;
+    const stack = err instanceof Error ? (err.stack ?? "").slice(0, 800) : "";
+    console.error("[webhook/cv] parse_failed type:", errName, "detail:", detail);
+    console.error("[webhook/cv] parse_failed stack:", stack);
     return NextResponse.json(
-      { error: "parse_failed", detail: err instanceof Error ? err.message : "unknown" },
+      { error: "parse_failed", detail },
       { status: 500 },
     );
   }
