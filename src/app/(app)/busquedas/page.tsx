@@ -1,14 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, MapPin, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ArrowUpRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function BusquedasPage() {
@@ -18,48 +9,63 @@ export default async function BusquedasPage() {
     .select("*, gestiones(id)")
     .order("fecha_apertura", { ascending: false });
 
+  const total = busquedas?.length ?? 0;
   const activas = busquedas?.filter((b) => b.estado === "activa").length ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
-      <div className="flex items-end justify-between gap-6 mb-8">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Busquedas</h1>
-          <p className="text-sm text-muted-foreground mt-1">{activas} activas</p>
+    <div className="px-12 py-14 max-w-5xl">
+      <header className="pb-10 border-b agro-rule">
+        <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--agro-ink-soft)]">
+          Búsquedas
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nueva busqueda
-        </Button>
-      </div>
+        <div className="flex items-end justify-between gap-6 mt-3">
+          <h1 className="font-display text-5xl leading-[1]">
+            <span className="italic">{total}</span> búsquedas
+          </h1>
+          <div className="text-sm text-[var(--agro-ink-soft)] pb-2">
+            <span className="text-[var(--agro-ink)]">{activas}</span> activas
+            <span className="mx-2">|</span>
+            {total - activas} cerradas
+          </div>
+        </div>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-8">
+        <div className="grid grid-cols-[3fr_2fr_2fr_1fr] gap-6 text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] py-3 border-b agro-rule">
+          <span>Puesto</span>
+          <span>Cliente</span>
+          <span>Ubicación</span>
+          <span className="text-right">Candidatos</span>
+        </div>
+
         {busquedas?.map((b) => (
-          <Link key={b.id} href={`/busquedas/${b.id}`} className="block group">
-            <Card className="h-full transition-colors hover:border-primary/40">
-              <CardHeader>
-                <div className="flex items-start justify-between gap-2">
-                  <Badge variant={b.estado === "activa" ? "default" : "outline"}>
-                    {b.estado}
-                  </Badge>
-                  <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                </div>
-                <CardTitle className="mt-3">{b.puesto}</CardTitle>
-                <CardDescription>{b.cliente}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {b.ubicacion ? (
-                  <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <MapPin className="h-3.5 w-3.5" />
-                    {b.ubicacion}
-                  </div>
-                ) : null}
-                <div className="flex items-center justify-between border-t pt-3">
-                  <span className="text-xs text-muted-foreground">Candidatos</span>
-                  <span className="text-lg font-semibold tabular-nums">{b.gestiones.length}</span>
-                </div>
-              </CardContent>
-            </Card>
+          <Link
+            key={b.id}
+            href={`/busquedas/${b.id}`}
+            className="group grid grid-cols-[3fr_2fr_2fr_1fr] gap-6 items-center py-5 border-b agro-rule hover:bg-[rgba(255,253,247,0.7)] -mx-3 px-3 transition-colors"
+          >
+            <div>
+              <div className="font-display text-base group-hover:text-[var(--agro-olive)] transition-colors">
+                {b.puesto}
+              </div>
+              <div
+                className={`text-[10px] uppercase tracking-[0.18em] mt-1 ${
+                  b.estado === "activa"
+                    ? "text-[var(--agro-olive)]"
+                    : "text-[var(--agro-ink-soft)]"
+                }`}
+              >
+                {b.estado}
+              </div>
+            </div>
+            <div className="text-sm text-[var(--agro-ink-soft)] italic">{b.cliente}</div>
+            <div className="text-sm text-[var(--agro-ink-soft)]">{b.ubicacion ?? "—"}</div>
+            <div className="flex items-center justify-end gap-2">
+              <span className="font-display text-2xl tabular-nums text-[var(--agro-olive)]">
+                {b.gestiones.length}
+              </span>
+              <ArrowUpRight className="h-4 w-4 text-[var(--agro-ink-soft)] group-hover:text-[var(--agro-olive)] transition-colors" />
+            </div>
           </Link>
         ))}
       </div>

@@ -1,17 +1,5 @@
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ArrowUpRight, Search } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CandidatosPage() {
@@ -25,69 +13,85 @@ export default async function CandidatosPage() {
   const activos = candidatos?.filter((c) => c.estado === "activo").length ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
-      <div className="flex items-end justify-between gap-6 mb-6">
-        <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Candidatos</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {total} en la base · {activos} activos
-          </p>
+    <div className="px-12 py-14 max-w-5xl">
+      <header className="pb-10 border-b agro-rule">
+        <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--agro-ink-soft)]">
+          Base de candidatos
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Nuevo candidato
-        </Button>
+        <div className="flex items-end justify-between gap-6 mt-3">
+          <h1 className="font-display text-5xl leading-[1]">
+            <span className="italic">{total}</span> personas
+          </h1>
+          <div className="text-sm text-[var(--agro-ink-soft)] pb-2">
+            <span className="text-[var(--agro-ink)]">{activos}</span> activos
+            <span className="mx-2">|</span>
+            {total - activos} en pausa
+          </div>
+        </div>
+      </header>
+
+      <div className="mt-8 mb-2 flex items-center gap-3 border-b agro-rule pb-3">
+        <Search className="h-4 w-4 text-[var(--agro-ink-soft)]" />
+        <input
+          placeholder="Buscar por nombre, ubicación, puesto..."
+          className="bg-transparent text-sm flex-1 outline-none placeholder:text-[var(--agro-ink-soft)] placeholder:italic"
+        />
+        <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)]">
+          {total} resultados
+        </span>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="border-b p-4">
-            <div className="relative max-w-sm">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por nombre, ubicacion, puesto..."
-                className="pl-9"
-              />
+      <div className="mt-6">
+        <div className="grid grid-cols-[3fr_2fr_2fr_2fr_1fr] gap-6 text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] py-3 border-b agro-rule">
+          <span>Persona</span>
+          <span>Último puesto</span>
+          <span>Ubicación</span>
+          <span>Ingreso</span>
+          <span className="text-right">Estado</span>
+        </div>
+
+        {candidatos?.map((c, idx) => (
+          <Link
+            key={c.id}
+            href={`/candidatos/${c.id}`}
+            className="group grid grid-cols-[3fr_2fr_2fr_2fr_1fr] gap-6 items-center py-5 border-b agro-rule hover:bg-[rgba(255,253,247,0.7)] -mx-3 px-3 transition-colors"
+          >
+            <div className="flex items-center gap-4">
+              <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)] w-5 text-right">
+                {String(idx + 1).padStart(2, "0")}
+              </span>
+              <div className="h-10 w-10 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-sm">
+                {c.nombre[0]}{c.apellido[0]}
+              </div>
+              <div className="min-w-0">
+                <div className="font-display text-base leading-tight group-hover:text-[var(--agro-olive)] transition-colors">
+                  {c.nombre} {c.apellido}
+                </div>
+                <div className="text-xs text-[var(--agro-ink-soft)] mt-0.5 italic truncate">
+                  {c.disponibilidad ?? "—"}
+                </div>
+              </div>
             </div>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Ultimo puesto</TableHead>
-                <TableHead>Ubicacion</TableHead>
-                <TableHead>Ingreso</TableHead>
-                <TableHead className="text-right">Estado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {candidatos?.map((c) => (
-                <TableRow key={c.id} className="cursor-pointer">
-                  <TableCell>
-                    <Link
-                      href={`/candidatos/${c.id}`}
-                      className="flex items-center gap-3 hover:text-primary"
-                    >
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
-                        {c.nombre[0]}{c.apellido[0]}
-                      </div>
-                      <span className="font-medium">{c.nombre} {c.apellido}</span>
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{c.ultimo_puesto}</TableCell>
-                  <TableCell className="text-muted-foreground">{c.ubicacion}</TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">{c.fecha_ingreso}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant={c.estado === "activo" ? "default" : "outline"}>
-                      {c.estado}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            <div className="text-sm text-[var(--agro-ink-soft)]">{c.ultimo_puesto}</div>
+            <div className="text-sm text-[var(--agro-ink-soft)]">{c.ubicacion}</div>
+            <div className="font-mono text-xs tabular-nums text-[var(--agro-ink-soft)]">
+              {c.fecha_ingreso}
+            </div>
+            <div className="text-right">
+              <span
+                className={`text-[10px] uppercase tracking-[0.18em] ${
+                  c.estado === "activo"
+                    ? "text-[var(--agro-olive)]"
+                    : "text-[var(--agro-ink-soft)]"
+                }`}
+              >
+                {c.estado}
+              </span>
+              <ArrowUpRight className="inline h-3 w-3 ml-2 text-[var(--agro-ink-soft)] group-hover:text-[var(--agro-olive)] transition-colors" />
+            </div>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

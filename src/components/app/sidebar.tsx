@@ -1,82 +1,74 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Briefcase,
-  LayoutDashboard,
-  LogOut,
-  Sparkles,
-  Users,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
-  { href: "/", label: "Inicio", icon: LayoutDashboard },
-  { href: "/candidatos", label: "Candidatos", icon: Users },
-  { href: "/busquedas", label: "Busquedas", icon: Briefcase },
-  { href: "/procesar", label: "Procesar CV", icon: Sparkles },
+  { label: "Inicio", href: "/", section: "01" },
+  { label: "Candidatos", href: "/candidatos", section: "02" },
+  { label: "Búsquedas", href: "/busquedas", section: "03" },
+  { label: "Procesar CV", href: "/procesar", section: "04" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r bg-sidebar">
-      <div className="flex items-center gap-2 px-5 py-5 border-b">
-        <Image
-          src="/brand/logo.svg"
-          alt="GL"
-          width={28}
-          height={28}
-          className="h-7 w-7"
-        />
-        <div className="leading-tight">
-          <div className="text-sm font-semibold">Gestiones Laborales</div>
-          <div className="text-xs text-muted-foreground">Panel interno</div>
+    <aside className="hidden lg:flex w-72 shrink-0 flex-col border-r agro-rule px-7 py-10 bg-[rgba(255,253,247,0.5)]">
+      <div>
+        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
+          Gestiones Laborales
+        </div>
+        <div className="font-display text-2xl mt-2 leading-[1.05]">
+          Panel<br />interno
         </div>
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="mt-10 space-y-px">
         {items.map((item) => {
-          const active =
+          const isActive =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
-          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors",
-                active
-                  ? "bg-secondary text-foreground font-medium"
-                  : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+                "group flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule text-sm transition-colors",
+                isActive
+                  ? "text-[var(--agro-ink)]"
+                  : "text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)]",
               )}
             >
-              <Icon className="h-4 w-4" />
-              {item.label}
+              <span className="flex items-baseline gap-3">
+                <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)]">
+                  {item.section}
+                </span>
+                <span className={cn("font-display text-base", isActive && "italic")}>
+                  {item.label}
+                </span>
+              </span>
+              {isActive && (
+                <span className="text-[var(--agro-olive)] text-xs">●</span>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t px-3 py-3">
-        <div className="flex items-center gap-2 px-2 py-1.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+      <div className="mt-auto space-y-4">
+        <div className="agro-divider" />
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-full grid place-items-center bg-[var(--agro-olive)] text-[#f5f1e8] font-display text-sm">
             O
           </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium truncate">Oriana Vera</div>
-            <div className="text-xs text-muted-foreground truncate">Recruiter</div>
+          <div>
+            <div className="text-sm font-medium leading-tight">Oriana</div>
+            <div className="text-[11px] text-[var(--agro-ink-soft)]">Reclutadora</div>
           </div>
-          <Link
-            href="/login"
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            aria-label="Cerrar sesion"
-          >
-            <LogOut className="h-4 w-4" />
-          </Link>
+        </div>
+        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
+          Orka Studio
         </div>
       </div>
     </aside>

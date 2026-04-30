@@ -1,23 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 const estadoLabels: Record<string, string> = {
@@ -49,147 +32,150 @@ export default async function BusquedaDetailPage({
   if (!busqueda) notFound();
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
+    <div className="px-12 py-14 max-w-5xl">
       <Link
         href="/busquedas"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-6"
+        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] mb-10 transition-colors"
       >
-        <ArrowLeft className="h-4 w-4" />
-        Busquedas
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Búsquedas
       </Link>
 
-      <div className="flex items-start justify-between gap-6 mb-8">
-        <div>
-          <Badge variant={busqueda.estado === "activa" ? "default" : "outline"}>
-            {busqueda.estado}
-          </Badge>
-          <h1 className="text-2xl font-semibold tracking-tight mt-3">{busqueda.puesto}</h1>
-          <p className="text-sm text-muted-foreground mt-1.5">
-            {busqueda.cliente}
-            {busqueda.ubicacion ? (
-              <>
-                <span className="mx-2">·</span>
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  {busqueda.ubicacion}
-                </span>
-              </>
-            ) : null}
-            <span className="mx-2">·</span>
-            <span>abierta {busqueda.fecha_apertura}</span>
-          </p>
+      <header className="pb-10 border-b agro-rule">
+        <div className="flex items-start justify-between gap-6">
+          <div>
+            <span
+              className={`text-[10px] uppercase tracking-[0.2em] ${
+                busqueda.estado === "activa"
+                  ? "text-[var(--agro-olive)]"
+                  : "text-[var(--agro-ink-soft)]"
+              }`}
+            >
+              {busqueda.estado}
+            </span>
+            <h1 className="font-display text-4xl mt-2 leading-tight">{busqueda.puesto}</h1>
+            <p className="text-sm text-[var(--agro-ink-soft)] mt-2 italic">
+              {busqueda.cliente}
+              {busqueda.ubicacion ? ` · ${busqueda.ubicacion}` : ""}
+              {` · abierta ${busqueda.fecha_apertura}`}
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button className="px-4 py-2 text-sm border agro-rule text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors">
+              Editar
+            </button>
+            <button className="px-4 py-2 text-sm bg-[var(--agro-ink)] text-[#f5f1e8] hover:bg-[var(--agro-olive)] transition-colors">
+              Sumar candidato
+            </button>
+          </div>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button variant="outline">Editar</Button>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Sumar candidato
-          </Button>
-        </div>
-      </div>
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-3 mb-8">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid gap-16 lg:grid-cols-3 mt-12">
+        <div className="lg:col-span-2 space-y-12">
           {busqueda.descripcion ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Brief</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm leading-relaxed">{busqueda.descripcion}</p>
-              </CardContent>
-            </Card>
+            <section>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+                Brief
+              </div>
+              <p className="text-sm leading-relaxed">{busqueda.descripcion}</p>
+            </section>
           ) : null}
 
-          {busqueda.requisitos.length > 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Requisitos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-2.5">
-                  {busqueda.requisitos.map((r, i) => (
-                    <li key={r} className="flex items-start gap-3 text-sm">
-                      <span className="text-xs text-muted-foreground tabular-nums shrink-0 mt-0.5 w-5">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <span>{r}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
+          {busqueda.requisitos?.length > 0 ? (
+            <section>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+                Requisitos
+              </div>
+              <div className="space-y-px">
+                {busqueda.requisitos.map((r: string, i: number) => (
+                  <div key={r} className="flex items-baseline gap-4 py-3 border-t agro-rule">
+                    <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)] w-5 shrink-0">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <span className="text-sm">{r}</span>
+                  </div>
+                ))}
+                <div className="border-t agro-rule" />
+              </div>
+            </section>
           ) : null}
+
+          <section>
+            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+              Candidatos en gestión · {gestionesData?.length ?? 0}
+            </div>
+            <div className="space-y-px">
+              {gestionesData?.map(({ id: gId, candidatos: cand, estado, updated_at }) => (
+                <div
+                  key={gId}
+                  className="flex items-center justify-between gap-4 py-4 border-t agro-rule"
+                >
+                  {cand ? (
+                    <Link
+                      href={`/candidatos/${cand.id}`}
+                      className="flex items-center gap-4 hover:text-[var(--agro-olive)] transition-colors"
+                    >
+                      <div className="h-9 w-9 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-sm">
+                        {cand.nombre[0]}{cand.apellido[0]}
+                      </div>
+                      <div>
+                        <div className="text-sm">{cand.nombre} {cand.apellido}</div>
+                        <div className="text-xs text-[var(--agro-ink-soft)] italic mt-0.5">
+                          {cand.ultimo_puesto}
+                        </div>
+                      </div>
+                    </Link>
+                  ) : (
+                    <span>—</span>
+                  )}
+                  <div className="text-right shrink-0">
+                    <div className="text-[10px] uppercase tracking-[0.18em] text-[var(--agro-ink-soft)]">
+                      {estadoLabels[estado] ?? estado}
+                    </div>
+                    <div className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] mt-1">
+                      {updated_at.slice(0, 10)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <div className="border-t agro-rule" />
+            </div>
+          </section>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Datos</CardTitle>
-            <CardDescription>Detalles de la busqueda</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            {busqueda.rango_salarial ? (
-              <div>
-                <div className="text-xs text-muted-foreground">Rango</div>
-                <div className="mt-0.5">{busqueda.rango_salarial}</div>
+        <div className="space-y-10">
+          <section>
+            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+              Datos
+            </div>
+            <div className="space-y-px">
+              {busqueda.rango_salarial ? (
+                <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
+                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
+                    Rango
+                  </span>
+                  <span className="text-sm">{busqueda.rango_salarial}</span>
+                </div>
+              ) : null}
+              <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
+                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
+                  En gestión
+                </span>
+                <span className="font-display text-2xl tabular-nums text-[var(--agro-olive)]">
+                  {gestionesData?.length ?? 0}
+                </span>
               </div>
-            ) : null}
-            <div className="border-t pt-3">
-              <div className="text-xs text-muted-foreground">En gestion</div>
-              <div className="mt-0.5 text-2xl font-semibold tabular-nums">
-                {gestionesData?.length ?? 0}
-                <span className="text-sm font-normal text-muted-foreground ml-1">candidatos</span>
+              <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
+                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
+                  Apertura
+                </span>
+                <span className="font-mono text-sm tabular-nums">{busqueda.fecha_apertura}</span>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </section>
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Candidatos</CardTitle>
-          <CardDescription>En gestion para esta busqueda</CardDescription>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Actualizado</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {gestionesData?.map(({ id: gId, candidatos: cand, estado, updated_at, notas }) => (
-                <TableRow key={gId}>
-                  <TableCell>
-                    {cand ? (
-                      <Link
-                        href={`/candidatos/${cand.id}`}
-                        className="flex items-center gap-3 hover:text-primary"
-                      >
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
-                          {cand.nombre[0]}{cand.apellido[0]}
-                        </div>
-                        <div>
-                          <div className="font-medium">{cand.nombre} {cand.apellido}</div>
-                          <div className="text-xs text-muted-foreground">{cand.ultimo_puesto}</div>
-                        </div>
-                      </Link>
-                    ) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{estadoLabels[estado] ?? estado}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground tabular-nums">
-                    {updated_at.slice(0, 10)}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

@@ -1,14 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Briefcase, FileText, Sparkles, Users } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { ArrowUpRight, Sparkles } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function Home() {
@@ -35,118 +26,122 @@ export default async function Home() {
   });
 
   return (
-    <div className="mx-auto max-w-6xl px-8 py-8">
-      <div className="flex items-end justify-between gap-6 mb-8">
+    <div className="px-12 py-14 max-w-5xl">
+      <header className="flex items-end justify-between gap-8 pb-10 border-b agro-rule">
         <div>
-          <p className="text-sm text-muted-foreground capitalize">{today}</p>
-          <h1 className="text-3xl font-semibold tracking-tight mt-1">Inicio</h1>
+          <div className="text-[11px] uppercase tracking-[0.28em] text-[var(--agro-ink-soft)] capitalize">
+            {today}
+          </div>
+          <h1 className="font-display text-6xl mt-3 leading-[0.95]">
+            Buen día,<br />
+            <span className="italic text-[var(--agro-olive)]">Oriana</span>.
+          </h1>
         </div>
-        <Link href="/procesar">
-          <Button className="gap-2">
-            <Sparkles className="h-4 w-4" />
-            Procesar CV
-          </Button>
+        <Link
+          href="/procesar"
+          className="inline-flex items-center gap-2 rounded-full bg-[var(--agro-ink)] text-[#f5f1e8] px-5 py-2.5 text-sm hover:bg-[var(--agro-olive)] transition-colors"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          Procesar un CV
         </Link>
-      </div>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-4 mb-8">
-        <StatCard icon={Users}     label="Candidatos activos"  value={candidatosActivos ?? 0} />
-        <StatCard icon={Briefcase} label="Busquedas abiertas"  value={busquedasActivas ?? 0} />
-        <StatCard icon={FileText}  label="Gestiones en curso"  value={gestionesEnCurso ?? 0} />
-        <StatCard icon={Sparkles}  label="CVs ult. 7 dias"     value={0} />
-      </div>
+      <section className="grid grid-cols-4 mt-12 border-b agro-rule">
+        <Stat label="Candidatos activos" value={candidatosActivos ?? 0} />
+        <Stat label="Búsquedas abiertas" value={busquedasActivas ?? 0} />
+        <Stat label="Gestiones en curso" value={gestionesEnCurso ?? 0} />
+        <Stat label="CVs últ. 7 días" value={0} accent />
+      </section>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Busquedas activas</CardTitle>
-              <CardDescription>{busquedasData?.length ?? 0} abiertas</CardDescription>
-            </div>
-            <Link href="/busquedas">
-              <Button variant="ghost" size="sm" className="gap-1">
-                Ver todas
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Button>
+      <section className="grid grid-cols-2 gap-12 mt-16">
+        <div>
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="font-display text-2xl">Búsquedas activas</h2>
+            <Link
+              href="/busquedas"
+              className="text-[11px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] hover:text-[var(--agro-olive)] transition-colors"
+            >
+              Ver todas
             </Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </div>
+          <div className="space-y-px">
             {busquedasData?.map((b) => (
               <Link
                 key={b.id}
                 href={`/busquedas/${b.id}`}
-                className="block rounded-md border p-3 hover:bg-secondary/40 transition-colors"
+                className="flex items-baseline justify-between gap-4 py-4 border-t agro-rule hover:text-[var(--agro-olive)] transition-colors"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="font-medium text-sm truncate">{b.puesto}</div>
-                    <div className="text-xs text-muted-foreground truncate mt-0.5">{b.cliente}</div>
-                  </div>
-                  <Badge variant="secondary" className="shrink-0">
-                    {b.gestiones.length} cands.
-                  </Badge>
+                <div>
+                  <div className="text-sm">{b.puesto}</div>
+                  <div className="text-xs text-[var(--agro-ink-soft)] mt-0.5 italic">{b.cliente}</div>
+                </div>
+                <div className="font-display text-2xl tabular-nums text-[var(--agro-olive)]">
+                  {b.gestiones.length}
                 </div>
               </Link>
             ))}
-          </CardContent>
-        </Card>
+            <div className="border-t agro-rule" />
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Ultimos candidatos</CardTitle>
-              <CardDescription>Activos en la base</CardDescription>
-            </div>
-            <Link href="/candidatos">
-              <Button variant="ghost" size="sm" className="gap-1">
-                Ver base
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Button>
+        <div>
+          <div className="flex items-baseline justify-between mb-6">
+            <h2 className="font-display text-2xl">Últimos en la base</h2>
+            <Link
+              href="/candidatos"
+              className="text-[11px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] hover:text-[var(--agro-olive)] transition-colors"
+            >
+              Ver base
             </Link>
-          </CardHeader>
-          <CardContent className="space-y-3">
+          </div>
+          <div className="space-y-px">
             {candidatosData?.map((c) => (
               <Link
                 key={c.id}
                 href={`/candidatos/${c.id}`}
-                className="flex items-center gap-3 rounded-md border p-3 hover:bg-secondary/40 transition-colors"
+                className="flex items-center gap-4 py-4 border-t agro-rule hover:text-[var(--agro-olive)] transition-colors"
               >
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium">
+                <div className="h-10 w-10 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-sm">
                   {c.nombre[0]}{c.apellido[0]}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{c.nombre} {c.apellido}</div>
-                  <div className="text-xs text-muted-foreground truncate">
+                  <div className="text-sm">{c.nombre} {c.apellido}</div>
+                  <div className="text-xs text-[var(--agro-ink-soft)] truncate italic">
                     {c.ultimo_puesto} · {c.ubicacion}
                   </div>
                 </div>
+                <ArrowUpRight className="h-4 w-4 text-[var(--agro-ink-soft)] shrink-0" />
               </Link>
             ))}
-          </CardContent>
-        </Card>
-      </div>
+            <div className="border-t agro-rule" />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
-function StatCard({
-  icon: Icon,
+function Stat({
   label,
   value,
+  accent,
 }: {
-  icon: typeof Users;
   label: string;
   value: number;
+  accent?: boolean;
 }) {
   return (
-    <Card>
-      <CardContent className="pt-6">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-muted-foreground">{label}</span>
-          <Icon className="h-4 w-4 text-muted-foreground" />
-        </div>
-        <div className="text-3xl font-semibold tracking-tight">{value}</div>
-      </CardContent>
-    </Card>
+    <div className="border-r agro-rule last:border-r-0 px-5 py-6 first:pl-0">
+      <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
+        {label}
+      </div>
+      <div
+        className={`font-display text-5xl tabular-nums mt-2 leading-none ${
+          accent ? "text-[var(--agro-olive)]" : ""
+        }`}
+      >
+        {value}
+      </div>
+    </div>
   );
 }

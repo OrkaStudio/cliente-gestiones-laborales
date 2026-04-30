@@ -8,7 +8,7 @@ export default function LoginPage() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-primary p-14 text-primary-foreground lg:flex">
-        <div className="absolute inset-0 opacity-15 leaf-mark bg-repeat bg-[length:280px_280px]" />
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(rgba(245,241,232,0.15)_1px,transparent_1px)] bg-[length:18px_18px]" />
         <header className="relative z-10 flex items-center gap-3">
           <Image
             src="/brand/logo.svg"

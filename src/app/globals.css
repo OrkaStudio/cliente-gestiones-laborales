@@ -158,67 +158,15 @@
   background-color: var(--agro-olive);
 }
 
-/* ─── Variant C: Estudio (M1 structure + Agro warmth) ───────────────── */
-.studio-shell {
-  /* Mismas bases de agro */
-  --studio-paper: #f5f1e8;
-  --studio-paper-deep: #ebe4d3;
-  --studio-cream: #fbf7ed;
-  --studio-card: #fdfaf2;
-  --studio-ink: #1f1d18;
-  --studio-ink-soft: #6b665a;
-  --studio-ink-dim: #948e7d;
-  --studio-rule: #d8d1bd;
-  --studio-rule-soft: #e6dfca;
-  --studio-olive: #45602A;
-  --studio-olive-soft: #6f8a4d;
-  --studio-olive-tint: #e3e9d4;
-  --studio-amber: #b07c2c;
-  --studio-amber-tint: #f0e2c5;
-  --studio-clay: #a85d3c;
-  --studio-clay-tint: #f0d6c7;
-
-  background-color: var(--studio-paper);
-  color: var(--studio-ink);
-  font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  background-image:
-    radial-gradient(rgba(31, 29, 24, 0.035) 1px, transparent 1px),
-    radial-gradient(rgba(31, 29, 24, 0.025) 1px, transparent 1px);
-  background-size: 18px 18px, 32px 32px;
-  background-position: 0 0, 9px 16px;
+/* ─── Utilidades globales ──────────────────────────────────────────────── */
+.editorial-eyebrow {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--agro-ink-soft);
 }
 
-.studio-shell .font-display {
-  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
-  font-feature-settings: "ss01", "ss02";
-  font-variation-settings: "opsz" 144, "SOFT" 100;
-  letter-spacing: -0.012em;
-}
-
-.studio-shell .studio-card {
-  background-color: var(--studio-card);
-  border: 1px solid var(--studio-rule);
-  border-radius: 14px;
-  box-shadow:
-    0 1px 0 rgba(31, 29, 24, 0.02),
-    0 6px 16px -8px rgba(31, 29, 24, 0.08);
-}
-
-.studio-shell .studio-card-cream {
-  background-color: var(--studio-cream);
-  border: 1px solid var(--studio-rule);
-  border-radius: 14px;
-}
-
-.studio-shell .studio-rule {
-  border-color: var(--studio-rule);
-}
-
-.studio-shell .studio-rule-soft {
-  border-color: var(--studio-rule-soft);
-}
-
-.studio-shell ::selection {
-  background-color: var(--studio-olive);
-  color: var(--studio-cream);
+.agro-shell ::selection {
+  background-color: var(--agro-olive);
+  color: var(--agro-paper);
 }
