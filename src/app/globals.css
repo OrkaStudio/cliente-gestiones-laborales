@@ -7,10 +7,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
-
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -47,14 +45,13 @@
 }
 
 :root {
-  /* M1 — base shadcn limpio con accent GL olivo */
-  --background: oklch(1 0 0);
+  --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: #45602A;
+  --primary: #2a4a18;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
@@ -65,108 +62,137 @@
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: #45602A;
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
+  --ring: #2a4a18;
+  --radius: 1rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: #45602A;
+  --sidebar-primary: #2a4a18;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: #45602A;
+  --sidebar-ring: #2a4a18;
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-
-  html {
-    font-family: var(--font-sans);
-  }
-
-  body {
-    @apply bg-background text-foreground;
-  }
+  * { @apply border-border outline-ring/50; }
+  html { font-family: var(--font-sans); }
+  body { @apply bg-background text-foreground; }
 }
 
-/* ─── Variant A: Agro editorial ─────────────────────────────────────── */
-.agro-shell {
-  --agro-paper: #f5f1e8;
-  --agro-paper-edge: #ebe4d3;
-  --agro-ink: #1f1d18;
-  --agro-ink-soft: #6b665a;
-  --agro-rule: #d8d1bd;
-  --agro-olive: #45602A;
-  --agro-olive-soft: #6f8a4d;
-  --agro-amber: #b07c2c;
+/* ══════════════════════════════════════════════════════════════
+   GL SHELL v3 — Monai-inspired: clean, bold, minimal, delightful
+   ══════════════════════════════════════════════════════════════ */
+.gl-shell {
+  /* ─ Palette */
+  --gl-bg:          #f9fafb;      /* near-white, very subtle gray */
+  --gl-surface:     #ffffff;
+  --gl-border:      #eaecef;      /* barely-there borders */
+  --gl-border-md:   #d4d8de;
 
-  background-color: var(--agro-paper);
-  color: var(--agro-ink);
+  /* ─ Typography */
+  --gl-ink:         #0d1117;      /* near-black */
+  --gl-ink-2:       #3d4451;      /* secondary */
+  --gl-ink-3:       #8b949e;      /* muted */
+
+  /* ─ Brand: deep forest green */
+  --gl-olive:       #2a4a18;
+  --gl-olive-light: #3d6b24;
+  --gl-olive-bg:    #eef5e8;
+  --gl-olive-mid:   #5a8a40;
+
+  /* ─ Semantic */
+  --gl-green:       #1a7f37;
+  --gl-green-bg:    #dafbe1;
+  --gl-amber:       #9a6700;
+  --gl-amber-bg:    #fff8c5;
+  --gl-red:         #cf222e;
+  --gl-red-bg:      #ffebe9;
+  --gl-gray:        #57606a;
+  --gl-gray-bg:     #f6f8fa;
+
+  /* ─ Accent colors for avatar palette */
+  --av-1-bg: #ddf4ff; --av-1-c: #0550ae;
+  --av-2-bg: #ffd8eb; --av-2-c: #99286e;
+  --av-3-bg: #fff8c5; --av-3-c: #7d4e00;
+  --av-4-bg: #dafbe1; --av-4-c: #1a7f37;
+  --av-5-bg: #eddeff; --av-5-c: #6e40c9;
+
+  background-color: var(--gl-bg);
+  color: var(--gl-ink);
   font-family: var(--font-outfit), ui-sans-serif, system-ui, sans-serif;
-  background-image:
-    radial-gradient(rgba(31, 29, 24, 0.035) 1px, transparent 1px),
-    radial-gradient(rgba(31, 29, 24, 0.025) 1px, transparent 1px);
-  background-size: 18px 18px, 32px 32px;
-  background-position: 0 0, 9px 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-.agro-shell .font-display {
+/* ─ Display font (still Fraunces but smaller usage) */
+.gl-shell .font-display {
   font-family: var(--font-fraunces), ui-serif, Georgia, serif;
-  font-feature-settings: "ss01", "ss02";
   font-variation-settings: "opsz" 144, "SOFT" 100;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.03em;
 }
 
-.agro-shell .agro-rule {
-  border-color: var(--agro-rule);
+/* ─ Cards & Surfaces */
+.gl-card-link {
+  display: block;
+  background: var(--gl-surface);
+  border: 1px solid var(--gl-border);
+  border-radius: 1.25rem;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.gl-card-link:hover {
+  box-shadow: 0 8px 32px -8px rgba(13, 17, 23, 0.1), 0 2px 8px -4px rgba(13, 17, 23, 0.05);
+  transform: translateY(-1px);
 }
 
-.agro-shell .agro-card {
-  background-color: rgba(255, 253, 247, 0.7);
-  border: 1px solid var(--agro-rule);
-  backdrop-filter: blur(2px);
+/* ─ Panel card (non-link) */
+.gl-panel {
+  background: var(--gl-surface);
+  border: 1px solid var(--gl-border);
+  border-radius: 1.25rem;
 }
 
-.agro-shell .agro-divider {
-  background-image: linear-gradient(
-    to right,
-    transparent,
-    var(--agro-rule) 20%,
-    var(--agro-rule) 80%,
-    transparent
-  );
-  height: 1px;
+/* ─ Stat bento */
+.gl-stat {
+  background: var(--gl-surface);
+  border: 1px solid var(--gl-border);
+  border-radius: 1.25rem;
+  transition: box-shadow 0.2s ease;
+}
+.gl-stat:hover {
+  box-shadow: 0 4px 16px -4px rgba(13, 17, 23, 0.08);
 }
 
-.agro-shell .agro-tab {
-  position: relative;
+/* ─ Interactive rows */
+.gl-row {
+  border-radius: 0.875rem;
+  transition: background-color 0.15s ease;
 }
-.agro-shell .agro-tab[data-active="true"]::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 2px;
-  background-color: var(--agro-olive);
+.gl-row:hover {
+  background-color: var(--gl-bg);
 }
 
-/* ─── Utilidades globales ──────────────────────────────────────────────── */
-.editorial-eyebrow {
-  font-size: 10px;
+/* ─ Status badges */
+.gl-badge-green  { background: var(--gl-green-bg);  color: var(--gl-green);  }
+.gl-badge-amber  { background: var(--gl-amber-bg);  color: var(--gl-amber);  }
+.gl-badge-red    { background: var(--gl-red-bg);    color: var(--gl-red);    }
+.gl-badge-gray   { background: var(--gl-gray-bg);   color: var(--gl-gray);   }
+.gl-badge-olive  { background: var(--gl-olive-bg);  color: var(--gl-olive);  }
+
+/* ─ Divider */
+.gl-divider { height: 1px; background-color: var(--gl-border); }
+
+/* ─ Eyebrow */
+.gl-eyebrow {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
-  color: var(--agro-ink-soft);
+  color: var(--gl-ink-3);
 }
 
-.agro-shell ::selection {
-  background-color: var(--agro-olive);
-  color: var(--agro-paper);
+/* ─ Selection */
+.gl-shell ::selection {
+  background-color: var(--gl-olive);
+  color: white;
 }

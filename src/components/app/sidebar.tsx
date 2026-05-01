@@ -2,73 +2,94 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
+import { Home, Users, Search, FileText } from "lucide-react";
 
 const items = [
-  { label: "Inicio", href: "/", section: "01" },
-  { label: "Candidatos", href: "/candidatos", section: "02" },
-  { label: "Búsquedas", href: "/busquedas", section: "03" },
-  { label: "Procesar CV", href: "/procesar", section: "04" },
+  { label: "Inicio",      href: "/",           icon: Home },
+  { label: "Candidatos",  href: "/candidatos",  icon: Users },
+  { label: "Búsquedas",   href: "/busquedas",   icon: Search },
+  { label: "Procesar CV", href: "/procesar",    icon: FileText },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden lg:flex w-72 shrink-0 flex-col border-r agro-rule px-7 py-10 bg-[rgba(255,253,247,0.5)]">
-      <div>
-        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
-          Gestiones Laborales
-        </div>
-        <div className="font-display text-2xl mt-2 leading-[1.05]">
-          Panel<br />interno
+    <aside
+      className="hidden lg:flex w-60 shrink-0 flex-col py-6 px-4"
+      style={{
+        background: "var(--gl-surface)",
+        borderRight: "1px solid var(--gl-border)",
+      }}
+    >
+      {/* Brand */}
+      <div className="px-3 mb-8">
+        <div className="flex items-center gap-2.5">
+          <div
+            className="h-8 w-8 rounded-xl grid place-items-center font-bold text-sm text-white shadow-sm"
+            style={{ background: "var(--gl-olive)" }}
+          >
+            GL
+          </div>
+          <div>
+            <div className="text-sm font-bold leading-tight" style={{ color: "var(--gl-ink)" }}>
+              Gestiones
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+              Panel interno
+            </div>
+          </div>
         </div>
       </div>
 
-      <nav className="mt-10 space-y-px">
+      {/* Nav */}
+      <nav className="flex-1 space-y-0.5 px-1">
         {items.map((item) => {
           const isActive =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+          const Icon = item.icon;
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={cn(
-                "group flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule text-sm transition-colors",
-                isActive
-                  ? "text-[var(--agro-ink)]"
-                  : "text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)]",
-              )}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150"
+              style={{
+                backgroundColor: isActive ? "var(--gl-olive-bg)" : "transparent",
+                color: isActive ? "var(--gl-olive)" : "var(--gl-ink-2)",
+                fontWeight: isActive ? 600 : 500,
+              }}
             >
-              <span className="flex items-baseline gap-3">
-                <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)]">
-                  {item.section}
-                </span>
-                <span className={cn("font-display text-base", isActive && "italic")}>
-                  {item.label}
-                </span>
-              </span>
-              {isActive && (
-                <span className="text-[var(--agro-olive)] text-xs">●</span>
-              )}
+              <Icon
+                className="h-4 w-4 shrink-0"
+                style={{ color: isActive ? "var(--gl-olive)" : "var(--gl-ink-3)" }}
+              />
+              {item.label}
             </Link>
           );
         })}
       </nav>
 
-      <div className="mt-auto space-y-4">
-        <div className="agro-divider" />
-        <div className="flex items-center gap-3">
-          <div className="h-9 w-9 rounded-full grid place-items-center bg-[var(--agro-olive)] text-[#f5f1e8] font-display text-sm">
+      {/* Footer: user */}
+      <div className="px-1 mt-4">
+        <div
+          className="h-px mb-4"
+          style={{ background: "var(--gl-border)" }}
+        />
+        <div className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-default">
+          <div
+            className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold shrink-0 text-white"
+            style={{ background: "var(--gl-olive)" }}
+          >
             O
           </div>
           <div>
-            <div className="text-sm font-medium leading-tight">Oriana</div>
-            <div className="text-[11px] text-[var(--agro-ink-soft)]">Reclutadora</div>
+            <div className="text-[13px] font-semibold leading-tight" style={{ color: "var(--gl-ink)" }}>
+              Oriana
+            </div>
+            <div className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+              Reclutadora
+            </div>
           </div>
-        </div>
-        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
-          Orka Studio
         </div>
       </div>
     </aside>
