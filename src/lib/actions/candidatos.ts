@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
-import { createClient } from "@/lib/supabase/server"
 
 export async function updateCVProcesado(candidatoId: string, texto: string) {
   const supabase = createServiceClient();
@@ -57,7 +56,7 @@ function buildPayload(data: CandidatoData) {
 }
 
 export async function createCandidato(data: CandidatoData): Promise<ActionResult> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data: created, error } = await supabase
     .from("candidatos")
     .insert(buildPayload(data))
@@ -72,7 +71,7 @@ export async function createCandidato(data: CandidatoData): Promise<ActionResult
 }
 
 export async function updateCandidato(id: string, data: CandidatoData): Promise<ActionResult> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { error } = await supabase
     .from("candidatos")
     .update(buildPayload(data))

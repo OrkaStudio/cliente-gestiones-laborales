@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service"
 
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
 
@@ -35,7 +35,7 @@ function buildPayload(data: BusquedaData) {
 }
 
 export async function createBusqueda(data: BusquedaData): Promise<ActionResult> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { data: created, error } = await supabase
     .from("busquedas")
     .insert(buildPayload(data))
@@ -50,7 +50,7 @@ export async function createBusqueda(data: BusquedaData): Promise<ActionResult> 
 }
 
 export async function updateBusqueda(id: string, data: BusquedaData): Promise<ActionResult> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { error } = await supabase
     .from("busquedas")
     .update(buildPayload(data))

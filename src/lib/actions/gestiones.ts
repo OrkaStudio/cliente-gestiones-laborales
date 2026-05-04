@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createClient } from "@/lib/supabase/server"
+import { createServiceClient } from "@/lib/supabase/service"
 
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
 
@@ -9,7 +9,7 @@ export async function createGestion(data: {
   candidato_id: string
   busqueda_id: string
 }): Promise<ActionResult> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: existing } = await supabase
     .from("gestiones")
