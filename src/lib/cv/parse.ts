@@ -2,6 +2,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import mammoth from "mammoth";
 import { z } from "zod";
+import type { ParTraining } from "./rag";
 
 const ExperienciaSchema = z.object({
   empresa: z.string().describe("Nombre del establecimiento o empresa"),
@@ -63,6 +64,19 @@ const CVParseadoSchema = z.object({
     .array(z.string())
     .describe("Idiomas que habla además de español"),
   experiencia: z.array(ExperienciaSchema),
+  cv_procesado_texto: z
+    .string()
+    .describe(
+      `CV reformateado completo en el estilo de Gestiones Laborales.
+Secciones obligatorias: DATOS PERSONALES, PERFIL LABORAL, EXPERIENCIA LABORAL, FORMACIÓN, CONOCIMIENTOS/HABILIDADES, REFERENCIAS.
+Escribirlo en español formal. Usar los ejemplos provistos como guía de formato y estilo si los hay.
+Completar con la información disponible. Los campos desconocidos omitirlos de la sección correspondiente.`,
+    ),
+  preguntas_sugeridas: z
+    .array(z.string())
+    .describe(
+      "3 a 5 preguntas de entrevista específicas para este candidato, basadas en su experiencia y gaps detectados en el CV",
+    ),
   campos_faltantes: z
     .array(z.string())
     .describe(
@@ -72,13 +86,50 @@ const CVParseadoSchema = z.object({
 
 export type CVParseado = z.infer<typeof CVParseadoSchema>;
 
-const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const MIME_DOCX =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 const MIME_DOC = "application/msword";
+
+function buildSystemPrompt(pares: ParTraining[]): string {
+  const base = `Sos un extractor de datos de CVs para Gestiones Laborales, una consultora de RRHH del sector agropecuario argentino.
+Tu tarea es extraer información estructurada de CVs de trabajadores rurales: peones, capataces, puesteros, tractoristas y operarios de maquinaria.
+
+Prestá especial atención a los campos del sector agro:
+- tipos_ganaderia: solo los que el candidato mencione explícita o implícitamente (crianza de vacas → bovina, tambo → tambo, etc.)
+- hectareas_max: la mayor cantidad de hectáreas que haya manejado en cualquier trabajo
+- personal_a_cargo_max: el mayor número de personas a cargo en cualquier trabajo
+- movilidad: true si menciona que acepta mudarse, vivir en campo, o trabajar en zona rural
+
+Para campos que no podés determinar del CV, poné null.
+Listá todos los campos que no encontraste en campos_faltantes.
+Para tipos_ganaderia e idiomas, usá array vacío [] si no se menciona nada.`;
+
+  if (pares.length === 0) return base;
+
+  const ejemplos = pares
+    .map(
+      (p, i) => `--- EJEMPLO ${i + 1}: ${p.candidato_nombre} ---
+CV ORIGINAL:
+${p.cv_crudo_texto}
+
+CV PROCESADO POR GESTIONES LABORALES:
+${p.cv_procesado_texto}
+--- FIN EJEMPLO ${i + 1} ---`,
+    )
+    .join("\n\n");
+
+  return `${base}
+
+EJEMPLOS DE CVs PROCESADOS POR GESTIONES LABORALES (usarlos como referencia de formato y estilo):
+
+${ejemplos}`;
+}
 
 export async function parsearCV(
   buffer: Buffer,
   mimeType: string,
   nombreArchivo: string,
+  pares: ParTraining[] = [],
 ): Promise<CVParseado> {
   type Parte =
     | { type: "text"; text: string }
@@ -89,16 +140,19 @@ export async function parsearCV(
   if (mimeType === MIME_DOCX) {
     const { value: texto } = await mammoth.extractRawText({ buffer });
     partes = [
-      { type: "text", text: `Archivo: ${nombreArchivo}\n\nContenido:\n${texto}` },
+      {
+        type: "text",
+        text: `Archivo: ${nombreArchivo}\n\nContenido:\n${texto}`,
+      },
     ];
   } else if (mimeType === MIME_DOC) {
-    // .doc (Word binario antiguo) — mammoth no lo soporta.
-    // Intentamos extracción de texto con mammoth de todas formas (a veces funciona
-    // para .doc que son en realidad DOCX con extensión incorrecta).
     try {
       const { value: texto } = await mammoth.extractRawText({ buffer });
       partes = [
-        { type: "text", text: `Archivo: ${nombreArchivo}\n\nContenido:\n${texto}` },
+        {
+          type: "text",
+          text: `Archivo: ${nombreArchivo}\n\nContenido:\n${texto}`,
+        },
       ];
     } catch {
       throw new Error(
@@ -112,18 +166,7 @@ export async function parsearCV(
   const { object } = await generateObject({
     model: anthropic("claude-sonnet-4-6"),
     schema: CVParseadoSchema,
-    system: `Sos un extractor de datos de CVs para Gestiones Laborales, una consultora de RRHH del sector agropecuario argentino.
-Tu tarea es extraer información estructurada de CVs de trabajadores rurales: peones, capataces, puesteros, tractoristas y operarios de maquinaria.
-
-Prestá especial atención a los campos del sector agro:
-- tipos_ganaderia: solo los que el candidato mencione explícita o implícitamente (crianza de vacas → bovina, tambo → tambo, etc.)
-- hectareas_max: la mayor cantidad de hectáreas que haya manejado en cualquier trabajo
-- personal_a_cargo_max: el mayor número de personas a cargo en cualquier trabajo
-- movilidad: true si menciona que acepta mudarse, vivir en campo, o trabajar en zona rural
-
-Para campos que no podés determinar del CV, poné null.
-Listá todos los campos que no encontraste en campos_faltantes.
-Para tipos_ganaderia e idiomas, usá array vacío [] si no se menciona nada.`,
+    system: buildSystemPrompt(pares),
     messages: [
       {
         role: "user",

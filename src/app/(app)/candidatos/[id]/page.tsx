@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { CVProcesadoEditor } from "@/components/app/cv-procesado-editor";
+import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
 
 const STAGES = [
   { key: "preseleccionado",    label: "Preseleccionado" },
@@ -157,6 +159,24 @@ export default async function CandidatoDetailPage({
       <div className="grid gap-16 lg:grid-cols-3 mt-12">
         {/* Left — trayectoria + notas */}
         <div className="lg:col-span-2 space-y-12">
+          {/* CV Original */}
+          {(candidato as { cv_crudo_url?: string | null }).cv_crudo_url ? (
+            <section>
+              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+                CV Original
+              </div>
+              <a
+                href={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/cv-crudos/${(candidato as { cv_crudo_url: string }).cv_crudo_url}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-sm border agro-rule px-4 py-2
+                           text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Ver CV original
+              </a>
+            </section>
+          ) : null}
           {experiencia && experiencia.length > 0 ? (
             <section>
               <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
@@ -324,6 +344,27 @@ export default async function CandidatoDetailPage({
           ) : null}
         </div>
       </div>
+
+      {/* CV Procesado GL — editable */}
+      <section className="mt-16 pt-12 border-t agro-rule">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
+          CV Procesado GL
+        </div>
+        <CVProcesadoEditor
+          candidatoId={candidato.id}
+          initialTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
+        />
+      </section>
+
+      {/* Preguntas sugeridas */}
+      <section className="mt-12 pt-12 border-t agro-rule">
+        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
+          Preguntas sugeridas para la entrevista
+        </div>
+        <PreguntasSugeridas
+          preguntas={(candidato as { preguntas_sugeridas?: string[] }).preguntas_sugeridas ?? []}
+        />
+      </section>
     </div>
   );
 }

@@ -77,6 +77,7 @@ export type Database = {
           created_at: string
           cv_crudo_url: string | null
           cv_editado_url: string | null
+          cv_procesado_texto: string | null
           disponibilidad: string | null
           educacion: string | null
           email: string | null
@@ -91,6 +92,7 @@ export type Database = {
           nombre: string
           notas_recruiter: string | null
           personal_a_cargo_max: number | null
+          preguntas_sugeridas: string[]
           pretension_salarial: string | null
           telefono: string | null
           tipos_ganaderia: string[]
@@ -103,6 +105,7 @@ export type Database = {
           created_at?: string
           cv_crudo_url?: string | null
           cv_editado_url?: string | null
+          cv_procesado_texto?: string | null
           disponibilidad?: string | null
           educacion?: string | null
           email?: string | null
@@ -117,6 +120,7 @@ export type Database = {
           nombre: string
           notas_recruiter?: string | null
           personal_a_cargo_max?: number | null
+          preguntas_sugeridas?: string[]
           pretension_salarial?: string | null
           telefono?: string | null
           tipos_ganaderia?: string[]
@@ -129,6 +133,7 @@ export type Database = {
           created_at?: string
           cv_crudo_url?: string | null
           cv_editado_url?: string | null
+          cv_procesado_texto?: string | null
           disponibilidad?: string | null
           educacion?: string | null
           email?: string | null
@@ -143,12 +148,40 @@ export type Database = {
           nombre?: string
           notas_recruiter?: string | null
           personal_a_cargo_max?: number | null
+          preguntas_sugeridas?: string[]
           pretension_salarial?: string | null
           telefono?: string | null
           tipos_ganaderia?: string[]
           ubicacion?: string | null
           ultimo_puesto?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cv_pares_training: {
+        Row: {
+          id: string
+          candidato_nombre: string
+          cv_crudo_texto: string
+          cv_procesado_texto: string
+          embedding: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          candidato_nombre: string
+          cv_crudo_texto: string
+          cv_procesado_texto: string
+          embedding?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          candidato_nombre?: string
+          cv_crudo_texto?: string
+          cv_procesado_texto?: string
+          embedding?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -284,7 +317,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      match_cv_pares_training: {
+        Args: {
+          query_embedding: string
+          match_count?: number
+        }
+        Returns: {
+          id: string
+          candidato_nombre: string
+          cv_crudo_texto: string
+          cv_procesado_texto: string
+          similarity: number
+        }[]
+      }
     }
     Enums: {
       estado_busqueda: "activa" | "pausada" | "cerrada"

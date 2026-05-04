@@ -1,6 +1,7 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
+import { buscarParesSimiliares, embedTexto } from "@/lib/cv/rag";
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 
@@ -100,10 +101,28 @@ export async function POST(req: NextRequest) {
     ? mimeMap[ext]
     : body.archivo_mime;
 
+  // 6b. Extraer texto para RAG (solo en formatos de texto — imágenes/PDF se manejan por visión)
+  let pares: Awaited<ReturnType<typeof buscarParesSimiliares>> = [];
+  try {
+    const mammoth = await import("mammoth");
+    const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    let textoParaRag = "";
+    if (mimeEfectivo === MIME_DOCX) {
+      const { value } = await mammoth.default.extractRawText({ buffer });
+      textoParaRag = value;
+    }
+    if (textoParaRag) {
+      pares = await buscarParesSimiliares(textoParaRag);
+      console.log("[webhook/cv] rag_pares encontrados:", pares.length);
+    }
+  } catch (err) {
+    console.warn("[webhook/cv] rag_skip:", err instanceof Error ? err.message : String(err));
+  }
+
   console.log("[webhook/cv] pre_parse mimeEfectivo:", mimeEfectivo, "bufferLen:", buffer.length);
   let candidatoParseado;
   try {
-    candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
+    candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre, pares);
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     const errName = err instanceof Error ? err.constructor.name : typeof err;
@@ -127,7 +146,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 8. Marcar email como procesado (solo en éxito, para permitir reintentos en error)
+  // 8. Guardar cv_procesado_texto, preguntas_sugeridas y embedding
+  try {
+    await supabase
+      .from("candidatos")
+      .update({
+        cv_procesado_texto: candidatoParseado.cv_procesado_texto,
+        preguntas_sugeridas: candidatoParseado.preguntas_sugeridas,
+      })
+      .eq("id", candidatoId);
+
+    // Generar embedding del CV crudo para matching futuro (solo DOCX — PDFs/imágenes skip)
+    const mammoth = await import("mammoth");
+    const MIME_DOCX = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    if (mimeEfectivo === MIME_DOCX) {
+      const { value: textoEmbed } = await mammoth.default.extractRawText({ buffer });
+      if (textoEmbed) {
+        const embedding = await embedTexto(textoEmbed);
+        await supabase
+          .from("candidatos")
+          .update({ embedding: embedding as unknown as string })
+          .eq("id", candidatoId);
+      }
+    }
+  } catch (err) {
+    console.warn("[webhook/cv] post_update_skip:", err instanceof Error ? err.message : String(err));
+  }
+
+  // 9. Marcar email como procesado (solo en éxito, para permitir reintentos en error)
   await supabase.from("emails_procesados").insert({
     email_id: body.email_id,
     candidato_id: candidatoId,
