@@ -1,7 +1,7 @@
 "use server"
 
 import Link from "next/link";
-import { ArrowRight, AlertCircle, Sparkles, TrendingUp, UserCheck } from "lucide-react";
+import { ArrowRight, AlertCircle, Sparkles, TrendingUp, UserCheck, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 
 const AVATAR_HEX = [
@@ -12,18 +12,21 @@ const AVATAR_HEX = [
   { bg: "#eddeff", color: "#6e40c9" },
 ];
 
-const STAGES = [
-  { key: "preseleccionado",    short: "Presel." },
-  { key: "entrevista_orka",    short: "Orka" },
-  { key: "presentado_cliente", short: "Pres." },
-  { key: "entrevista_cliente", short: "2ª Ent." },
-  { key: "ofertado",           short: "Ofertado" },
-  { key: "contratado",         short: "Contrat." },
-];
+const STAGE_LABEL: Record<string, string> = {
+  preseleccionado:    "Preseleccionado",
+  entrevista_orka:    "Entrevista Orka",
+  presentado_cliente: "Presentado",
+  entrevista_cliente: "2ª Entrevista",
+  ofertado:           "Ofertado",
+  contratado:         "Contratado",
+};
+
+function diasDesde(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
 
 export default async function Home() {
   const supabase = await createClient();
-  const sevenDaysAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
   const [
     { count: candidatosActivos },
@@ -31,19 +34,22 @@ export default async function Home() {
     { count: gestionesEnCurso },
     { data: busquedasRaw },
     { data: candidatosRaw },
-    { count: sinMovimientoCount },
+    { data: gestionesAtencion },
   ] = await Promise.all([
     supabase.from("candidatos").select("*", { count: "exact", head: true }).eq("estado", "activo"),
     supabase.from("busquedas").select("*", { count: "exact", head: true }).eq("estado", "activa"),
     supabase.from("gestiones").select("*", { count: "exact", head: true }).neq("estado", "contratado").neq("estado", "descartado"),
     supabase.from("busquedas").select("id, puesto, cliente, gestiones(estado)").eq("estado", "activa"),
     supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, gestiones(estado)").eq("estado", "activo").order("fecha_ingreso", { ascending: false }),
-    supabase.from("gestiones").select("*", { count: "exact", head: true }).not("estado", "in", "(contratado,descartado)").lt("updated_at", sevenDaysAgo),
+    supabase.from("gestiones")
+      .select("id, estado, updated_at, candidatos(id, nombre, apellido), busquedas(id, puesto)")
+      .not("estado", "in", "(contratado,descartado)")
+      .order("updated_at", { ascending: true })
+      .limit(8),
   ]);
 
   type GEst = { estado: string };
 
-  // Candidatos sin gestión activa (disponibles para asignar)
   const sinAsignar = (candidatosRaw ?? []).filter((c) => {
     const activas = ((c.gestiones as GEst[]) ?? []).filter(
       (g) => g.estado !== "contratado" && g.estado !== "descartado"
@@ -51,28 +57,16 @@ export default async function Home() {
     return activas.length === 0;
   });
 
-  // Pipeline: distribución por etapa para cada búsqueda activa
-  const pipeline = (busquedasRaw ?? []).map((b) => {
-    const gest = (b.gestiones as GEst[]) ?? [];
-    return {
-      id: b.id,
-      puesto: b.puesto,
-      cliente: b.cliente,
-      stages: STAGES.map((s) => ({
-        short: s.short,
-        count: gest.filter((g) => g.estado === s.key).length,
-      })),
-      total: gest.filter((g) => g.estado !== "descartado").length,
-    };
-  });
+  // Cuántas gestiones llevan +7 días sin movimiento (para el alert chip)
+  const sinMovimiento7d = (gestionesAtencion ?? []).filter(
+    (g) => diasDesde(g.updated_at) >= 7
+  ).length;
 
   const today = new Date().toLocaleDateString("es-AR", {
     weekday: "long",
     day: "numeric",
     month: "long",
   });
-
-  const alertas = sinMovimientoCount ?? 0;
 
   return (
     <div className="px-10 py-10">
@@ -90,14 +84,14 @@ export default async function Home() {
           </h1>
         </div>
 
-        {alertas > 0 && (
+        {sinMovimiento7d > 0 && (
           <div className="flex-1 flex items-center justify-center pt-2">
             <div
               className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium"
               style={{ background: "#fff8c5", color: "#7d4e00", border: "1px solid #e6c84a" }}
             >
               <AlertCircle className="h-4 w-4 shrink-0 opacity-70" />
-              {alertas} gestión{alertas !== 1 ? "es" : ""} sin movimiento hace +7 días
+              {sinMovimiento7d} gestión{sinMovimiento7d !== 1 ? "es" : ""} sin movimiento hace +7 días
             </div>
           </div>
         )}
@@ -197,7 +191,7 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* Disponibles — candidatos sin búsqueda activa */}
+        {/* Disponibles */}
         <div
           className="rounded-2xl border p-6"
           style={{ background: "#ffffff", borderColor: "var(--gl-border)", boxShadow: "0 2px 8px rgba(13,17,23,0.05)" }}
@@ -255,96 +249,88 @@ export default async function Home() {
         </div>
       </div>
 
-      {/* ── Pipeline snapshot ─────────────────────────────────────── */}
+      {/* ── Requieren atención ────────────────────────────────────── */}
       <div
         className="rounded-2xl border p-6"
         style={{ background: "#ffffff", borderColor: "var(--gl-border)", boxShadow: "0 2px 8px rgba(13,17,23,0.05)" }}
       >
-        <div className="mb-5">
-          <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>Pipeline de búsquedas</h2>
-          <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-            Candidatos por etapa en cada posición activa
-          </p>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
+              Requieren atención
+            </h2>
+            <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+              Gestiones activas ordenadas por días sin movimiento
+            </p>
+          </div>
+          {sinMovimiento7d > 0 && (
+            <span
+              className="text-xs font-semibold px-2.5 py-1 rounded-full"
+              style={{ background: "#fff8c5", color: "#7d4e00" }}
+            >
+              {sinMovimiento7d} urgente{sinMovimiento7d !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
 
-        {pipeline.length === 0 ? (
-          <p className="text-sm text-center py-8" style={{ color: "var(--gl-ink-3)" }}>
-            Sin búsquedas activas
-          </p>
+        {(gestionesAtencion ?? []).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <Clock className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive-light)", opacity: 0.35 }} />
+            <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>Todo al día</p>
+            <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>No hay gestiones activas pendientes</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--gl-border)" }}>
-                  <th
-                    className="text-left pb-3 pr-8 text-[11px] font-semibold uppercase tracking-wide"
-                    style={{ color: "var(--gl-ink-3)" }}
+          <div className="space-y-0.5">
+            {gestionesAtencion?.map((g) => {
+              const cand = g.candidatos as { id: string; nombre: string; apellido: string } | null;
+              const busq = g.busquedas as { id: string; puesto: string } | null;
+              const dias = diasDesde(g.updated_at);
+              const urgente = dias >= 7;
+              const pal = AVATAR_HEX[(cand?.nombre.charCodeAt(0) ?? 0) % AVATAR_HEX.length];
+
+              return (
+                <Link
+                  key={g.id}
+                  href={cand ? `/candidatos/${cand.id}` : `/busquedas/${busq?.id}`}
+                  className="gl-row flex items-center gap-4 px-3 py-3"
+                >
+                  {/* Avatar */}
+                  <div
+                    className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
+                    style={{ background: pal.bg, color: pal.color }}
                   >
-                    Posición
-                  </th>
-                  {STAGES.map((s) => (
-                    <th
-                      key={s.key}
-                      className="text-center pb-3 px-3 text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap"
-                      style={{ color: "var(--gl-ink-3)" }}
-                    >
-                      {s.short}
-                    </th>
-                  ))}
-                  <th
-                    className="text-center pb-3 pl-5 text-[11px] font-semibold uppercase tracking-wide"
-                    style={{ color: "var(--gl-ink-3)", borderLeft: "1px solid var(--gl-border)" }}
+                    {cand ? `${cand.nombre[0]}${cand.apellido[0]}` : "?"}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>
+                      {cand ? `${cand.nombre} ${cand.apellido}` : "—"}
+                    </div>
+                    <div className="text-xs mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
+                      {busq?.puesto ?? "—"}
+                    </div>
+                  </div>
+
+                  {/* Stage badge */}
+                  <span
+                    className="shrink-0 text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-md"
+                    style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
                   >
-                    Total
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {pipeline.map((row, i) => (
-                  <tr
-                    key={row.id}
-                    style={{
-                      borderBottom: i < pipeline.length - 1 ? "1px solid var(--gl-border)" : "none",
-                    }}
+                    {STAGE_LABEL[g.estado] ?? g.estado}
+                  </span>
+
+                  {/* Días */}
+                  <div
+                    className="shrink-0 flex items-center gap-1 text-xs font-semibold tabular-nums w-20 justify-end"
+                    style={{ color: urgente ? "#7d4e00" : "var(--gl-ink-3)" }}
                   >
-                    <td className="py-3 pr-8">
-                      <Link
-                        href={`/busquedas/${row.id}`}
-                        className="font-semibold hover:underline"
-                        style={{ color: "var(--gl-ink)" }}
-                      >
-                        {row.puesto}
-                      </Link>
-                      <div className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                        {row.cliente}
-                      </div>
-                    </td>
-                    {row.stages.map((s, si) => (
-                      <td key={si} className="text-center px-3 py-3">
-                        {s.count > 0 ? (
-                          <span
-                            className="inline-flex items-center justify-center h-6 min-w-[1.5rem] px-1.5 rounded-full text-xs font-bold"
-                            style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
-                          >
-                            {s.count}
-                          </span>
-                        ) : (
-                          <span style={{ color: "var(--gl-border)" }}>—</span>
-                        )}
-                      </td>
-                    ))}
-                    <td
-                      className="text-center pl-5 py-3"
-                      style={{ borderLeft: "1px solid var(--gl-border)" }}
-                    >
-                      <span className="text-sm font-bold" style={{ color: "var(--gl-ink)" }}>
-                        {row.total}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    {urgente && <AlertCircle className="h-3 w-3 shrink-0" />}
+                    hace {dias}d
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>
