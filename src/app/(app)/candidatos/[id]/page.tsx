@@ -147,13 +147,21 @@ export default async function CandidatoDetailPage({
         </div>
       </header>
 
-      {/* Quick stats */}
-      <section className="grid grid-cols-4 border-b agro-rule">
-        <QuickStat label="Años exp."       value={yearsExp > 0 ? `${yearsExp}` : "—"} />
-        <QuickStat label="Empleadores"     value={`${experiencia?.length ?? 0}`} />
-        <QuickStat label="En base desde"   value={inBaseSince} />
+      {/* Quick stats — open, sin celdas rígidas */}
+      <section
+        style={{
+          display: "flex",
+          gap: "clamp(2rem, 5vw, 4rem)",
+          borderBottom: "1px solid var(--agro-rule)",
+          flexWrap: "wrap",
+          paddingBottom: "0.25rem",
+        }}
+      >
+        <QuickStat label="Años exp."     value={yearsExp > 0 ? `${yearsExp}` : "—"} />
+        <QuickStat label="Empleadores"   value={`${experiencia?.length ?? 0}`} />
+        <QuickStat label="En base desde" value={inBaseSince} />
         <QuickStat
-          label="Gestiones act."
+          label="Gestiones activas"
           value={`${gestionesActivas}`}
           accent={gestionesActivas > 0}
         />
@@ -383,16 +391,28 @@ function QuickStat({
   accent?: boolean;
 }) {
   return (
-    <div className="border-r agro-rule last:border-r-0 px-5 py-5 first:pl-0">
-      <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
-        {label}
-      </div>
+    <div style={{ paddingTop: "1.5rem", paddingBottom: "1.5rem" }}>
       <div
-        className={`font-display text-3xl tabular-nums mt-1.5 leading-none ${
-          accent ? "text-[var(--agro-olive)]" : ""
-        }`}
+        className="font-display tabular-nums leading-none"
+        style={{
+          fontSize: "clamp(2rem, 3.5vw, 2.5rem)",
+          letterSpacing: "-0.03em",
+          color: accent ? "var(--agro-olive)" : "var(--agro-ink)",
+        }}
       >
         {value}
+      </div>
+      <div
+        style={{
+          fontSize: "10px",
+          fontWeight: 600,
+          letterSpacing: "0.18em",
+          textTransform: "uppercase",
+          color: "var(--agro-ink-soft)",
+          marginTop: "0.375rem",
+        }}
+      >
+        {label}
       </div>
     </div>
   );
