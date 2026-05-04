@@ -4,6 +4,8 @@ import { ArrowLeft, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CVProcesadoEditor } from "@/components/app/cv-procesado-editor";
 import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
+import { CandidatoSheet } from "@/components/app/candidato-sheet";
+import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
 
 const STAGES = [
   { key: "preseleccionado",    label: "Preseleccionado" },
@@ -43,11 +45,12 @@ export default async function CandidatoDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: candidato }, { data: experiencia }, { data: gestionesData }] =
+  const [{ data: candidato }, { data: experiencia }, { data: gestionesData }, { data: busquedasActivas }] =
     await Promise.all([
       supabase.from("candidatos").select("*").eq("id", id).single(),
       supabase.from("experiencia_laboral").select("*").eq("candidato_id", id).order("orden"),
       supabase.from("gestiones").select("*, busquedas(id, puesto, cliente)").eq("candidato_id", id),
+      supabase.from("busquedas").select("id, puesto, cliente, ubicacion, fecha_apertura, estado").eq("estado", "activa").order("fecha_apertura", { ascending: false }),
     ]);
 
   if (!candidato) notFound();
@@ -117,12 +120,13 @@ export default async function CandidatoDetailPage({
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
-            <button className="px-4 py-2 text-sm border agro-rule text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors">
-              Editar
-            </button>
-            <button className="px-4 py-2 text-sm bg-[var(--agro-ink)] text-[#f5f1e8] hover:bg-[var(--agro-olive)] transition-colors">
-              Asignar a búsqueda
-            </button>
+            <CandidatoSheet candidato={candidato} />
+            <AsignarBusquedaDialog
+              candidatoId={candidato.id}
+              candidatoNombre={`${candidato.nombre} ${candidato.apellido}`}
+              busquedas={busquedasActivas ?? []}
+              gestionesExistentes={(gestionesData ?? []).map((g) => (g.busquedas as { id: string } | null)?.id ?? "").filter(Boolean)}
+            />
           </div>
         </div>
 

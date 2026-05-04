@@ -83,6 +83,7 @@
 /* ══════════════════════════════════════════════════════════════
    GL SHELL v3 — Monai-inspired: clean, bold, minimal, delightful
    ══════════════════════════════════════════════════════════════ */
+.agro-shell,
 .gl-shell {
   /* ─ Palette */
   --gl-bg:          #f9fafb;      /* near-white, very subtle gray */
@@ -192,7 +193,24 @@
 }
 
 /* ─ Selection */
+.agro-shell ::selection,
 .gl-shell ::selection {
   background-color: var(--gl-olive);
   color: white;
+}
+
+/* ─ Agro editorial tokens (usados en detail pages) */
+.agro-shell,
+.gl-shell {
+  --agro-paper:      #f5f1e8;
+  --agro-ink:        var(--gl-ink);
+  --agro-ink-soft:   #7a6b55;
+  --agro-rule:       #ddd5c4;
+  --agro-olive:      var(--gl-olive);
+  --agro-olive-soft: var(--gl-olive-mid);
+}
+
+/* ─ Keyframe for spinner (used in components) */
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }

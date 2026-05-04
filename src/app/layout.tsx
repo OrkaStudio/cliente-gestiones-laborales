@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Fraunces, Outfit } from "next/font/google";
+import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
 const fraunces = Fraunces({
@@ -30,7 +31,10 @@ export default function RootLayout({
       lang="es"
       className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} ${outfit.variable} h-full antialiased`}
     >
-      <body className="agro-shell min-h-full">{children}</body>
+      <body className="agro-shell min-h-full">
+        {children}
+        <Toaster position="bottom-right" richColors />
+      </body>
     </html>
   );
 }

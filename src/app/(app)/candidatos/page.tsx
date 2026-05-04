@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Search, MapPin, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { CandidatoSheet } from "@/components/app/candidato-sheet";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -42,12 +43,15 @@ export default async function CandidatosPage() {
           >
             {total} personas
           </h1>
-          <span
-            className="text-xs font-semibold px-3 py-1.5 rounded-full"
-            style={{ background: "#dafbe1", color: "#1a7f37" }}
-          >
-            {activos} activos
-          </span>
+          <div className="flex items-center gap-3">
+            <span
+              className="text-xs font-semibold px-3 py-1.5 rounded-full"
+              style={{ background: "#dafbe1", color: "#1a7f37" }}
+            >
+              {activos} activos
+            </span>
+            <CandidatoSheet />
+          </div>
         </div>
       </header>
 

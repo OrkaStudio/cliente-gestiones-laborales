@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { BusquedaSheet } from "@/components/app/busqueda-sheet";
+import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 
 const STAGES = [
   { key: "preseleccionado",    label: "Preseleccionado" },
@@ -25,12 +27,17 @@ export default async function BusquedaDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: busqueda }, { data: gestionesData }] = await Promise.all([
+  const [{ data: busqueda }, { data: gestionesData }, { data: candidatosActivos }] = await Promise.all([
     supabase.from("busquedas").select("*").eq("id", id).single(),
     supabase
       .from("gestiones")
       .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
       .eq("busqueda_id", id),
+    supabase
+      .from("candidatos")
+      .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado")
+      .eq("estado", "activo")
+      .order("apellido"),
   ]);
 
   if (!busqueda) notFound();
@@ -78,12 +85,13 @@ export default async function BusquedaDetailPage({
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <button className="px-4 py-2 text-sm border agro-rule text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors">
-              Editar
-            </button>
-            <button className="px-4 py-2 text-sm bg-[var(--agro-ink)] text-[#f5f1e8] hover:bg-[var(--agro-olive)] transition-colors">
-              Sumar candidato
-            </button>
+            <BusquedaSheet busqueda={busqueda} />
+            <SumarCandidatoDialog
+              busquedaId={busqueda.id}
+              busquedaPuesto={busqueda.puesto}
+              candidatos={candidatosActivos ?? []}
+              gestionesExistentes={(gestionesData ?? []).map((g) => (g.candidatos as { id: string } | null)?.id ?? "").filter(Boolean)}
+            />
           </div>
         </div>
       </header>

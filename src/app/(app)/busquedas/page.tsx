@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MapPin, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { BusquedaSheet } from "@/components/app/busqueda-sheet";
 
 function calcDaysOpen(fecha: string) {
   if (!fecha) return 0;
@@ -45,12 +46,15 @@ export default async function BusquedasPage() {
           >
             {total} búsquedas
           </h1>
-          <span
-            className="text-xs font-semibold px-3 py-1.5 rounded-full"
-            style={{ background: "#dafbe1", color: "#1a7f37" }}
-          >
-            {activas} activas
-          </span>
+          <div className="flex items-center gap-3">
+            <span
+              className="text-xs font-semibold px-3 py-1.5 rounded-full"
+              style={{ background: "#dafbe1", color: "#1a7f37" }}
+            >
+              {activas} activas
+            </span>
+            <BusquedaSheet />
+          </div>
         </div>
       </header>
 
