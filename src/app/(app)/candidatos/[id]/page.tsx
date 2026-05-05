@@ -1,11 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Mail, Phone, BookOpen, Clock, MapPin } from "lucide-react";
+import { ArrowLeft, Mail, Phone, BookOpen, MapPin, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CVProcesadoEditor } from "@/components/app/cv-procesado-editor";
 import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
+
+const AVATAR_HEX = [
+  { bg: "#dafbe1", color: "#1a7f37" },
+  { bg: "#ddf4ff", color: "#0550ae" },
+  { bg: "#ffd8eb", color: "#99286e" },
+  { bg: "#fff8c5", color: "#7d4e00" },
+  { bg: "#eddeff", color: "#6e40c9" },
+];
 
 const STAGES = [
   { key: "preseleccionado",    label: "Preseleccionado" },
@@ -20,26 +28,27 @@ function diasDesde(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
-function calcYearsExp(exp: Array<{ desde: string; hasta: string | null }>) {
-  if (!exp?.length) return 0;
+function calcYearsExp(exp: Array<{ desde: string }>) {
+  if (!exp?.length) return null;
   const years = exp.map((e) => parseInt(e.desde?.substring(0, 4)) || new Date().getFullYear());
   return new Date().getFullYear() - Math.min(...years);
 }
 
 function calcCompleteness(c: Record<string, unknown>, exp: unknown[]) {
   const checks = [
-    !!c.email,
-    !!c.telefono,
-    !!c.educacion,
-    !!c.disponibilidad,
-    !!c.fecha_nacimiento,
-    !!c.pretension_salarial,
+    !!c.email, !!c.telefono, !!c.educacion, !!c.disponibilidad,
+    !!c.fecha_nacimiento, !!c.pretension_salarial,
     Array.isArray(c.idiomas) && (c.idiomas as unknown[]).length > 0,
-    !!c.notas_recruiter,
-    exp?.length > 0,
+    !!c.notas_recruiter, exp?.length > 0,
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
+
+const CARD = {
+  background: "#ffffff",
+  borderColor: "var(--gl-border)",
+  boxShadow: "0 2px 8px rgba(13,17,23,0.05)",
+} as const;
 
 export default async function CandidatoDetailPage({
   params,
@@ -59,73 +68,81 @@ export default async function CandidatoDetailPage({
 
   if (!candidato) notFound();
 
-  const yearsExp       = calcYearsExp(experiencia ?? []);
-  const completeness   = calcCompleteness(candidato, experiencia ?? []);
-  const inBaseSince    = candidato.fecha_ingreso?.substring(0, 7) ?? "—";
+  const yearsExp     = calcYearsExp(experiencia ?? []);
+  const completeness = calcCompleteness(candidato, experiencia ?? []);
+  const inBaseSince  = candidato.fecha_ingreso?.substring(0, 7) ?? "—";
   const gestionesActivas = gestionesData?.filter(
     (g) => g.estado !== "contratado" && g.estado !== "descartado"
   ).length ?? 0;
 
-  const missingFields = [
-    !candidato.email           && "email",
-    !candidato.telefono        && "teléfono",
-    !candidato.educacion       && "educación",
-    !candidato.disponibilidad  && "disponibilidad",
-    !candidato.pretension_salarial && "pretensión",
-  ].filter(Boolean) as string[];
+  const avatarPal = AVATAR_HEX[
+    (candidato.nombre.charCodeAt(0) + candidato.apellido.charCodeAt(0)) % AVATAR_HEX.length
+  ];
+
+  const estadoBadge = candidato.estado === "activo"
+    ? { bg: "#dafbe1", color: "#1a7f37" }
+    : { bg: "#f6f8fa", color: "#57606a" };
 
   return (
-    <div className="px-10 py-12">
+    <div className="px-10 py-10 space-y-5">
+
+      {/* Back */}
       <Link
         href="/candidatos"
-        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] mb-10 transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
+        style={{ color: "var(--gl-ink-3)" }}
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Candidatos
       </Link>
 
-      {/* ── Header ──────────────────────────────────────────────── */}
-      <header className="pb-8 border-b agro-rule">
+      {/* ── Header card ──────────────────────────────────────────── */}
+      <div className="rounded-2xl border p-6" style={CARD}>
         <div className="flex items-start justify-between gap-6">
-          <div className="flex items-start gap-6">
-            {/* Avatar */}
-            <div className="h-16 w-16 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-xl">
+
+          {/* Avatar + info */}
+          <div className="flex items-start gap-5">
+            <div
+              className="h-16 w-16 rounded-full grid place-items-center text-xl font-bold shrink-0"
+              style={{ background: avatarPal.bg, color: avatarPal.color }}
+            >
               {candidato.nombre[0]}{candidato.apellido[0]}
             </div>
             <div>
-              <h1 className="font-display text-4xl leading-tight">
+              <h1
+                className="font-display leading-tight"
+                style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "var(--gl-ink)" }}
+              >
                 {candidato.nombre} {candidato.apellido}
               </h1>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap mt-1">
                 {candidato.ultimo_puesto && (
-                  <span className="text-sm text-[var(--agro-ink-soft)] italic">
+                  <span className="text-sm" style={{ color: "var(--gl-ink-3)" }}>
                     {candidato.ultimo_puesto}
                   </span>
                 )}
                 {candidato.ubicacion && (
                   <>
-                    <span className="text-[var(--agro-ink-soft)] opacity-40">·</span>
-                    <span className="flex items-center gap-1 text-sm text-[var(--agro-ink-soft)]">
+                    <span style={{ color: "var(--gl-border)" }}>·</span>
+                    <span className="flex items-center gap-1 text-sm" style={{ color: "var(--gl-ink-3)" }}>
                       <MapPin className="h-3 w-3 shrink-0" />
                       {candidato.ubicacion}
                     </span>
                   </>
                 )}
               </div>
-              <div className="flex items-center gap-3 mt-3 flex-wrap">
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
                 <span
-                  className={`text-[10px] uppercase tracking-[0.2em] ${
-                    candidato.estado === "activo"
-                      ? "text-[var(--agro-olive)]"
-                      : "text-[var(--agro-ink-soft)]"
-                  }`}
+                  className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                  style={{ background: estadoBadge.bg, color: estadoBadge.color }}
                 >
                   {candidato.estado}
                 </span>
                 {candidato.idiomas?.map((lang: string) => (
                   <span
                     key={lang}
-                    className="text-[10px] uppercase tracking-[0.2em] text-[var(--agro-ink-soft)] border agro-rule px-2 py-0.5 rounded-full"
+                    className="text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+                    style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
                   >
                     {lang}
                   </span>
@@ -148,285 +165,345 @@ export default async function CandidatoDetailPage({
           </div>
         </div>
 
-        {/* Completeness bar */}
-        <div className="mt-6 space-y-2">
+        {/* Completeness */}
+        <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--gl-border)" }}>
           <div className="flex items-center gap-3">
-            <span className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] shrink-0 w-16">
-              Perfil
+            <span className="text-[11px] font-semibold uppercase tracking-wide shrink-0" style={{ color: "var(--gl-ink-3)" }}>
+              Perfil completo
             </span>
-            <div className="flex-1 h-px bg-[var(--agro-rule)] relative overflow-visible">
+            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--gl-border)" }}>
               <div
-                className="absolute top-0 left-0 h-px bg-[var(--agro-olive)] transition-all"
-                style={{ width: `${completeness}%` }}
+                className="h-full rounded-full transition-all"
+                style={{ width: `${completeness}%`, background: "var(--gl-olive)" }}
               />
             </div>
-            <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] shrink-0">
+            <span className="text-xs font-bold tabular-nums shrink-0" style={{ color: "var(--gl-olive)" }}>
               {completeness}%
             </span>
           </div>
-          {missingFields.length > 0 && (
-            <p className="text-[11px] text-[var(--agro-ink-soft)] pl-[4.75rem]">
-              Falta: {missingFields.join(", ")}
-            </p>
-          )}
         </div>
-      </header>
+      </div>
 
-      {/* ── Quick stats ─────────────────────────────────────────── */}
-      <section
-        style={{
-          display: "flex",
-          gap: "clamp(2rem, 5vw, 4rem)",
-          borderBottom: "1px solid var(--agro-rule)",
-          flexWrap: "wrap",
-          paddingBottom: "0.25rem",
-        }}
-      >
-        <QuickStat label="Años exp."        value={yearsExp > 0 ? `${yearsExp}` : "—"} />
-        <QuickStat label="Empleadores"      value={`${experiencia?.length ?? 0}`} />
-        <QuickStat label="En base desde"    value={inBaseSince} />
-        <QuickStat
-          label="Gestiones activas"
-          value={`${gestionesActivas}`}
-          accent={gestionesActivas > 0}
-        />
-      </section>
+      {/* ── Stats ─────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Años de exp.",      value: yearsExp != null ? `${yearsExp}` : "—",         color: "#1a7f37", bg: "#dafbe1" },
+          { label: "Empleadores",       value: `${experiencia?.length ?? 0}`,                   color: "#0550ae", bg: "#ddf4ff" },
+          { label: "En base desde",     value: inBaseSince,                                      color: "#9a6700", bg: "#fff8c5" },
+          { label: "Gestiones activas", value: `${gestionesActivas}`,                            color: "#6e40c9", bg: "#eddeff" },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className="rounded-2xl border p-5 flex flex-col gap-1.5"
+            style={CARD}
+          >
+            <div
+              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-lg font-bold"
+              style={{ background: s.bg, color: s.color }}
+            >
+              {s.value.length <= 4 ? s.value : s.value.substring(0, 7)}
+            </div>
+            <div className="text-[13px] font-semibold mt-1" style={{ color: "var(--gl-ink)" }}>
+              {s.label}
+            </div>
+          </div>
+        ))}
+      </div>
 
-      {/* ── Content grid ────────────────────────────────────────── */}
-      <div className="grid gap-16 lg:grid-cols-3 mt-12">
+      {/* ── Main grid ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* ── Izquierda: gestiones + trayectoria + notas ── */}
-        <div className="lg:col-span-2 space-y-14">
+        <div className="lg:col-span-2 space-y-5">
 
           {/* Gestiones */}
-          <section>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
-                Gestiones · {gestionesData?.length ?? 0}
+          <div className="rounded-2xl border p-6" style={CARD}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>Gestiones</h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  Búsquedas en las que participa
+                </p>
               </div>
+              {gestionesData && gestionesData.length > 0 && (
+                <span
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
+                >
+                  {gestionesData.length} total
+                </span>
+              )}
             </div>
 
             {!gestionesData?.length ? (
-              <div className="py-10 text-center border-t agro-rule">
-                <p className="text-sm text-[var(--agro-ink-soft)]">
-                  Sin gestiones — asigná este candidato a una búsqueda activa.
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <TrendingUp className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive)", opacity: 0.3 }} />
+                <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>Sin gestiones</p>
+                <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>
+                  Asigná este candidato a una búsqueda activa.
                 </p>
               </div>
             ) : (
-              <div className="space-y-px">
+              <div className="space-y-0.5">
                 {gestionesData.map((g) => {
-                  const stageIdx   = STAGES.findIndex((s) => s.key === g.estado);
+                  const stageIdx    = STAGES.findIndex((s) => s.key === g.estado);
                   const isDescartado = g.estado === "descartado";
-                  const dias       = diasDesde(g.updated_at);
-                  const busq       = g.busquedas as { id: string; puesto: string; cliente: string } | null;
+                  const dias        = diasDesde(g.updated_at);
+                  const busq        = g.busquedas as { id: string; puesto: string; cliente: string } | null;
 
                   return (
                     <Link
                       key={g.id}
                       href={busq ? `/busquedas/${busq.id}` : "#"}
-                      className={`group block border-t agro-rule py-5 ${isDescartado ? "opacity-40" : ""}`}
+                      className="gl-row flex items-center justify-between gap-4 px-3 py-4"
+                      style={{ opacity: isDescartado ? 0.4 : 1 }}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="min-w-0">
-                          <div className="font-display text-xl group-hover:text-[var(--agro-olive)] transition-colors leading-tight">
-                            {busq?.puesto ?? "—"}
-                          </div>
-                          <div className="text-sm text-[var(--agro-ink-soft)] italic mt-1">
-                            {busq?.cliente}
-                          </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13.5px] font-semibold truncate" style={{ color: "var(--gl-ink)" }}>
+                          {busq?.puesto ?? "—"}
                         </div>
-                        <div className="text-right shrink-0">
-                          <div
-                            className={`text-[10px] uppercase tracking-[0.15em] ${
-                              isDescartado
-                                ? "line-through text-[var(--agro-ink-soft)]"
-                                : g.estado === "contratado"
-                                  ? "text-[var(--agro-olive)]"
-                                  : "text-[var(--agro-ink-soft)]"
-                            }`}
-                          >
-                            {STAGES.find((s) => s.key === g.estado)?.label ?? g.estado}
-                          </div>
-                          <div className="flex items-center gap-1 justify-end mt-1.5">
-                            <Clock className="h-2.5 w-2.5 text-[var(--agro-ink-soft)] opacity-50" />
-                            <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)]">
-                              {dias}d
-                            </span>
-                          </div>
+                        <div className="text-xs mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
+                          {busq?.cliente}
                         </div>
+
+                        {/* Stage track */}
+                        {!isDescartado && stageIdx >= 0 && (
+                          <div className="flex items-center gap-0.5 mt-2.5">
+                            {STAGES.map((stage, i) => (
+                              <div key={stage.key} className="flex items-center gap-0.5">
+                                <div
+                                  className="rounded-full"
+                                  style={{
+                                    width:  i === stageIdx ? 8 : 6,
+                                    height: i === stageIdx ? 8 : 6,
+                                    background:
+                                      i < stageIdx
+                                        ? "var(--gl-olive)"
+                                        : i === stageIdx
+                                          ? "var(--gl-olive)"
+                                          : "var(--gl-border)",
+                                    opacity: i < stageIdx ? 0.35 : 1,
+                                  }}
+                                />
+                                {i < STAGES.length - 1 && (
+                                  <div
+                                    style={{
+                                      height: 1,
+                                      width: 14,
+                                      background: i < stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
+                                      opacity: i < stageIdx ? 0.3 : 1,
+                                    }}
+                                  />
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Stage track */}
-                      {!isDescartado && stageIdx >= 0 && (
-                        <div className="flex items-center gap-0.5 mt-4">
-                          {STAGES.map((stage, i) => (
-                            <div key={stage.key} className="flex items-center gap-0.5">
-                              <div
-                                className={`rounded-full transition-all ${
-                                  i < stageIdx
-                                    ? "h-1.5 w-1.5 bg-[var(--agro-olive-soft)]"
-                                    : i === stageIdx
-                                      ? "h-2.5 w-2.5 bg-[var(--agro-olive)]"
-                                      : "h-1.5 w-1.5 bg-[var(--agro-rule)]"
-                                }`}
-                              />
-                              {i < STAGES.length - 1 && (
-                                <div
-                                  className={`h-px w-5 ${
-                                    i < stageIdx
-                                      ? "bg-[var(--agro-olive-soft)]"
-                                      : "bg-[var(--agro-rule)]"
-                                  }`}
-                                />
-                              )}
-                            </div>
-                          ))}
-                          <span className="ml-3 text-[10px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
-                            {stageIdx + 1} / {STAGES.length}
-                          </span>
+                      <div className="text-right shrink-0 space-y-1.5">
+                        <span
+                          className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md block"
+                          style={{
+                            background: isDescartado ? "var(--gl-border)" : "var(--gl-olive-bg)",
+                            color: isDescartado ? "var(--gl-ink-3)" : "var(--gl-olive)",
+                            textDecoration: isDescartado ? "line-through" : "none",
+                          }}
+                        >
+                          {STAGES.find((s) => s.key === g.estado)?.label ?? g.estado}
+                        </span>
+                        <div className="text-[11px] tabular-nums font-mono" style={{ color: "var(--gl-ink-3)" }}>
+                          {dias}d sin cambio
                         </div>
-                      )}
+                      </div>
                     </Link>
                   );
                 })}
-                <div className="border-t agro-rule" />
               </div>
             )}
-          </section>
+          </div>
 
           {/* Trayectoria */}
-          {experiencia && experiencia.length > 0 ? (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
-                Trayectoria
-              </div>
-              <div className="relative">
-                <div className="absolute left-[4px] top-3 bottom-3 w-px bg-[var(--agro-rule)]" />
-                <div className="space-y-px">
-                  {experiencia.map((exp, i) => (
-                    <div key={exp.id} className="relative pl-8 py-5 border-t agro-rule">
+          {experiencia && experiencia.length > 0 && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-5" style={{ color: "var(--gl-ink)" }}>Trayectoria</h2>
+              <div className="space-y-0.5">
+                {experiencia.map((exp, i) => (
+                  <div
+                    key={exp.id}
+                    className="flex gap-4 py-4"
+                    style={{ borderTop: "1px solid var(--gl-border)" }}
+                  >
+                    {/* Dot */}
+                    <div className="flex flex-col items-center pt-1 shrink-0">
                       <div
-                        className={`absolute left-0 top-[26px] h-2.5 w-2.5 rounded-full border z-10 ${
-                          i === 0
-                            ? "bg-[var(--agro-olive)] border-[var(--agro-olive)]"
-                            : "bg-[var(--agro-paper)] border-[var(--agro-rule)]"
-                        }`}
+                        className="h-2.5 w-2.5 rounded-full"
+                        style={{
+                          background: i === 0 ? "var(--gl-olive)" : "var(--gl-border)",
+                          border: i === 0 ? "none" : "1px solid var(--gl-border)",
+                        }}
                       />
+                      {i < experiencia.length - 1 && (
+                        <div className="flex-1 w-px mt-1" style={{ background: "var(--gl-border)" }} />
+                      )}
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0 pb-2">
                       <div className="flex items-baseline justify-between gap-3">
-                        <h3 className="font-display text-lg">{exp.rol}</h3>
-                        <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] shrink-0">
+                        <span className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>
+                          {exp.rol}
+                        </span>
+                        <span className="text-xs font-mono tabular-nums shrink-0" style={{ color: "var(--gl-ink-3)" }}>
                           {exp.desde} — {exp.hasta ?? "actual"}
                         </span>
                       </div>
-                      <p className="text-sm text-[var(--agro-olive)] mt-1 italic">{exp.empresa}</p>
+                      <div className="text-sm mt-0.5" style={{ color: "var(--gl-olive)" }}>{exp.empresa}</div>
                       {exp.descripcion && (
-                        <p className="text-sm text-[var(--agro-ink-soft)] leading-relaxed mt-2">
+                        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
                           {exp.descripcion}
                         </p>
                       )}
                     </div>
-                  ))}
-                  <div className="border-t agro-rule" />
-                </div>
+                  </div>
+                ))}
               </div>
-            </section>
-          ) : null}
+            </div>
+          )}
 
           {/* Notas del recruiter */}
           {candidato.notas_recruiter && (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
                 Notas del recruiter
-              </div>
-              <p className="text-sm leading-relaxed text-[var(--agro-ink-soft)] border-l-2 border-[var(--agro-olive)] pl-4">
+              </h2>
+              <p
+                className="text-sm leading-relaxed pl-4"
+                style={{
+                  color: "var(--gl-ink-3)",
+                  borderLeft: "3px solid var(--gl-olive)",
+                }}
+              >
                 {candidato.notas_recruiter}
               </p>
-            </section>
+            </div>
           )}
         </div>
 
         {/* ── Derecha: contacto + perfil ── */}
-        <div className="space-y-10">
+        <div className="space-y-5">
 
           {/* Contacto */}
           {(candidato.email || candidato.telefono) && (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-                Contacto
-              </div>
-              <div className="space-y-px">
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Contacto</h2>
+              <div className="space-y-2">
                 {candidato.email && (
-                  <div className="flex items-center gap-3 py-3 border-b agro-rule">
-                    <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--agro-ink-soft)]" />
-                    <a
-                      href={`mailto:${candidato.email}`}
-                      className="text-sm hover:text-[var(--agro-olive)] transition-colors truncate"
+                  <a
+                    href={`mailto:${candidato.email}`}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors"
+                    style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}
+                  >
+                    <div
+                      className="h-8 w-8 rounded-lg grid place-items-center shrink-0"
+                      style={{ background: "#ddf4ff" }}
                     >
-                      {candidato.email}
-                    </a>
-                  </div>
+                      <Mail className="h-3.5 w-3.5" style={{ color: "#0550ae" }} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                        Email
+                      </div>
+                      <div className="text-sm truncate mt-0.5" style={{ color: "var(--gl-ink)" }}>
+                        {candidato.email}
+                      </div>
+                    </div>
+                  </a>
                 )}
                 {candidato.telefono && (
-                  <div className="flex items-center gap-3 py-3 border-b agro-rule">
-                    <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--agro-ink-soft)]" />
-                    <a
-                      href={`tel:${candidato.telefono}`}
-                      className="text-sm font-mono hover:text-[var(--agro-olive)] transition-colors"
+                  <a
+                    href={`tel:${candidato.telefono}`}
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors"
+                    style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}
+                  >
+                    <div
+                      className="h-8 w-8 rounded-lg grid place-items-center shrink-0"
+                      style={{ background: "#dafbe1" }}
                     >
-                      {candidato.telefono}
-                    </a>
-                  </div>
+                      <Phone className="h-3.5 w-3.5" style={{ color: "#1a7f37" }} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                        Teléfono
+                      </div>
+                      <div className="text-sm font-mono mt-0.5" style={{ color: "var(--gl-ink)" }}>
+                        {candidato.telefono}
+                      </div>
+                    </div>
+                  </a>
                 )}
               </div>
-            </section>
+            </div>
           )}
 
           {/* Perfil */}
-          {(candidato.educacion || candidato.disponibilidad || candidato.fecha_nacimiento || candidato.pretension_salarial) && (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-                Perfil
-              </div>
-              <div className="space-y-px">
+          {(candidato.pretension_salarial || candidato.disponibilidad || candidato.educacion || candidato.fecha_nacimiento) && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Perfil</h2>
+              <div className="space-y-0.5">
                 {candidato.pretension_salarial && (
-                  <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
-                    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)] shrink-0">
+                  <div
+                    className="flex items-center justify-between gap-3 py-3"
+                    style={{ borderBottom: "1px solid var(--gl-border)" }}
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
                       Pretensión
                     </span>
-                    <span className="text-sm font-medium text-right text-[var(--agro-olive)]">
+                    <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>
                       {candidato.pretension_salarial}
                     </span>
                   </div>
                 )}
                 {candidato.disponibilidad && (
-                  <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
-                    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)] shrink-0">
+                  <div
+                    className="flex items-center justify-between gap-3 py-3"
+                    style={{ borderBottom: "1px solid var(--gl-border)" }}
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
                       Disponib.
                     </span>
-                    <span className="text-sm text-right">{candidato.disponibilidad}</span>
-                  </div>
-                )}
-                {candidato.educacion && (
-                  <div className="py-2.5 border-b agro-rule">
-                    <div className="flex items-center gap-2 mb-1">
-                      <BookOpen className="h-3 w-3 text-[var(--agro-ink-soft)]" />
-                      <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
-                        Educación
-                      </span>
-                    </div>
-                    <p className="text-sm leading-snug pl-5">{candidato.educacion}</p>
+                    <span className="text-sm text-right" style={{ color: "var(--gl-ink)" }}>
+                      {candidato.disponibilidad}
+                    </span>
                   </div>
                 )}
                 {candidato.fecha_nacimiento && (
-                  <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
-                    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)] shrink-0">
+                  <div
+                    className="flex items-center justify-between gap-3 py-3"
+                    style={{ borderBottom: "1px solid var(--gl-border)" }}
+                  >
+                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
                       Nacimiento
                     </span>
-                    <span className="font-mono text-sm text-right">{candidato.fecha_nacimiento}</span>
+                    <span className="text-sm font-mono" style={{ color: "var(--gl-ink)" }}>
+                      {candidato.fecha_nacimiento}
+                    </span>
+                  </div>
+                )}
+                {candidato.educacion && (
+                  <div className="py-3">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                      <BookOpen className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)" }} />
+                      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                        Educación
+                      </span>
+                    </div>
+                    <p className="text-sm leading-snug" style={{ color: "var(--gl-ink)" }}>
+                      {candidato.educacion}
+                    </p>
                   </div>
                 )}
               </div>
-            </section>
+            </div>
           )}
 
         </div>
@@ -452,43 +529,6 @@ export default async function CandidatoDetailPage({
           preguntas={(candidato as { preguntas_sugeridas?: string[] }).preguntas_sugeridas ?? []}
         />
       </section>
-    </div>
-  );
-}
-
-function QuickStat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div style={{ paddingTop: "1.5rem", paddingBottom: "1.5rem" }}>
-      <div
-        className="font-display tabular-nums leading-none"
-        style={{
-          fontSize: "clamp(2rem, 3.5vw, 2.5rem)",
-          letterSpacing: "-0.03em",
-          color: accent ? "var(--agro-olive)" : "var(--agro-ink)",
-        }}
-      >
-        {value}
-      </div>
-      <div
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: "var(--agro-ink-soft)",
-          marginTop: "0.375rem",
-        }}
-      >
-        {label}
-      </div>
     </div>
   );
 }
