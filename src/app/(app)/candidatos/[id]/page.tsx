@@ -361,7 +361,6 @@ export default async function CandidatoDetailPage({
                     <a
                       href={`mailto:${candidato.email}`}
                       className="text-sm hover:text-[var(--agro-olive)] transition-colors truncate"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       {candidato.email}
                     </a>
@@ -373,7 +372,6 @@ export default async function CandidatoDetailPage({
                     <a
                       href={`tel:${candidato.telefono}`}
                       className="text-sm font-mono hover:text-[var(--agro-olive)] transition-colors"
-                      onClick={(e) => e.stopPropagation()}
                     >
                       {candidato.telefono}
                     </a>
