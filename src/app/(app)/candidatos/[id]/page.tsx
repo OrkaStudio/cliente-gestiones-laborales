@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Mail, Phone, BookOpen, MapPin, TrendingUp } from "lucide-react";
+import { ArrowLeft, Mail, MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CVProcesadoEditor } from "@/components/app/cv-procesado-editor";
 import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
@@ -28,6 +28,17 @@ function diasDesde(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
+function calcAge(fechaNac: string): number | null {
+  if (!fechaNac) return null;
+  const birth = new Date(fechaNac);
+  if (isNaN(birth.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
 function calcYearsExp(exp: Array<{ desde: string }>) {
   if (!exp?.length) return null;
   const years = exp.map((e) => parseInt(e.desde?.substring(0, 4)) || new Date().getFullYear());
@@ -42,6 +53,14 @@ function calcCompleteness(c: Record<string, unknown>, exp: unknown[]) {
     !!c.notas_recruiter, exp?.length > 0,
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+}
+
+// Convierte número argentino a URL de WhatsApp
+function waUrl(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("54")) return `https://wa.me/${digits}`;
+  if (digits.startsWith("0"))  return `https://wa.me/54${digits.slice(1)}`;
+  return `https://wa.me/54${digits}`;
 }
 
 const CARD = {
@@ -68,9 +87,10 @@ export default async function CandidatoDetailPage({
 
   if (!candidato) notFound();
 
-  const yearsExp     = calcYearsExp(experiencia ?? []);
-  const completeness = calcCompleteness(candidato, experiencia ?? []);
-  const inBaseSince  = candidato.fecha_ingreso?.substring(0, 7) ?? "—";
+  const yearsExp         = calcYearsExp(experiencia ?? []);
+  const completeness     = calcCompleteness(candidato, experiencia ?? []);
+  const inBaseSince      = candidato.fecha_ingreso?.substring(0, 7) ?? "—";
+  const edad             = candidato.fecha_nacimiento ? calcAge(candidato.fecha_nacimiento) : null;
   const gestionesActivas = gestionesData?.filter(
     (g) => g.estado !== "contratado" && g.estado !== "descartado"
   ).length ?? 0;
@@ -82,6 +102,14 @@ export default async function CandidatoDetailPage({
   const estadoBadge = candidato.estado === "activo"
     ? { bg: "#dafbe1", color: "#1a7f37" }
     : { bg: "#f6f8fa", color: "#57606a" };
+
+  // Stats que van en el header (sólo los que tienen valor)
+  const headerStats = [
+    { label: "En base desde",    value: inBaseSince },
+    yearsExp != null && { label: "Años de exp.",     value: `${yearsExp}` },
+    { label: "Empleadores",      value: `${experiencia?.length ?? 0}` },
+    { label: "Gestiones activas", value: `${gestionesActivas}`, accent: gestionesActivas > 0 },
+  ].filter(Boolean) as { label: string; value: string; accent?: boolean }[];
 
   return (
     <div className="px-10 py-10 space-y-5">
@@ -165,10 +193,29 @@ export default async function CandidatoDetailPage({
           </div>
         </div>
 
-        {/* Completeness */}
-        <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--gl-border)" }}>
+        {/* Stats strip + completeness */}
+        <div className="mt-6 pt-5 space-y-4" style={{ borderTop: "1px solid var(--gl-border)" }}>
+
+          {/* Stats en fila */}
+          <div className="flex items-center gap-6 flex-wrap">
+            {headerStats.map((s, i) => (
+              <div key={i} className="flex flex-col gap-0.5">
+                <span className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                  {s.label}
+                </span>
+                <span
+                  className="text-[15px] font-bold tabular-nums"
+                  style={{ color: s.accent ? "var(--gl-olive)" : "var(--gl-ink)" }}
+                >
+                  {s.value}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {/* Completeness bar */}
           <div className="flex items-center gap-3">
-            <span className="text-[11px] font-semibold uppercase tracking-wide shrink-0" style={{ color: "var(--gl-ink-3)" }}>
+            <span className="text-[10.5px] font-semibold uppercase tracking-wide shrink-0 w-28" style={{ color: "var(--gl-ink-3)" }}>
               Perfil completo
             </span>
             <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--gl-border)" }}>
@@ -182,32 +229,6 @@ export default async function CandidatoDetailPage({
             </span>
           </div>
         </div>
-      </div>
-
-      {/* ── Stats ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { label: "Años de exp.",      value: yearsExp != null ? `${yearsExp}` : "—",         color: "#1a7f37", bg: "#dafbe1" },
-          { label: "Empleadores",       value: `${experiencia?.length ?? 0}`,                   color: "#0550ae", bg: "#ddf4ff" },
-          { label: "En base desde",     value: inBaseSince,                                      color: "#9a6700", bg: "#fff8c5" },
-          { label: "Gestiones activas", value: `${gestionesActivas}`,                            color: "#6e40c9", bg: "#eddeff" },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="rounded-2xl border p-5 flex flex-col gap-1.5"
-            style={CARD}
-          >
-            <div
-              className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-lg font-bold"
-              style={{ background: s.bg, color: s.color }}
-            >
-              {s.value.length <= 4 ? s.value : s.value.substring(0, 7)}
-            </div>
-            <div className="text-[13px] font-semibold mt-1" style={{ color: "var(--gl-ink)" }}>
-              {s.label}
-            </div>
-          </div>
-        ))}
       </div>
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
@@ -225,12 +246,12 @@ export default async function CandidatoDetailPage({
                   Búsquedas en las que participa
                 </p>
               </div>
-              {gestionesData && gestionesData.length > 0 && (
+              {(gestionesData?.length ?? 0) > 0 && (
                 <span
                   className="text-xs font-semibold px-2.5 py-1 rounded-full"
                   style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
                 >
-                  {gestionesData.length} total
+                  {gestionesData!.length} total
                 </span>
               )}
             </div>
@@ -246,10 +267,10 @@ export default async function CandidatoDetailPage({
             ) : (
               <div className="space-y-0.5">
                 {gestionesData.map((g) => {
-                  const stageIdx    = STAGES.findIndex((s) => s.key === g.estado);
+                  const stageIdx     = STAGES.findIndex((s) => s.key === g.estado);
                   const isDescartado = g.estado === "descartado";
-                  const dias        = diasDesde(g.updated_at);
-                  const busq        = g.busquedas as { id: string; puesto: string; cliente: string } | null;
+                  const dias         = diasDesde(g.updated_at);
+                  const busq         = g.busquedas as { id: string; puesto: string; cliente: string } | null;
 
                   return (
                     <Link
@@ -274,26 +295,18 @@ export default async function CandidatoDetailPage({
                                 <div
                                   className="rounded-full"
                                   style={{
-                                    width:  i === stageIdx ? 8 : 6,
-                                    height: i === stageIdx ? 8 : 6,
-                                    background:
-                                      i < stageIdx
-                                        ? "var(--gl-olive)"
-                                        : i === stageIdx
-                                          ? "var(--gl-olive)"
-                                          : "var(--gl-border)",
-                                    opacity: i < stageIdx ? 0.35 : 1,
+                                    width:      i === stageIdx ? 8 : 6,
+                                    height:     i === stageIdx ? 8 : 6,
+                                    background: i <= stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
+                                    opacity:    i < stageIdx ? 0.4 : 1,
                                   }}
                                 />
                                 {i < STAGES.length - 1 && (
-                                  <div
-                                    style={{
-                                      height: 1,
-                                      width: 14,
-                                      background: i < stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
-                                      opacity: i < stageIdx ? 0.3 : 1,
-                                    }}
-                                  />
+                                  <div style={{
+                                    height: 1, width: 14,
+                                    background: i < stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
+                                    opacity: i < stageIdx ? 0.35 : 1,
+                                  }} />
                                 )}
                               </div>
                             ))}
@@ -303,10 +316,10 @@ export default async function CandidatoDetailPage({
 
                       <div className="text-right shrink-0 space-y-1.5">
                         <span
-                          className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md block"
+                          className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap"
                           style={{
-                            background: isDescartado ? "var(--gl-border)" : "var(--gl-olive-bg)",
-                            color: isDescartado ? "var(--gl-ink-3)" : "var(--gl-olive)",
+                            background: isDescartado ? "#f6f8fa" : "var(--gl-olive-bg)",
+                            color:      isDescartado ? "var(--gl-ink-3)" : "var(--gl-olive)",
                             textDecoration: isDescartado ? "line-through" : "none",
                           }}
                         >
@@ -334,20 +347,17 @@ export default async function CandidatoDetailPage({
                     className="flex gap-4 py-4"
                     style={{ borderTop: "1px solid var(--gl-border)" }}
                   >
-                    {/* Dot */}
-                    <div className="flex flex-col items-center pt-1 shrink-0">
+                    <div className="flex flex-col items-center pt-1.5 shrink-0">
                       <div
-                        className="h-2.5 w-2.5 rounded-full"
+                        className="h-2.5 w-2.5 rounded-full shrink-0"
                         style={{
                           background: i === 0 ? "var(--gl-olive)" : "var(--gl-border)",
-                          border: i === 0 ? "none" : "1px solid var(--gl-border)",
                         }}
                       />
                       {i < experiencia.length - 1 && (
-                        <div className="flex-1 w-px mt-1" style={{ background: "var(--gl-border)" }} />
+                        <div className="flex-1 w-px mt-2" style={{ background: "var(--gl-border)", minHeight: "1.5rem" }} />
                       )}
                     </div>
-                    {/* Content */}
                     <div className="flex-1 min-w-0 pb-2">
                       <div className="flex items-baseline justify-between gap-3">
                         <span className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>
@@ -357,7 +367,9 @@ export default async function CandidatoDetailPage({
                           {exp.desde} — {exp.hasta ?? "actual"}
                         </span>
                       </div>
-                      <div className="text-sm mt-0.5" style={{ color: "var(--gl-olive)" }}>{exp.empresa}</div>
+                      <div className="text-sm mt-0.5 font-medium" style={{ color: "var(--gl-olive)" }}>
+                        {exp.empresa}
+                      </div>
                       {exp.descripcion && (
                         <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
                           {exp.descripcion}
@@ -374,14 +386,11 @@ export default async function CandidatoDetailPage({
           {candidato.notas_recruiter && (
             <div className="rounded-2xl border p-6" style={CARD}>
               <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
-                Notas del recruiter
+                Notas internas
               </h2>
               <p
                 className="text-sm leading-relaxed pl-4"
-                style={{
-                  color: "var(--gl-ink-3)",
-                  borderLeft: "3px solid var(--gl-olive)",
-                }}
+                style={{ color: "var(--gl-ink-3)", borderLeft: "3px solid var(--gl-olive)" }}
               >
                 {candidato.notas_recruiter}
               </p>
@@ -400,13 +409,10 @@ export default async function CandidatoDetailPage({
                 {candidato.email && (
                   <a
                     href={`mailto:${candidato.email}`}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors"
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl"
                     style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}
                   >
-                    <div
-                      className="h-8 w-8 rounded-lg grid place-items-center shrink-0"
-                      style={{ background: "#ddf4ff" }}
-                    >
+                    <div className="h-8 w-8 rounded-lg grid place-items-center shrink-0" style={{ background: "#ddf4ff" }}>
                       <Mail className="h-3.5 w-3.5" style={{ color: "#0550ae" }} />
                     </div>
                     <div className="min-w-0">
@@ -421,19 +427,18 @@ export default async function CandidatoDetailPage({
                 )}
                 {candidato.telefono && (
                   <a
-                    href={`tel:${candidato.telefono}`}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors"
+                    href={waUrl(candidato.telefono)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-3 py-3 rounded-xl"
                     style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}
                   >
-                    <div
-                      className="h-8 w-8 rounded-lg grid place-items-center shrink-0"
-                      style={{ background: "#dafbe1" }}
-                    >
-                      <Phone className="h-3.5 w-3.5" style={{ color: "#1a7f37" }} />
+                    <div className="h-8 w-8 rounded-lg grid place-items-center shrink-0" style={{ background: "#dafbe1" }}>
+                      <MessageCircle className="h-3.5 w-3.5" style={{ color: "#1a7f37" }} />
                     </div>
                     <div className="min-w-0">
                       <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                        Teléfono
+                        WhatsApp
                       </div>
                       <div className="text-sm font-mono mt-0.5" style={{ color: "var(--gl-ink)" }}>
                         {candidato.telefono}
@@ -451,10 +456,7 @@ export default async function CandidatoDetailPage({
               <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Perfil</h2>
               <div className="space-y-0.5">
                 {candidato.pretension_salarial && (
-                  <div
-                    className="flex items-center justify-between gap-3 py-3"
-                    style={{ borderBottom: "1px solid var(--gl-border)" }}
-                  >
+                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
                     <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
                       Pretensión
                     </span>
@@ -464,10 +466,7 @@ export default async function CandidatoDetailPage({
                   </div>
                 )}
                 {candidato.disponibilidad && (
-                  <div
-                    className="flex items-center justify-between gap-3 py-3"
-                    style={{ borderBottom: "1px solid var(--gl-border)" }}
-                  >
+                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
                     <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
                       Disponib.
                     </span>
@@ -476,16 +475,13 @@ export default async function CandidatoDetailPage({
                     </span>
                   </div>
                 )}
-                {candidato.fecha_nacimiento && (
-                  <div
-                    className="flex items-center justify-between gap-3 py-3"
-                    style={{ borderBottom: "1px solid var(--gl-border)" }}
-                  >
+                {candidato.fecha_nacimiento && edad != null && (
+                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
                     <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                      Nacimiento
+                      Edad
                     </span>
-                    <span className="text-sm font-mono" style={{ color: "var(--gl-ink)" }}>
-                      {candidato.fecha_nacimiento}
+                    <span className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>
+                      {edad} años
                     </span>
                   </div>
                 )}
