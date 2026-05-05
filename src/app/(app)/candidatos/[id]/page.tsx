@@ -138,8 +138,8 @@ export default async function CandidatoDetailPage({
             </div>
             <div>
               <h1
-                className="font-display leading-tight"
-                style={{ fontSize: "clamp(1.5rem, 3vw, 2rem)", color: "var(--gl-ink)" }}
+                className="text-2xl font-bold leading-tight"
+                style={{ color: "var(--gl-ink)" }}
               >
                 {candidato.nombre} {candidato.apellido}
               </h1>
