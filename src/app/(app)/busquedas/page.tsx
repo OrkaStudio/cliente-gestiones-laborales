@@ -47,19 +47,19 @@ function calcDaysOpen(fecha: string) {
 
 type GestionRaw = { estado: string };
 
-function mejorEtapa(gestiones: GestionRaw[]) {
-  const conContratado = gestiones.filter((g) => g.estado === "contratado");
-  if (conContratado.length > 0) {
-    return { label: "Contratado", count: conContratado.length, isContratado: true };
-  }
+function etapasActivas(gestiones: GestionRaw[]) {
   const activas = gestiones.filter((g) => g.estado !== "descartado");
-  if (!activas.length) return null;
+  if (!activas.length) return [];
+  const result: { label: string; count: number; isContratado: boolean }[] = [];
   for (let i = STAGE_ORDER.length - 1; i >= 0; i--) {
     const key   = STAGE_ORDER[i];
     const count = activas.filter((g) => g.estado === key).length;
-    if (count > 0) return { label: STAGE_LABEL[key], count, isContratado: false };
+    if (count > 0) {
+      result.push({ label: STAGE_LABEL[key], count, isContratado: key === "contratado" });
+      if (result.length === 2) break;
+    }
   }
-  return null;
+  return result;
 }
 
 export default async function BusquedasPage() {
@@ -130,7 +130,7 @@ export default async function BusquedasPage() {
           const count = b.gestiones.length;
           const est   = estadoBadge(b.estado);
           const dys   = daysBadge(days);
-          const etapa = mejorEtapa(b.gestiones as GestionRaw[]);
+          const etapas = etapasActivas(b.gestiones as GestionRaw[]);
           const pal   = AVATAR_HEX[b.puesto.charCodeAt(0) % AVATAR_HEX.length];
 
           return (
@@ -178,24 +178,28 @@ export default async function BusquedasPage() {
                 </span>
               </div>
 
-              {/* ── Etapa activa chip (espeja gestión activa de candidatos) ── */}
-              {etapa ? (
+              {/* ── Etapas activas chip — muestra hasta 2 etapas ── */}
+              {etapas.length > 0 ? (
                 <div
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4"
-                  style={{
-                    background: etapa.isContratado ? "#dafbe1" : "var(--gl-olive-bg)",
-                  }}
+                  className="flex items-center gap-1.5 flex-wrap px-3 py-2 rounded-lg mb-4"
+                  style={{ background: etapas[0].isContratado ? "#dafbe1" : "var(--gl-olive-bg)" }}
                 >
-                  <span
-                    className="text-[11px] font-semibold shrink-0"
-                    style={{ color: etapa.isContratado ? "#1a7f37" : "var(--gl-olive)" }}
-                  >
-                    {etapa.label}
-                  </span>
-                  <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>·</span>
-                  <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
-                    {etapa.count} candidato{etapa.count !== 1 ? "s" : ""}
-                  </span>
+                  {etapas.map((e, i) => (
+                    <span key={e.label} className="flex items-center gap-1.5">
+                      {i > 0 && (
+                        <span className="text-[10px]" style={{ color: "var(--gl-border)" }}>·</span>
+                      )}
+                      <span
+                        className="text-[11px] font-semibold"
+                        style={{ color: e.isContratado ? "#1a7f37" : "var(--gl-olive)" }}
+                      >
+                        {e.label}
+                      </span>
+                      <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+                        · {e.count}
+                      </span>
+                    </span>
+                  ))}
                 </div>
               ) : (
                 <div

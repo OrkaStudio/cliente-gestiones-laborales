@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Calendar, Users, Target } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { BusquedaSheet } from "@/components/app/busqueda-sheet";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
+import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -383,14 +384,18 @@ export default async function BusquedaDetailPage({
                       )}
 
                       <div className="text-right shrink-0 space-y-1.5 ml-2">
-                        <span
-                          className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap ${stageBadgeCls}`}
-                          style={{
-                            textDecoration: isDescartado ? "line-through" : "none",
-                          }}
-                        >
-                          {stageLabel}
-                        </span>
+                        {c ? (
+                          <GestionEstadoSelect
+                            gestionId={gId}
+                            candidatoId={c.id}
+                            busquedaId={id}
+                            estado={estado}
+                          />
+                        ) : (
+                          <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap ${stageBadgeCls}`}>
+                            {stageLabel}
+                          </span>
+                        )}
                         <div
                           className="text-[11px] tabular-nums font-mono"
                           style={{ color: "var(--gl-ink-3)" }}

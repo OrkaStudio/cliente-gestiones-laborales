@@ -37,3 +37,32 @@ export async function createGestion(data: {
   revalidatePath("/")
   return { success: true, id: created.id }
 }
+
+const ESTADOS_VALIDOS = [
+  "preseleccionado", "entrevista_orka", "presentado_cliente",
+  "entrevista_cliente", "ofertado", "contratado", "descartado",
+] as const
+
+export async function updateGestionEstado(
+  gestionId: string,
+  estado: string,
+  paths: { busquedaId: string; candidatoId: string }
+): Promise<ActionResult> {
+  if (!(ESTADOS_VALIDOS as readonly string[]).includes(estado)) {
+    return { success: false, error: "Estado inválido" }
+  }
+
+  const supabase = createServiceClient()
+  const { error } = await supabase
+    .from("gestiones")
+    .update({ estado: estado as "preseleccionado" | "entrevista_orka" | "presentado_cliente" | "entrevista_cliente" | "ofertado" | "contratado" | "descartado" })
+    .eq("id", gestionId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath(`/busquedas/${paths.busquedaId}`)
+  revalidatePath(`/busquedas`)
+  revalidatePath(`/candidatos/${paths.candidatoId}`)
+  revalidatePath("/")
+  return { success: true, id: gestionId }
+}
