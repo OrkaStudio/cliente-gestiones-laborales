@@ -1,9 +1,17 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Target } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { BusquedaSheet } from "@/components/app/busqueda-sheet";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
+
+const AVATAR_HEX = [
+  { bg: "#dafbe1", color: "#1a7f37" },
+  { bg: "#ddf4ff", color: "#0550ae" },
+  { bg: "#ffd8eb", color: "#99286e" },
+  { bg: "#fff8c5", color: "#7d4e00" },
+  { bg: "#eddeff", color: "#6e40c9" },
+];
 
 const STAGES = [
   { key: "preseleccionado",    label: "Preseleccionado" },
@@ -19,6 +27,16 @@ function calcDaysOpen(fecha: string) {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
 }
 
+function diasDesde(iso: string) {
+  return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+}
+
+const CARD = {
+  background: "#ffffff",
+  borderColor: "var(--gl-border)",
+  boxShadow: "0 2px 8px rgba(13,17,23,0.05)",
+} as const;
+
 export default async function BusquedaDetailPage({
   params,
 }: {
@@ -27,306 +45,453 @@ export default async function BusquedaDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: busqueda }, { data: gestionesData }, { data: candidatosActivos }] = await Promise.all([
-    supabase.from("busquedas").select("*").eq("id", id).single(),
-    supabase
-      .from("gestiones")
-      .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
-      .eq("busqueda_id", id),
-    supabase
-      .from("candidatos")
-      .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado")
-      .eq("estado", "activo")
-      .order("apellido"),
-  ]);
+  const [{ data: busqueda }, { data: gestionesData }, { data: candidatosActivos }] =
+    await Promise.all([
+      supabase.from("busquedas").select("*").eq("id", id).single(),
+      supabase
+        .from("gestiones")
+        .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
+        .eq("busqueda_id", id)
+        .order("updated_at", { ascending: false }),
+      supabase
+        .from("candidatos")
+        .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado")
+        .eq("estado", "activo")
+        .order("apellido"),
+    ]);
 
   if (!busqueda) notFound();
 
-  const daysOpen = calcDaysOpen(busqueda.fecha_apertura);
+  const daysOpen    = calcDaysOpen(busqueda.fecha_apertura);
   const descartados = gestionesData?.filter((g) => g.estado === "descartado").length ?? 0;
-  const activos = (gestionesData?.length ?? 0) - descartados;
+  const contratados = gestionesData?.filter((g) => g.estado === "contratado").length ?? 0;
+  const activos     = (gestionesData?.length ?? 0) - descartados;
 
-  // Funnel: solo los stages con candidatos, excluye descartados
   const funnel = STAGES.map((s) => ({
     ...s,
     count: gestionesData?.filter((g) => g.estado === s.key).length ?? 0,
   })).filter((s) => s.count > 0);
-
   const maxCount = Math.max(...funnel.map((s) => s.count), 1);
 
+  const puestoChar = busqueda.puesto.charCodeAt(0);
+  const headerPal  = AVATAR_HEX[puestoChar % AVATAR_HEX.length];
+
+  const estadoBadge = busqueda.estado === "activa"
+    ? "gl-badge-green"
+    : "gl-badge-gray";
+
+  const headerStats = [
+    { label: "Días abierta", value: `${daysOpen}`,                        accent: daysOpen > 30 },
+    { label: "En gestión",   value: `${activos}` },
+    { label: "Requisitos",   value: `${busqueda.requisitos?.length ?? 0}` },
+    { label: "Descartados",  value: `${descartados}` },
+  ];
+
   return (
-    <div className="px-12 py-14 max-w-5xl">
+    <div className="px-10 py-10 space-y-5">
+
+      {/* Back */}
       <Link
         href="/busquedas"
-        className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-[0.2em] text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] mb-10 transition-colors"
+        className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
+        style={{ color: "var(--gl-ink-3)" }}
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Búsquedas
       </Link>
 
-      {/* Header */}
-      <header className="pb-10 border-b agro-rule">
+      {/* ── Header card ──────────────────────────────────────────── */}
+      <div className="rounded-2xl border p-6" style={CARD}>
         <div className="flex items-start justify-between gap-6">
-          <div>
-            <span
-              className={`text-[10px] uppercase tracking-[0.2em] ${
-                busqueda.estado === "activa"
-                  ? "text-[var(--agro-olive)]"
-                  : "text-[var(--agro-ink-soft)]"
-              }`}
+
+          {/* Ícono + info */}
+          <div className="flex items-start gap-5">
+            <div
+              className="h-14 w-14 rounded-2xl grid place-items-center text-xl font-bold shrink-0"
+              style={{ background: headerPal.bg, color: headerPal.color }}
             >
-              {busqueda.estado}
-            </span>
-            <h1 className="font-display text-4xl mt-2 leading-tight">{busqueda.puesto}</h1>
-            <p className="text-sm text-[var(--agro-ink-soft)] mt-2 italic">
-              {busqueda.cliente}
-              {busqueda.ubicacion ? ` · ${busqueda.ubicacion}` : ""}
-              {` · abierta ${busqueda.fecha_apertura}`}
-            </p>
+              {busqueda.puesto[0].toUpperCase()}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
+                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${estadoBadge}`}>
+                  {busqueda.estado}
+                </span>
+                {contratados > 0 && (
+                  <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full gl-badge-green">
+                    {contratados} contratado{contratados > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+              <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--gl-ink)" }}>
+                {busqueda.puesto}
+              </h1>
+              <div className="flex items-center gap-2 flex-wrap mt-1.5">
+                <span className="text-sm font-medium" style={{ color: "var(--gl-ink-3)" }}>
+                  {busqueda.cliente}
+                </span>
+                {busqueda.ubicacion && (
+                  <>
+                    <span style={{ color: "var(--gl-border)" }}>·</span>
+                    <span className="flex items-center gap-1 text-sm" style={{ color: "var(--gl-ink-3)" }}>
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      {busqueda.ubicacion}
+                    </span>
+                  </>
+                )}
+                {busqueda.fecha_apertura && (
+                  <>
+                    <span style={{ color: "var(--gl-border)" }}>·</span>
+                    <span className="flex items-center gap-1 text-sm" style={{ color: "var(--gl-ink-3)" }}>
+                      <Calendar className="h-3 w-3 shrink-0" />
+                      {busqueda.fecha_apertura}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
+
+          {/* Acciones */}
           <div className="flex gap-2 shrink-0">
             <BusquedaSheet busqueda={busqueda} />
             <SumarCandidatoDialog
               busquedaId={busqueda.id}
               busquedaPuesto={busqueda.puesto}
               candidatos={candidatosActivos ?? []}
-              gestionesExistentes={(gestionesData ?? []).map((g) => (g.candidatos as { id: string } | null)?.id ?? "").filter(Boolean)}
+              gestionesExistentes={(gestionesData ?? [])
+                .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
+                .filter(Boolean)}
             />
           </div>
         </div>
-      </header>
 
-      {/* Quick stats — open, sin celdas rígidas */}
-      <section
-        style={{
-          display: "flex",
-          gap: "clamp(2rem, 5vw, 4rem)",
-          borderBottom: "1px solid var(--agro-rule)",
-          flexWrap: "wrap",
-          paddingBottom: "0.25rem",
-        }}
-      >
-        <QuickStat label="Días abierta" value={`${daysOpen}`} accent />
-        <QuickStat label="En gestión"   value={`${activos}`} />
-        <QuickStat label="Requisitos"   value={`${busqueda.requisitos?.length ?? 0}`} />
-        <QuickStat label="Descartados"  value={`${descartados}`} />
-      </section>
+        {/* Stats strip */}
+        <div
+          className="mt-5 pt-5 flex items-center gap-8 flex-wrap"
+          style={{ borderTop: "1px solid var(--gl-border)" }}
+        >
+          {headerStats.map((s, i) => (
+            <div key={i} className="flex flex-col gap-0.5">
+              <span className="gl-eyebrow">{s.label}</span>
+              <span
+                className="text-[15px] font-bold tabular-nums"
+                style={{ color: s.accent ? "var(--gl-olive)" : "var(--gl-ink)" }}
+              >
+                {s.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
 
-      {/* Main grid */}
-      <div className="grid gap-16 lg:grid-cols-3 mt-12">
-        {/* Left — pipeline + candidatos */}
-        <div className="lg:col-span-2 space-y-12">
+      {/* ── Main grid ─────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
-          {/* Pipeline funnel */}
-          {funnel.length > 0 ? (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-                Pipeline
+        {/* ── Izquierda: pipeline + candidatos ── */}
+        <div className="lg:col-span-2 space-y-5">
+
+          {/* Pipeline */}
+          <div className="rounded-2xl border p-6" style={CARD}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
+                  Pipeline
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  Distribución de candidatos por etapa
+                </p>
               </div>
-              <div className="space-y-px">
+              {funnel.length > 0 && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full gl-badge-olive">
+                  {activos} activo{activos !== 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+
+            {funnel.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Target className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive)", opacity: 0.3 }} />
+                <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
+                  Sin candidatos en pipeline
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>
+                  Sumá un candidato a esta búsqueda para ver el pipeline.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-0">
                 {funnel.map((stage) => (
                   <div
                     key={stage.key}
-                    className="flex items-center gap-4 py-3 border-t agro-rule"
+                    className="flex items-center gap-4 py-3.5"
+                    style={{ borderTop: "1px solid var(--gl-border)" }}
                   >
-                    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)] w-36 shrink-0">
+                    <span
+                      className="gl-eyebrow shrink-0 w-36"
+                      style={{ color: "var(--gl-ink-3)" }}
+                    >
                       {stage.label}
                     </span>
-                    <div className="flex-1 h-1 bg-[var(--agro-rule)] overflow-hidden">
+                    <div
+                      className="flex-1 h-1.5 rounded-full overflow-hidden"
+                      style={{ background: "var(--gl-border)" }}
+                    >
                       <div
-                        className="h-full bg-[var(--agro-olive)] transition-all"
-                        style={{ width: `${(stage.count / maxCount) * 100}%` }}
+                        className="h-full rounded-full transition-all"
+                        style={{
+                          width: `${(stage.count / maxCount) * 100}%`,
+                          background: stage.key === "contratado"
+                            ? "var(--gl-green)"
+                            : "var(--gl-olive)",
+                        }}
                       />
                     </div>
-                    <span className="font-display text-xl tabular-nums text-[var(--agro-olive)] w-5 text-right">
+                    <span
+                      className="text-[13px] font-bold tabular-nums shrink-0 w-5 text-right"
+                      style={{
+                        color: stage.key === "contratado"
+                          ? "var(--gl-green)"
+                          : "var(--gl-olive)",
+                      }}
+                    >
                       {stage.count}
                     </span>
                   </div>
                 ))}
-                <div className="border-t agro-rule" />
+                <div style={{ borderTop: "1px solid var(--gl-border)" }} />
               </div>
-            </section>
-          ) : null}
+            )}
+          </div>
 
           {/* Candidatos */}
-          <section>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-              Candidatos · {gestionesData?.length ?? 0}
+          <div className="rounded-2xl border p-6" style={CARD}>
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
+                  Candidatos
+                </h2>
+                <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  Todos los que participaron en esta búsqueda
+                </p>
+              </div>
+              {(gestionesData?.length ?? 0) > 0 && (
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full gl-badge-olive">
+                  {gestionesData!.length} total
+                </span>
+              )}
             </div>
-            <div className="space-y-px">
-              {gestionesData?.map(({ id: gId, candidatos: cand, estado, updated_at }) => {
-                const stageIdx = STAGES.findIndex((s) => s.key === estado);
-                const isDescartado = estado === "descartado";
-                return (
-                  <div
-                    key={gId}
-                    className={`flex items-center justify-between gap-6 py-4 border-t agro-rule ${
-                      isDescartado ? "opacity-40" : ""
-                    }`}
-                  >
-                    {cand ? (
-                      <Link
-                        href={`/candidatos/${cand.id}`}
-                        className="flex items-start gap-4 flex-1 min-w-0 hover:text-[var(--agro-olive)] transition-colors group"
-                      >
-                        <div className="h-9 w-9 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-sm mt-0.5">
-                          {cand.nombre[0]}{cand.apellido[0]}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="text-sm group-hover:text-[var(--agro-olive)] transition-colors">
-                            {cand.nombre} {cand.apellido}
-                          </div>
-                          <div className="text-xs text-[var(--agro-ink-soft)] italic mt-0.5 truncate">
-                            {cand.ultimo_puesto}
-                          </div>
-                          {/* Stage track */}
-                          {!isDescartado && stageIdx >= 0 ? (
-                            <div className="flex items-center gap-0.5 mt-2">
-                              {STAGES.map((stage, i) => (
-                                <div key={stage.key} className="flex items-center gap-0.5">
-                                  <div
-                                    className={`rounded-full ${
-                                      i < stageIdx
-                                        ? "h-1 w-1 bg-[var(--agro-olive-soft)]"
-                                        : i === stageIdx
-                                          ? "h-1.5 w-1.5 bg-[var(--agro-olive)]"
-                                          : "h-1 w-1 bg-[var(--agro-rule)]"
-                                    }`}
-                                  />
-                                  {i < STAGES.length - 1 && (
-                                    <div
-                                      className={`h-px w-2.5 ${
-                                        i < stageIdx
-                                          ? "bg-[var(--agro-olive-soft)]"
-                                          : "bg-[var(--agro-rule)]"
-                                      }`}
-                                    />
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      </Link>
-                    ) : (
-                      <span className="text-[var(--agro-ink-soft)]">—</span>
-                    )}
 
-                    <div className="text-right shrink-0">
-                      <div
-                        className={`text-[10px] uppercase tracking-[0.18em] ${
-                          isDescartado
-                            ? "text-[var(--agro-ink-soft)] line-through"
-                            : estado === "contratado"
-                              ? "text-[var(--agro-olive)]"
-                              : "text-[var(--agro-ink-soft)]"
-                        }`}
-                      >
-                        {STAGES.find((s) => s.key === estado)?.label ?? estado}
-                      </div>
-                      <div className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] mt-1">
-                        {updated_at.slice(0, 10)}
+            {!gestionesData?.length ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Users className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive)", opacity: 0.3 }} />
+                <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
+                  Sin candidatos
+                </p>
+                <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>
+                  Sumá candidatos activos a esta búsqueda.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-0">
+                {gestionesData.map(({ id: gId, candidatos: cand, estado, updated_at }) => {
+                  const isDescartado = estado === "descartado";
+                  const isContratado = estado === "contratado";
+                  const stageLabel   = STAGES.find((s) => s.key === estado)?.label ?? estado;
+                  const stageIdx     = STAGES.findIndex((s) => s.key === estado);
+                  const dias         = diasDesde(updated_at);
+                  const c            = cand as {
+                    id: string;
+                    nombre: string;
+                    apellido: string;
+                    ultimo_puesto: string | null;
+                  } | null;
+                  const avatarPal    = c
+                    ? AVATAR_HEX[(c.nombre.charCodeAt(0) + c.apellido.charCodeAt(0)) % AVATAR_HEX.length]
+                    : AVATAR_HEX[0];
+
+                  const stageBadgeCls = isDescartado
+                    ? "gl-badge-gray"
+                    : isContratado
+                      ? "gl-badge-green"
+                      : "gl-badge-olive";
+
+                  return (
+                    <div
+                      key={gId}
+                      className="flex items-center gap-3 py-3"
+                      style={{
+                        borderTop: "1px solid var(--gl-border)",
+                        opacity: isDescartado ? 0.5 : 1,
+                      }}
+                    >
+                      {c ? (
+                        <Link
+                          href={`/candidatos/${c.id}`}
+                          className="gl-row flex items-center gap-3 flex-1 min-w-0 px-2 py-2 -mx-2"
+                        >
+                          <div
+                            className="h-9 w-9 rounded-full grid place-items-center text-sm font-bold shrink-0"
+                            style={{ background: avatarPal.bg, color: avatarPal.color }}
+                          >
+                            {c.nombre[0]}{c.apellido[0]}
+                          </div>
+                          <div className="min-w-0">
+                            <div
+                              className="text-[13.5px] font-semibold truncate"
+                              style={{ color: "var(--gl-ink)" }}
+                            >
+                              {c.nombre} {c.apellido}
+                            </div>
+                            {c.ultimo_puesto && (
+                              <div
+                                className="text-xs mt-0.5 truncate"
+                                style={{ color: "var(--gl-ink-3)" }}
+                              >
+                                {c.ultimo_puesto}
+                              </div>
+                            )}
+                            {/* Stage track */}
+                            {!isDescartado && stageIdx >= 0 && (
+                              <div className="flex items-center gap-0.5 mt-2">
+                                {STAGES.map((stage, i) => (
+                                  <div key={stage.key} className="flex items-center gap-0.5">
+                                    <div
+                                      className="rounded-full"
+                                      style={{
+                                        width:      i === stageIdx ? 8 : 6,
+                                        height:     i === stageIdx ? 8 : 6,
+                                        background: i <= stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
+                                        opacity:    i < stageIdx ? 0.4 : 1,
+                                      }}
+                                    />
+                                    {i < STAGES.length - 1 && (
+                                      <div style={{
+                                        height: 1, width: 12,
+                                        background: i < stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
+                                        opacity: i < stageIdx ? 0.35 : 1,
+                                      }} />
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                      ) : (
+                        <div className="flex-1" />
+                      )}
+
+                      <div className="text-right shrink-0 space-y-1.5 ml-2">
+                        <span
+                          className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap ${stageBadgeCls}`}
+                          style={{
+                            textDecoration: isDescartado ? "line-through" : "none",
+                          }}
+                        >
+                          {stageLabel}
+                        </span>
+                        <div
+                          className="text-[11px] tabular-nums font-mono"
+                          style={{ color: "var(--gl-ink-3)" }}
+                        >
+                          {dias}d sin cambio
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-              <div className="border-t agro-rule" />
-            </div>
-          </section>
+                  );
+                })}
+                <div style={{ borderTop: "1px solid var(--gl-border)" }} />
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Right — brief, requisitos, datos */}
-        <div className="space-y-10">
-          {busqueda.descripcion ? (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+        {/* ── Derecha: brief + requisitos + datos ── */}
+        <div className="space-y-5">
+
+          {/* Brief */}
+          {busqueda.descripcion && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-3" style={{ color: "var(--gl-ink)" }}>
                 Brief
-              </div>
-              <p className="text-sm leading-relaxed text-[var(--agro-ink-soft)]">
+              </h2>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
                 {busqueda.descripcion}
               </p>
-            </section>
-          ) : null}
+            </div>
+          )}
 
-          {busqueda.requisitos?.length > 0 ? (
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-                Requisitos · {busqueda.requisitos.length}
+          {/* Requisitos */}
+          {busqueda.requisitos?.length > 0 && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
+                  Requisitos
+                </h2>
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full gl-badge-olive">
+                  {busqueda.requisitos.length}
+                </span>
               </div>
-              <div className="space-y-px">
+              <div className="space-y-0">
                 {busqueda.requisitos.map((r: string, i: number) => (
-                  <div key={r} className="flex items-baseline gap-3 py-2.5 border-t agro-rule">
-                    <span className="font-mono text-[10px] tabular-nums text-[var(--agro-rule)] w-4 shrink-0">
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 py-2.5"
+                    style={{ borderTop: "1px solid var(--gl-border)" }}
+                  >
+                    <span
+                      className="font-mono text-[10.5px] tabular-nums shrink-0 mt-0.5 font-semibold"
+                      style={{ color: "var(--gl-border)" }}
+                    >
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <span className="text-sm">{r}</span>
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{r}</span>
                   </div>
                 ))}
-                <div className="border-t agro-rule" />
               </div>
-            </section>
-          ) : null}
+            </div>
+          )}
 
-          <section>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
+          {/* Datos */}
+          <div className="rounded-2xl border p-6" style={CARD}>
+            <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
               Datos
-            </div>
-            <div className="space-y-px">
-              {busqueda.rango_salarial ? (
-                <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
-                  <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
-                    Rango
+            </h2>
+            <div className="space-y-0">
+              {busqueda.rango_salarial && (
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
+                  <span className="gl-eyebrow">Rango salarial</span>
+                  <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>
+                    {busqueda.rango_salarial}
                   </span>
-                  <span className="text-sm">{busqueda.rango_salarial}</span>
                 </div>
-              ) : null}
-              <div className="flex items-baseline justify-between gap-3 py-2.5 border-b agro-rule">
-                <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
-                  Apertura
+              )}
+              <div
+                className="flex items-center justify-between gap-3 py-3"
+                style={{ borderBottom: "1px solid var(--gl-border)" }}
+              >
+                <span className="gl-eyebrow">Apertura</span>
+                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>
+                  {busqueda.fecha_apertura}
                 </span>
-                <span className="font-mono text-sm tabular-nums">{busqueda.fecha_apertura}</span>
+              </div>
+              <div className="flex items-center justify-between gap-3 py-3">
+                <span className="gl-eyebrow">Tiempo abierta</span>
+                <span
+                  className="text-sm font-bold tabular-nums"
+                  style={{ color: daysOpen > 30 ? "var(--gl-olive)" : "var(--gl-ink)" }}
+                >
+                  {daysOpen}d
+                </span>
               </div>
             </div>
-          </section>
-        </div>
-      </div>
-    </div>
-  );
-}
+          </div>
 
-function QuickStat({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent?: boolean;
-}) {
-  return (
-    <div style={{ paddingTop: "1.5rem", paddingBottom: "1.5rem" }}>
-      <div
-        className="font-display tabular-nums leading-none"
-        style={{
-          fontSize: "clamp(2rem, 3.5vw, 2.5rem)",
-          letterSpacing: "-0.03em",
-          color: accent ? "var(--agro-olive)" : "var(--agro-ink)",
-        }}
-      >
-        {value}
-      </div>
-      <div
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          letterSpacing: "0.18em",
-          textTransform: "uppercase",
-          color: "var(--agro-ink-soft)",
-          marginTop: "0.375rem",
-        }}
-      >
-        {label}
+        </div>
       </div>
     </div>
   );
