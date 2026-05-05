@@ -1,18 +1,35 @@
 import Link from "next/link";
-import { Users, Inbox } from "lucide-react";
+import { Users, Inbox, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { BusquedaSheet } from "@/components/app/busqueda-sheet";
 
-function calcDaysOpen(fecha: string) {
-  if (!fecha) return 0;
-  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
-}
+const AVATAR_HEX = [
+  { bg: "#dafbe1", color: "#1a7f37" },
+  { bg: "#ddf4ff", color: "#0550ae" },
+  { bg: "#ffd8eb", color: "#99286e" },
+  { bg: "#fff8c5", color: "#7d4e00" },
+  { bg: "#eddeff", color: "#6e40c9" },
+];
+
+const STAGE_ORDER = [
+  "preseleccionado", "entrevista_orka", "presentado_cliente",
+  "entrevista_cliente", "ofertado", "contratado",
+];
+
+const STAGE_LABEL: Record<string, string> = {
+  preseleccionado:    "Preseleccionado",
+  entrevista_orka:    "Entrevista Orka",
+  presentado_cliente: "Presentado",
+  entrevista_cliente: "2ª Entrevista",
+  ofertado:           "Ofertado",
+  contratado:         "Contratado",
+};
 
 function estadoBadge(estado: string): { bg: string; color: string; label: string } {
   const map: Record<string, { bg: string; color: string; label: string }> = {
-    activa:  { bg: "#dafbe1", color: "#1a7f37", label: "Activa" },
-    cerrada: { bg: "#f6f8fa", color: "#57606a", label: "Cerrada" },
-    pausada: { bg: "#fff8c5", color: "#9a6700", label: "Pausada" },
+    activa:  { bg: "#dafbe1", color: "#1a7f37",  label: "Activa"  },
+    cerrada: { bg: "#f6f8fa", color: "#57606a",  label: "Cerrada" },
+    pausada: { bg: "#fff8c5", color: "#9a6700",  label: "Pausada" },
   };
   return map[estado] ?? { bg: "#f6f8fa", color: "#57606a", label: estado };
 }
@@ -23,18 +40,40 @@ function daysBadge(days: number): { bg: string; color: string } {
   return { bg: "#ffebe9", color: "#cf222e" };
 }
 
+function calcDaysOpen(fecha: string) {
+  if (!fecha) return 0;
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+}
+
+type GestionRaw = { estado: string };
+
+function mejorEtapa(gestiones: GestionRaw[]) {
+  const conContratado = gestiones.filter((g) => g.estado === "contratado");
+  if (conContratado.length > 0) {
+    return { label: "Contratado", count: conContratado.length, isContratado: true };
+  }
+  const activas = gestiones.filter((g) => g.estado !== "descartado");
+  if (!activas.length) return null;
+  for (let i = STAGE_ORDER.length - 1; i >= 0; i--) {
+    const key   = STAGE_ORDER[i];
+    const count = activas.filter((g) => g.estado === key).length;
+    if (count > 0) return { label: STAGE_LABEL[key], count, isContratado: false };
+  }
+  return null;
+}
+
 export default async function BusquedasPage() {
   const supabase = await createClient();
   const { data: busquedas } = await supabase
     .from("busquedas")
-    .select("*, gestiones(id)")
+    .select("*, gestiones(id, estado)")
     .order("fecha_apertura", { ascending: false });
 
-  const total = busquedas?.length ?? 0;
+  const total  = busquedas?.length ?? 0;
   const activas = busquedas?.filter((b) => b.estado === "activa").length ?? 0;
 
   return (
-    <div className="px-8 py-10 max-w-5xl mx-auto">
+    <div className="px-10 py-10">
 
       {/* Header */}
       <header className="mb-8">
@@ -44,14 +83,14 @@ export default async function BusquedasPage() {
             className="font-display tracking-tight leading-none"
             style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--gl-ink)" }}
           >
-            {total} búsquedas
+            {total} búsqueda{total !== 1 ? "s" : ""}
           </h1>
           <div className="flex items-center gap-3">
             <span
               className="text-xs font-semibold px-3 py-1.5 rounded-full"
               style={{ background: "#dafbe1", color: "#1a7f37" }}
             >
-              {activas} activas
+              {activas} activa{activas !== 1 ? "s" : ""}
             </span>
             <BusquedaSheet />
           </div>
@@ -59,107 +98,146 @@ export default async function BusquedasPage() {
       </header>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
 
         {/* Empty state */}
         {total === 0 && (
           <div
-            style={{
-              gridColumn: "1 / -1",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              padding: "5rem 1rem",
-            }}
+            className="flex flex-col items-center text-center py-20"
+            style={{ gridColumn: "1 / -1" }}
           >
             <div
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: "50%",
-                background: "var(--gl-olive-bg)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "1.25rem",
-              }}
+              className="h-13 w-13 rounded-full grid place-items-center mb-5"
+              style={{ background: "var(--gl-olive-bg)" }}
             >
-              <Inbox style={{ width: 22, height: 22, color: "var(--gl-olive)" }} />
+              <Inbox className="h-6 w-6" style={{ color: "var(--gl-olive)" }} />
             </div>
             <h3
-              className="font-display"
-              style={{ fontSize: "1.375rem", color: "var(--gl-ink)", marginBottom: "0.375rem" }}
+              className="font-display mb-1.5"
+              style={{ fontSize: "1.375rem", color: "var(--gl-ink)" }}
             >
               Sin búsquedas abiertas
             </h3>
-            <p style={{ fontSize: "13.5px", color: "var(--gl-ink-3)", marginBottom: "1.75rem" }}>
+            <p className="text-sm mb-6" style={{ color: "var(--gl-ink-3)" }}>
               Creá la primera posición para empezar a sumar candidatos.
             </p>
             <BusquedaSheet />
           </div>
         )}
 
-        {busquedas?.map((b) => {
-          const days = calcDaysOpen(b.fecha_apertura);
+        {busquedas?.map((b, i) => {
+          const days  = calcDaysOpen(b.fecha_apertura);
           const count = b.gestiones.length;
-          const est = estadoBadge(b.estado);
-          const dys = daysBadge(days);
+          const est   = estadoBadge(b.estado);
+          const dys   = daysBadge(days);
+          const etapa = mejorEtapa(b.gestiones as GestionRaw[]);
+          const pal   = AVATAR_HEX[b.puesto.charCodeAt(0) % AVATAR_HEX.length];
 
           return (
-            <Link key={b.id} href={`/busquedas/${b.id}`} className="gl-card-link p-5 flex flex-col">
+            <Link key={b.id} href={`/busquedas/${b.id}`} className="gl-card-link flex flex-col p-5">
 
-              {/* Estado + días */}
-              <div className="flex items-center justify-between mb-4">
+              {/* ── Top: ícono cuadrado + info + estado ── */}
+              <div className="flex items-start gap-3.5 mb-4">
+                {/* Square icon — distingue posición de persona (círculo) */}
+                <div
+                  className="h-11 w-11 rounded-xl grid place-items-center text-sm font-bold shrink-0"
+                  style={{ background: pal.bg, color: pal.color }}
+                >
+                  {b.puesto[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="text-[14px] font-bold leading-tight"
+                    style={{ color: "var(--gl-ink)" }}
+                  >
+                    {b.puesto}
+                  </div>
+                  <div
+                    className="text-[12.5px] mt-0.5 truncate"
+                    style={{ color: "var(--gl-ink-3)" }}
+                  >
+                    {b.cliente}
+                  </div>
+                  {b.ubicacion && (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-3 w-3 shrink-0" style={{ color: "var(--gl-ink-3)" }} />
+                      <span
+                        className="text-[11.5px] truncate"
+                        style={{ color: "var(--gl-ink-3)" }}
+                      >
+                        {b.ubicacion}
+                      </span>
+                    </div>
+                  )}
+                </div>
                 <span
-                  className="text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full"
+                  className="text-[10.5px] font-semibold px-2 py-0.5 rounded-full shrink-0"
                   style={est}
                 >
                   {est.label}
                 </span>
-                <span
-                  className="text-[10.5px] font-semibold px-2.5 py-0.5 rounded-full font-mono"
-                  style={dys}
-                >
-                  {days}d
-                </span>
               </div>
 
-              {/* Puesto + cliente */}
-              <div className="flex-1 mb-5">
+              {/* ── Etapa activa chip (espeja gestión activa de candidatos) ── */}
+              {etapa ? (
                 <div
-                  className="font-display leading-snug"
-                  style={{ fontSize: "1.1rem", color: "var(--gl-ink)", letterSpacing: "-0.02em" }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4"
+                  style={{
+                    background: etapa.isContratado ? "#dafbe1" : "var(--gl-olive-bg)",
+                  }}
                 >
-                  {b.puesto}
+                  <span
+                    className="text-[11px] font-semibold shrink-0"
+                    style={{ color: etapa.isContratado ? "#1a7f37" : "var(--gl-olive)" }}
+                  >
+                    {etapa.label}
+                  </span>
+                  <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>·</span>
+                  <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+                    {etapa.count} candidato{etapa.count !== 1 ? "s" : ""}
+                  </span>
                 </div>
+              ) : (
                 <div
-                  className="text-[12.5px] mt-1"
-                  style={{ color: "var(--gl-ink-3)" }}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg mb-4"
+                  style={{ background: "var(--gl-gray-bg)" }}
                 >
-                  {b.cliente}
-                  {b.ubicacion ? ` · ${b.ubicacion}` : ""}
+                  <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+                    Sin candidatos asignados
+                  </span>
                 </div>
-              </div>
+              )}
 
-              {/* Footer: candidatos */}
-              <div className="flex items-center justify-between">
+              {/* ── Footer: total candidatos + rango + días ── */}
+              <div
+                className="flex items-center justify-between gap-2 pt-3 mt-auto"
+                style={{ borderTop: "1px solid var(--gl-border)" }}
+              >
                 <div
-                  className="flex items-center gap-1.5 text-[12px]"
+                  className="flex items-center gap-1.5 text-[12px] min-w-0"
                   style={{ color: count > 0 ? "var(--gl-olive)" : "var(--gl-ink-3)" }}
                 >
                   <Users className="h-3 w-3 shrink-0" />
-                  {count === 0
-                    ? "Sin candidatos"
-                    : `${count} candidato${count !== 1 ? "s" : ""}`}
-                </div>
-                {b.rango_salarial && (
-                  <span
-                    className="text-[11px] font-mono"
-                    style={{ color: "var(--gl-ink-3)" }}
-                  >
-                    {b.rango_salarial}
+                  <span className="truncate">
+                    {count === 0 ? "Sin candidatos" : `${count} candidato${count !== 1 ? "s" : ""}`}
                   </span>
-                )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  {b.rango_salarial && (
+                    <span
+                      className="text-[11px] font-mono truncate"
+                      style={{ color: "var(--gl-ink-3)", maxWidth: "9rem" }}
+                    >
+                      {b.rango_salarial}
+                    </span>
+                  )}
+                  <span
+                    className="text-[10.5px] font-semibold font-mono px-2 py-0.5 rounded-full shrink-0"
+                    style={dys}
+                  >
+                    {days}d
+                  </span>
+                </div>
               </div>
             </Link>
           );
