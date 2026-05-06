@@ -6,7 +6,7 @@ import { updateGestionEstado } from "@/lib/actions/gestiones"
 
 const PIPELINE = [
   { key: "preseleccionado",    label: "Preseleccionado", bg: "#f0f3ff", color: "#3451b2" },
-  { key: "entrevista_orka",    label: "Entrevista Orka", bg: "#ddf4ff", color: "#0550ae" },
+  { key: "entrevista_orka",    label: "Entrevista GL", bg: "#ddf4ff", color: "#0550ae" },
   { key: "presentado_cliente", label: "Presentado",      bg: "#eddeff", color: "#6e40c9" },
   { key: "entrevista_cliente", label: "2ª Entrevista",   bg: "#fff8c5", color: "#9a6700" },
   { key: "ofertado",           label: "Ofertado",        bg: "#ffd8eb", color: "#99286e" },

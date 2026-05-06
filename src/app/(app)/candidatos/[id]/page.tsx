@@ -17,7 +17,7 @@ const AVATAR_HEX = [
 
 const STAGES = [
   { key: "preseleccionado",    label: "Preseleccionado" },
-  { key: "entrevista_orka",    label: "Entrevista Orka" },
+  { key: "entrevista_orka",    label: "Entrevista GL" },
   { key: "presentado_cliente", label: "Presentado" },
   { key: "entrevista_cliente", label: "2ª Entrevista" },
   { key: "ofertado",           label: "Ofertado" },

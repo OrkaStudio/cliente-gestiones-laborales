@@ -18,7 +18,7 @@ const STAGE_ORDER = [
 
 const STAGE_LABEL: Record<string, string> = {
   preseleccionado:    "Preseleccionado",
-  entrevista_orka:    "Entrevista Orka",
+  entrevista_orka:    "Entrevista GL",
   presentado_cliente: "Presentado",
   entrevista_cliente: "2ª Entrevista",
   ofertado:           "Ofertado",
