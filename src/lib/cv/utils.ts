@@ -1,5 +1,11 @@
 export type CvSection = { title: string; content: string }
 
+export function assembleSections(sections: CvSection[]): string {
+  return sections
+    .map((s) => `${s.title}\n${"─".repeat(49)}\n${s.content}`)
+    .join("\n\n")
+}
+
 export function parseSections(text: string): CvSection[] {
   const lines  = text.split("\n")
   const result: CvSection[] = []
