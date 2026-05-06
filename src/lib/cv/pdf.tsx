@@ -1,4 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import { parseSections } from "./utils"
 
 const GL = {
   olive:     "#2a4a18",
@@ -122,47 +123,6 @@ const s = StyleSheet.create({
     fontSize: 7,
   },
 })
-
-// ── Parser ──────────────────────────────────────────────────────────────────
-// Detecta secciones por líneas en MAYÚSCULAS seguidas de una línea ─────
-type Section = { title: string; content: string }
-
-function parseSections(text: string): Section[] {
-  const lines  = text.split("\n")
-  const result: Section[] = []
-  let current: { title: string; lines: string[] } | null = null
-
-  for (let i = 0; i < lines.length; i++) {
-    const line    = lines[i]
-    const trimmed = line.trim()
-    const next    = lines[i + 1]?.trim() ?? ""
-
-    const isSectionHeader =
-      trimmed.length > 0 &&
-      trimmed.length < 80 &&
-      /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s/()]+$/.test(trimmed) &&
-      (next.startsWith("─") || next.startsWith("-"))
-
-    if (isSectionHeader) {
-      if (current) result.push({ title: current.title, content: cleanContent(current.lines) })
-      current = { title: trimmed, lines: [] }
-      i++ // saltar la línea ─────
-      continue
-    }
-
-    if (current) current.lines.push(line)
-  }
-
-  if (current) result.push({ title: current.title, content: cleanContent(current.lines) })
-  return result
-}
-
-function cleanContent(lines: string[]): string {
-  return lines
-    .map((l) => l.replace(/^─+$/, "").replace(/^\s+$/, "")) // quitar líneas solo de ─ o espacios
-    .join("\n")
-    .trim()
-}
 
 // ── Documento ────────────────────────────────────────────────────────────────
 export function CVDocument({

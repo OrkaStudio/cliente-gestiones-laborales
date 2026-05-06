@@ -506,15 +506,10 @@ export default async function CandidatoDetailPage({
       </div>
 
       {/* CV Procesado GL — editable */}
-      <section className="mt-16 pt-12 border-t agro-rule">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
-          CV Procesado GL
-        </div>
-        <CVProcesadoEditor
-          candidatoId={candidato.id}
-          initialTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
-        />
-      </section>
+      <CVProcesadoEditor
+        candidatoId={candidato.id}
+        initialTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
+      />
 
       {/* Preguntas sugeridas */}
       <section className="mt-12 pt-12 border-t agro-rule">
