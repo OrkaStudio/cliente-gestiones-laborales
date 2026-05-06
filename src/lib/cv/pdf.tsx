@@ -23,7 +23,8 @@ const s = StyleSheet.create({
   page: {
     backgroundColor: C.white,
     fontFamily: "Helvetica",
-    paddingBottom: 44,
+    paddingTop:    28,   // margen superior en todas las páginas (incluida la 2+)
+    paddingBottom: 50,   // espacio para el footer fijo
   },
 
   // ── HEADER ────────────────────────────────────────────────────────────────

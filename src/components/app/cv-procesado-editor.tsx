@@ -109,19 +109,19 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
 
         {/* Header oliva — idéntico al PDF ──────────────────────────────── */}
         <div
-          className="flex items-start justify-between px-10 py-7"
+          className="flex items-start justify-between px-7 py-5"
           style={{ background: "var(--gl-olive)" }}
         >
           <div>
             <div
               className="font-bold tracking-[0.12em] uppercase"
-              style={{ color: "#fff", fontSize: 15 }}
+              style={{ color: "#fff", fontSize: 12 }}
             >
               Gestiones Laborales
             </div>
             <div
-              className="mt-1.5 uppercase tracking-[0.18em]"
-              style={{ color: "rgba(255,255,255,0.55)", fontSize: 7.5 }}
+              className="mt-1 uppercase tracking-[0.16em]"
+              style={{ color: "rgba(255,255,255,0.55)", fontSize: 7 }}
             >
               Consultora RRHH Agropecuario
             </div>
@@ -129,13 +129,13 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
           <div className="text-right">
             <div
               className="uppercase tracking-[0.2em]"
-              style={{ color: "rgba(255,255,255,0.55)", fontSize: 7.5, marginBottom: 4 }}
+              style={{ color: "rgba(255,255,255,0.55)", fontSize: 7, marginBottom: 3 }}
             >
               Currículum Vitae
             </div>
             <div
               className="font-bold"
-              style={{ color: "#fff", fontSize: 15 }}
+              style={{ color: "#fff", fontSize: 12 }}
             >
               {nombre} {apellido}
             </div>
@@ -157,7 +157,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
                 className="group relative"
                 style={{
                   borderBottom: idx < sections.length - 1 ? "1px solid var(--gl-border)" : "none",
-                  padding:      "24px 40px",
+                  padding:      "16px 28px",
                   background:   active ? "#fafffe" : "#fff",
                   transition:   "background 0.15s",
                 }}
@@ -169,7 +169,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
                       className="font-bold uppercase tracking-[0.2em]"
                       style={{
                         color:    active ? "var(--gl-amber)" : "var(--gl-olive)",
-                        fontSize: 9,
+                        fontSize: 8,
                       }}
                     >
                       {sec.title}
@@ -258,8 +258,8 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
                     className="whitespace-pre-wrap"
                     style={{
                       fontFamily: "inherit",
-                      fontSize:   13.5,
-                      lineHeight: 1.85,
+                      fontSize:   12,
+                      lineHeight: 1.75,
                       color:      "var(--gl-ink-2)",
                       margin:     0,
                     }}
@@ -274,7 +274,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
 
         {/* Footer del documento — idéntico al PDF */}
         <div
-          className="flex items-center justify-between px-10 py-3.5"
+          className="flex items-center justify-between px-7 py-2.5"
           style={{ borderTop: "1px solid var(--gl-border)" }}
         >
           <div className="flex items-center gap-2">
