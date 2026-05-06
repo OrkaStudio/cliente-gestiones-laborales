@@ -1,104 +1,149 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
 import { parseSections } from "./utils"
 
-const GL = {
-  olive:     "#2a4a18",
-  oliveLight:"#3d6b24",
-  oliveBg:   "#eef5e8",
-  ink:       "#0d1117",
-  ink2:      "#3d4451",
-  ink3:      "#8b949e",
-  border:    "#eaecef",
-  white:     "#ffffff",
+// ─── Paleta GL ────────────────────────────────────────────────────────────────
+const C = {
+  olive:      "#2a4a18",
+  oliveMid:   "#3d6b24",
+  oliveBg:    "#eef5e8",
+  oliveFaint: "#d4e6c3",
+  ink:        "#0d1117",
+  ink2:       "#3d4451",
+  ink3:       "#8b949e",
+  border:     "#e2e6ea",
+  white:      "#ffffff",
+  pageBg:     "#f7f8f9",
 }
 
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
+
+  // Página
   page: {
-    backgroundColor: GL.white,
-    paddingBottom: 52,
+    backgroundColor: C.pageBg,
     fontFamily: "Helvetica",
+    paddingBottom: 48,
   },
 
-  // ── Header ──
+  // Barra lateral izquierda — va fija en todas las páginas
+  sideBar: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width: 5,
+    backgroundColor: C.olive,
+  },
+
+  // ── Header ──────────────────────────────────────────────────────────────────
   header: {
-    backgroundColor: GL.olive,
-    paddingHorizontal: 40,
-    paddingTop: 28,
-    paddingBottom: 24,
+    backgroundColor: C.olive,
+    paddingLeft: 44,
+    paddingRight: 36,
+    paddingTop: 30,
+    paddingBottom: 26,
+  },
+  headerTop: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-start",
   },
   brandName: {
-    color: GL.white,
-    fontSize: 14,
+    color: C.white,
     fontFamily: "Helvetica-Bold",
-    letterSpacing: 1.5,
+    fontSize: 13,
+    letterSpacing: 2,
   },
   brandSub: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 7,
-    letterSpacing: 1.8,
-    marginTop: 5,
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 6.5,
+    letterSpacing: 2,
+    marginTop: 4,
   },
   headerRight: {
     alignItems: "flex-end",
   },
   cvLabel: {
-    color: "rgba(255,255,255,0.55)",
-    fontSize: 7,
-    letterSpacing: 2,
+    color: "rgba(255,255,255,0.5)",
+    fontSize: 6.5,
+    letterSpacing: 2.5,
     marginBottom: 5,
   },
   candidateName: {
-    color: GL.white,
-    fontSize: 14,
+    color: C.white,
     fontFamily: "Helvetica-Bold",
+    fontSize: 16,
+    letterSpacing: 0.5,
+  },
+  // Separador dentro del header
+  headerRule: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    marginTop: 16,
+    marginBottom: 12,
   },
 
-  // ── Accent bar ──
-  accentBar: {
-    height: 3,
-    backgroundColor: GL.oliveLight,
-    opacity: 0.4,
-  },
-
-  // ── Body ──
+  // ── Cuerpo ──────────────────────────────────────────────────────────────────
   body: {
-    paddingHorizontal: 40,
-    paddingTop: 26,
+    paddingLeft:  44,
+    paddingRight: 36,
+    paddingTop:   22,
+    backgroundColor: C.white,
+    marginLeft: 5,           // respeta el sidebar
   },
+
+  // ── Secciones ───────────────────────────────────────────────────────────────
   section: {
-    marginBottom: 18,
+    marginBottom: 16,
+  },
+
+  // Cabecera de sección — NO se separa del contenido
+  sectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5,
+  },
+  sectionAccent: {
+    width: 3,
+    height: 9,
+    backgroundColor: C.olive,
+    marginRight: 7,
+    borderRadius: 1,
   },
   sectionTitle: {
-    color: GL.olive,
-    fontSize: 8,
+    color: C.olive,
     fontFamily: "Helvetica-Bold",
+    fontSize: 8,
     letterSpacing: 2,
-    marginBottom: 6,
-  },
-  sectionRule: {
-    height: 1,
-    backgroundColor: GL.border,
-    marginBottom: 9,
-  },
-  sectionContent: {
-    color: GL.ink2,
-    fontSize: 9.5,
-    lineHeight: 1.7,
+    flexShrink: 1,
   },
 
-  // ── Footer ──
+  // Línea divisora de sección
+  sectionRule: {
+    height: 1,
+    backgroundColor: C.border,
+    marginBottom: 8,
+  },
+
+  // Contenido
+  sectionContent: {
+    color: C.ink2,
+    fontSize: 10,
+    lineHeight: 1.72,
+  },
+
+  // ── Footer ──────────────────────────────────────────────────────────────────
   footer: {
     position: "absolute",
     bottom: 0,
-    left: 0,
+    left: 5,       // respeta sidebar
     right: 0,
-    height: 40,
+    height: 36,
+    backgroundColor: C.white,
     borderTopWidth: 1,
-    borderTopColor: GL.border,
-    paddingHorizontal: 40,
+    borderTopColor: C.border,
+    paddingLeft:  39,
+    paddingRight: 36,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -106,35 +151,45 @@ const s = StyleSheet.create({
   footerLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 5,
   },
   footerBrand: {
-    color: GL.olive,
-    fontSize: 7,
+    color: C.olive,
     fontFamily: "Helvetica-Bold",
+    fontSize: 7,
     letterSpacing: 1,
   },
-  footerSep: {
-    color: GL.border,
+  footerDot: {
+    color: C.border,
+    fontSize: 8,
+  },
+  footerMuted: {
+    color: C.ink3,
     fontSize: 7,
   },
-  footerText: {
-    color: GL.ink3,
+  footerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  footerPage: {
+    color: C.ink3,
     fontSize: 7,
+    fontFamily: "Helvetica-Bold",
   },
 })
 
-// ── Documento ────────────────────────────────────────────────────────────────
+// ─── Documento ────────────────────────────────────────────────────────────────
 export function CVDocument({
   nombre,
   apellido,
   cvTexto,
   fecha,
 }: {
-  nombre: string
+  nombre:   string
   apellido: string
-  cvTexto: string
-  fecha: string
+  cvTexto:  string
+  fecha:    string
 }) {
   const sections = parseSections(cvTexto)
 
@@ -142,28 +197,60 @@ export function CVDocument({
     <Document>
       <Page size="A4" style={s.page}>
 
-        {/* Header */}
+        {/* Barra lateral izquierda — fija en todas las páginas */}
+        <View style={s.sideBar} fixed />
+
+        {/* ── Header ────────────────────────────────────────────────────── */}
         <View style={s.header}>
-          <View>
-            <Text style={s.brandName}>GESTIONES LABORALES</Text>
-            <Text style={s.brandSub}>CONSULTORA RRHH AGROPECUARIO</Text>
+          <View style={s.headerTop}>
+            {/* Marca */}
+            <View>
+              <Text style={s.brandName}>GESTIONES LABORALES</Text>
+              <Text style={s.brandSub}>CONSULTORA RRHH AGROPECUARIO</Text>
+            </View>
+            {/* Candidato */}
+            <View style={s.headerRight}>
+              <Text style={s.cvLabel}>CURRÍCULUM VITAE</Text>
+              <Text style={s.candidateName}>{nombre} {apellido}</Text>
+            </View>
           </View>
-          <View style={s.headerRight}>
-            <Text style={s.cvLabel}>CURRÍCULUM VITAE</Text>
-            <Text style={s.candidateName}>{nombre} {apellido}</Text>
-          </View>
+
+          {/* Línea divisora interna */}
+          <View style={s.headerRule} />
+
+          {/* Fecha de generación */}
+          <Text style={{ color: "rgba(255,255,255,0.45)", fontSize: 6.5, letterSpacing: 1 }}>
+            Documento generado el {fecha}
+          </Text>
         </View>
 
-        <View style={s.accentBar} />
-
-        {/* Body */}
+        {/* ── Cuerpo ────────────────────────────────────────────────────── */}
         <View style={s.body}>
           {sections.length > 0
             ? sections.map((sec, i) => (
-                <View key={i} style={s.section} wrap={false}>
-                  <Text style={s.sectionTitle}>{sec.title}</Text>
-                  <View style={s.sectionRule} />
-                  <Text style={s.sectionContent}>{sec.content}</Text>
+                <View key={i} style={s.section}>
+
+                  {/* Título + regla: se mantienen juntos con el inicio del contenido */}
+                  <View wrap={false}>
+                    <View style={s.sectionHeader}>
+                      <View style={s.sectionAccent} />
+                      <Text style={s.sectionTitle}>{sec.title}</Text>
+                    </View>
+                    <View style={s.sectionRule} />
+
+                    {/* Primera parte del contenido pegada al título (evita huérfanos) */}
+                    <Text style={s.sectionContent}>
+                      {sec.content.split("\n").slice(0, 3).join("\n")}
+                    </Text>
+                  </View>
+
+                  {/* Resto del contenido — puede fluir a la página siguiente */}
+                  {sec.content.split("\n").length > 3 && (
+                    <Text style={s.sectionContent}>
+                      {sec.content.split("\n").slice(3).join("\n")}
+                    </Text>
+                  )}
+
                 </View>
               ))
             : (
@@ -174,14 +261,21 @@ export function CVDocument({
           }
         </View>
 
-        {/* Footer — se repite en cada página */}
+        {/* ── Footer — fijo en todas las páginas ────────────────────────── */}
         <View style={s.footer} fixed>
           <View style={s.footerLeft}>
             <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
-            <Text style={s.footerSep}>·</Text>
-            <Text style={s.footerText}>Documento confidencial</Text>
+            <Text style={s.footerDot}>·</Text>
+            <Text style={s.footerMuted}>Documento confidencial</Text>
+            <Text style={s.footerDot}>·</Text>
+            <Text style={s.footerMuted}>{fecha}</Text>
           </View>
-          <Text style={s.footerText}>{fecha}</Text>
+          <View style={s.footerRight}>
+            <Text
+              style={s.footerPage}
+              render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
+            />
+          </View>
         </View>
 
       </Page>
