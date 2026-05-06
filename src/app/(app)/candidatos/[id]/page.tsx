@@ -508,6 +508,8 @@ export default async function CandidatoDetailPage({
       {/* CV Procesado GL — editable */}
       <CVProcesadoEditor
         candidatoId={candidato.id}
+        nombre={candidato.nombre}
+        apellido={candidato.apellido}
         initialTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
       />
 
