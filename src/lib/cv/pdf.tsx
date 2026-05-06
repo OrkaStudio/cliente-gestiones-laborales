@@ -23,8 +23,12 @@ const s = StyleSheet.create({
   page: {
     backgroundColor: C.white,
     fontFamily: "Helvetica",
-    paddingTop:    28,   // margen superior en todas las páginas (incluida la 2+)
-    paddingBottom: 50,   // espacio para el footer fijo
+    paddingBottom: 50,
+  },
+
+  // Espaciador fijo que solo se renderiza en páginas 2+ (header full-bleed en pág. 1)
+  pageTopGap: {
+    height: 28,
   },
 
   // ── HEADER ────────────────────────────────────────────────────────────────
@@ -260,8 +264,10 @@ function parseJobs(content: string) {
     const line = raw.trim()
     if (!line) continue
 
-    // Detecta línea de periodo: empieza con dígito y tiene "–" o "/" o año de 4 dígitos
-    const isPeriodo = /^(\d{2}\/\d{4}|\d{4})[\s–]/.test(line)
+    // Detecta línea de periodo: formato numérico (06/2020, 2018) o mes textual (Enero 2020)
+    const isPeriodo =
+      /^(\d{2}\/\d{4}|\d{4})\s*[\s\-–—]/.test(line) ||
+      /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)\s+\d{4}/i.test(line)
     if (isPeriodo) {
       if (cur) jobs.push({ periodo: cur.periodo, titulo: cur.titulo, empresa: cur.empresa, desc: cur.descLines.join(" ") })
       cur = { periodo: line, titulo: "", empresa: "", descLines: [] }
@@ -414,6 +420,12 @@ export function CVDocument({
   return (
     <Document>
       <Page size="A4" style={s.page}>
+
+        {/* Margen superior solo en páginas 2+ — página 1 usa el header como full-bleed */}
+        <View
+          fixed
+          render={({ pageNumber }) => pageNumber > 1 ? <View style={s.pageTopGap} /> : null}
+        />
 
         {/* ── Header ───────────────────────────────────────────────────── */}
         <View style={s.header}>

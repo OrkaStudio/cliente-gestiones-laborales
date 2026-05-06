@@ -28,7 +28,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
   const [savedIdx,   setSavedIdx]   = useState<number | null>(null)
   const [isPending,  start]         = useTransition()
 
-  const hasCv     = sections.length > 0
+  const hasText   = !!initialTexto?.trim()
   const isEditing = editingIdx !== null
 
   function startEdit(idx: number) {
@@ -55,7 +55,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
   }
 
   // ── Empty state ─────────────────────────────────────────────────────────────
-  if (!hasCv) {
+  if (!hasText) {
     return (
       <div
         className="rounded-2xl border flex flex-col items-center justify-center py-20 gap-4 text-center"
@@ -147,6 +147,16 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
 
         {/* Secciones ───────────────────────────────────────────────────── */}
         <div style={{ background: "#fff" }}>
+          {sections.length === 0 && (
+            <div className="px-7 py-8">
+              <p className="text-[11px] mb-3 font-medium" style={{ color: "var(--gl-ink-3)" }}>
+                El texto no tiene secciones detectables — se descargará como texto corrido.
+              </p>
+              <pre className="whitespace-pre-wrap" style={{ fontSize: 12, lineHeight: 1.75, color: "var(--gl-ink-2)", margin: 0 }}>
+                {initialTexto}
+              </pre>
+            </div>
+          )}
           {sections.map((sec, idx) => {
             const active    = editingIdx === idx
             const wasSaved  = savedIdx === idx
