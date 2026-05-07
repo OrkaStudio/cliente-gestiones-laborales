@@ -1,10 +1,15 @@
-import Image from "next/image";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+"use client"
+
+import Image from "next/image"
+import { useActionState } from "react"
+import { signIn } from "@/lib/actions/auth"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 
 export default function LoginPage() {
+  const [state, action, pending] = useActionState(signIn, undefined)
+
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.1fr_1fr]">
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-primary p-14 text-primary-foreground lg:flex">
@@ -55,41 +60,51 @@ export default function LoginPage() {
             </p>
           </header>
 
-          <form className="space-y-5">
+          <form action={action} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="editorial-eyebrow">
                 Email
               </Label>
               <Input
                 id="email"
+                name="email"
                 type="email"
-                defaultValue="oriana@gestioneslaborales.com.ar"
+                autoComplete="email"
+                required
                 className="h-11 rounded-md border-x-0 border-t-0 border-b border-border bg-transparent px-1 shadow-none focus-visible:ring-0 focus-visible:border-primary"
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password" className="editorial-eyebrow">
-                Contrasena
+                Contraseña
               </Label>
               <Input
                 id="password"
+                name="password"
                 type="password"
-                defaultValue="demo-2026"
+                autoComplete="current-password"
+                required
                 className="h-11 rounded-md border-x-0 border-t-0 border-b border-border bg-transparent px-1 shadow-none focus-visible:ring-0 focus-visible:border-primary"
               />
             </div>
-            <Link href="/" className="block pt-4">
-              <Button size="lg" className="w-full rounded-full">
-                Ingresar
-              </Button>
-            </Link>
-          </form>
 
-          <p className="text-center text-xs text-muted-foreground">
-            Esto es una demo &mdash; los datos son ficticios.
-          </p>
+            {state?.error && (
+              <p className="text-sm text-destructive">{state.error}</p>
+            )}
+
+            <div className="pt-4">
+              <Button
+                type="submit"
+                size="lg"
+                className="w-full rounded-full"
+                disabled={pending}
+              >
+                {pending ? "Ingresando…" : "Ingresar"}
+              </Button>
+            </div>
+          </form>
         </div>
       </main>
     </div>
-  );
+  )
 }
