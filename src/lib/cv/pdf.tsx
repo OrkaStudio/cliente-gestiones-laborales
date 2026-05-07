@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
-import { parseSections } from "./utils"
+import { parseSections, parseKV, parseJobs, parseBullets, parseRefs } from "./utils"
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const C = {
@@ -239,79 +239,6 @@ const s = StyleSheet.create({
     fontSize: 6.5,
   },
 })
-
-// ─── Parsers de contenido ─────────────────────────────────────────────────────
-
-function parseKV(content: string) {
-  return content.split("\n")
-    .filter(l => l.trim())
-    .map(line => {
-      const idx = line.indexOf(":")
-      if (idx === -1) return { label: "", value: line.trim() }
-      return {
-        label: line.slice(0, idx).trim(),
-        value: line.slice(idx + 1).trim(),
-      }
-    })
-}
-
-function parseJobs(content: string) {
-  const lines = content.split("\n")
-  const jobs: Array<{ periodo: string; titulo: string; empresa: string; desc: string }> = []
-  let cur: { periodo: string; titulo: string; empresa: string; descLines: string[] } | null = null
-
-  for (const raw of lines) {
-    const line = raw.trim()
-    if (!line) continue
-
-    // Detecta línea de periodo: formato numérico (06/2020, 2018) o mes textual (Enero 2020)
-    const isPeriodo =
-      /^(\d{2}\/\d{4}|\d{4})\s*[\s\-–—]/.test(line) ||
-      /^(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)\s+\d{4}/i.test(line)
-    if (isPeriodo) {
-      if (cur) jobs.push({ periodo: cur.periodo, titulo: cur.titulo, empresa: cur.empresa, desc: cur.descLines.join(" ") })
-      cur = { periodo: line, titulo: "", empresa: "", descLines: [] }
-      continue
-    }
-    if (!cur) continue
-
-    if (!cur.titulo) {
-      // Segunda línea: "Rol — Empresa" o "Rol"
-      const sep = line.indexOf(" — ")
-      if (sep !== -1) {
-        cur.titulo  = line.slice(0, sep).trim()
-        cur.empresa = line.slice(sep + 3).trim()
-      } else {
-        cur.titulo = line
-      }
-    } else {
-      cur.descLines.push(line)
-    }
-  }
-  if (cur) jobs.push({ periodo: cur.periodo, titulo: cur.titulo, empresa: cur.empresa, desc: cur.descLines.join(" ") })
-  return jobs
-}
-
-function parseBullets(content: string) {
-  return content.split("\n")
-    .map(l => l.trim().replace(/^[-•]\s*/, ""))
-    .filter(Boolean)
-}
-
-function parseRefs(content: string) {
-  // Agrupa por bloques separados por línea en blanco
-  const blocks: string[][] = []
-  let cur: string[] = []
-  for (const line of content.split("\n")) {
-    if (!line.trim()) {
-      if (cur.length) { blocks.push(cur); cur = [] }
-    } else {
-      cur.push(line.trim())
-    }
-  }
-  if (cur.length) blocks.push(cur)
-  return blocks
-}
 
 // ─── Renderers por sección ────────────────────────────────────────────────────
 

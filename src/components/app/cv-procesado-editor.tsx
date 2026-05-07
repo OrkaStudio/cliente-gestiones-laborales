@@ -3,7 +3,11 @@
 import { useState, useTransition } from "react"
 import { Pencil, Check, X, Download, FileText } from "lucide-react"
 import { updateCVProcesado } from "@/lib/actions/candidatos"
-import { parseSections, assembleSections, type CvSection } from "@/lib/cv/utils"
+import {
+  parseSections, assembleSections,
+  parseKV, parseJobs, parseBullets, parseRefs,
+  type CvSection,
+} from "@/lib/cv/utils"
 
 function autoResize(el: HTMLTextAreaElement) {
   el.style.height = "auto"
@@ -13,10 +17,144 @@ function autoResize(el: HTMLTextAreaElement) {
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  candidatoId: string
-  nombre:      string
-  apellido:    string
+  candidatoId:  string
+  nombre:       string
+  apellido:     string
   initialTexto: string | null
+}
+
+// ─── Renderers web por tipo de sección ───────────────────────────────────────
+
+function KVContent({ content }: { content: string }) {
+  const pairs = parseKV(content)
+  return (
+    <div className="space-y-2.5">
+      {pairs.map(({ label, value }, i) => (
+        <div
+          key={i}
+          className="grid items-baseline"
+          style={{ gridTemplateColumns: "155px 1fr", columnGap: 16 }}
+        >
+          {label && (
+            <span style={{ fontSize: 12, color: "var(--gl-ink-3)", lineHeight: 1.5 }}>
+              {label}
+            </span>
+          )}
+          <span style={{ fontSize: 13, color: "var(--gl-ink)", lineHeight: 1.5, gridColumn: label ? "auto" : "1 / -1" }}>
+            {value}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ExperienceContent({ content }: { content: string }) {
+  const jobs = parseJobs(content)
+  if (!jobs.length) return <DefaultContent content={content} />
+  return (
+    <div className="space-y-5">
+      {jobs.map((job, i) => (
+        <div
+          key={i}
+          className="pl-3.5"
+          style={{ borderLeft: "2px solid var(--gl-border)" }}
+        >
+          <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 3, letterSpacing: "0.01em" }}>
+            {job.periodo}
+          </div>
+          {job.titulo && (
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.35 }}>
+              {job.titulo}
+            </div>
+          )}
+          {job.empresa && (
+            <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 2, marginBottom: 5 }}>
+              {job.empresa}
+            </div>
+          )}
+          {job.desc && (
+            <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.7, margin: 0 }}>
+              {job.desc}
+            </p>
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BulletContent({ content }: { content: string }) {
+  const items = parseBullets(content)
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item, i) => (
+        <span
+          key={i}
+          style={{
+            fontSize:   12,
+            fontWeight: 500,
+            background: "var(--gl-olive-bg)",
+            color:      "var(--gl-olive)",
+            padding:    "4px 10px",
+            borderRadius: 8,
+            lineHeight: 1.4,
+          }}
+        >
+          {item}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function ListContent({ content }: { content: string }) {
+  const items = content.split("\n").filter(l => l.trim())
+  return (
+    <div className="space-y-1.5">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-baseline gap-2.5">
+          <span style={{ color: "var(--gl-olive)", flexShrink: 0, fontSize: 10 }}>▪</span>
+          <span style={{ fontSize: 12.5, color: "var(--gl-ink-2)", lineHeight: 1.6 }}>
+            {item.trim().replace(/^[-•▪]\s*/, "")}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function RefsContent({ content }: { content: string }) {
+  const blocks = parseRefs(content)
+  return (
+    <div className="space-y-4">
+      {blocks.map((block, i) => (
+        <div key={i}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--gl-ink)" }}>{block[0]}</div>
+          {block.slice(1).map((line, j) => (
+            <div key={j} style={{ fontSize: 12.5, color: "var(--gl-ink-3)", marginTop: 2 }}>{line}</div>
+          ))}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DefaultContent({ content }: { content: string }) {
+  return (
+    <p style={{ fontSize: 12.5, lineHeight: 1.8, color: "var(--gl-ink-2)", margin: 0 }}>
+      {content}
+    </p>
+  )
+}
+
+function SectionContentWeb({ title, content }: { title: string; content: string }) {
+  if (title === "DATOS PERSONALES")                     return <KVContent         content={content} />
+  if (title === "EXPERIENCIA LABORAL")                  return <ExperienceContent content={content} />
+  if (title.startsWith("CONOCIMIENTOS"))                return <BulletContent     content={content} />
+  if (title === "FORMACIÓN" || title === "FORMACION")   return <ListContent       content={content} />
+  if (title === "REFERENCIAS")                          return <RefsContent       content={content} />
+  return <DefaultContent content={content} />
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -78,7 +216,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
   return (
     <div>
 
-      {/* ── Toolbar flotante encima del documento ─────────────────────────── */}
+      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-3">
         <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
           {isEditing
@@ -97,7 +235,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
         </a>
       </div>
 
-      {/* ── Documento — replica visual del PDF ────────────────────────────── */}
+      {/* ── Documento ─────────────────────────────────────────────────────── */}
       <div
         className="rounded-2xl overflow-hidden"
         style={{
@@ -107,7 +245,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
         }}
       >
 
-        {/* Header oliva — idéntico al PDF ──────────────────────────────── */}
+        {/* Header oliva */}
         <div
           className="flex items-start justify-between px-7 py-5"
           style={{ background: "var(--gl-olive)" }}
@@ -133,10 +271,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
             >
               Currículum Vitae
             </div>
-            <div
-              className="font-bold"
-              style={{ color: "#fff", fontSize: 12 }}
-            >
+            <div className="font-bold" style={{ color: "#fff", fontSize: 12 }}>
               {nombre} {apellido}
             </div>
           </div>
@@ -145,21 +280,20 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
         {/* Barra acento */}
         <div style={{ height: 3, background: "var(--gl-olive-light)", opacity: 0.35 }} />
 
-        {/* Secciones ───────────────────────────────────────────────────── */}
+        {/* Secciones */}
         <div style={{ background: "#fff" }}>
           {sections.length === 0 && (
             <div className="px-7 py-8">
               <p className="text-[11px] mb-3 font-medium" style={{ color: "var(--gl-ink-3)" }}>
                 El texto no tiene secciones detectables — se descargará como texto corrido.
               </p>
-              <pre className="whitespace-pre-wrap" style={{ fontSize: 12, lineHeight: 1.75, color: "var(--gl-ink-2)", margin: 0 }}>
-                {initialTexto}
-              </pre>
+              <DefaultContent content={initialTexto ?? ""} />
             </div>
           )}
+
           {sections.map((sec, idx) => {
-            const active    = editingIdx === idx
-            const wasSaved  = savedIdx === idx
+            const active   = editingIdx === idx
+            const wasSaved = savedIdx   === idx
 
             return (
               <div
@@ -167,19 +301,30 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
                 className="group relative"
                 style={{
                   borderBottom: idx < sections.length - 1 ? "1px solid var(--gl-border)" : "none",
-                  padding:      "16px 28px",
+                  padding:      "18px 28px",
                   background:   active ? "#fafffe" : "#fff",
                   transition:   "background 0.15s",
                 }}
               >
                 {/* Cabecera de sección */}
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="font-bold uppercase tracking-[0.2em]"
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div
                       style={{
-                        color:    active ? "var(--gl-amber)" : "var(--gl-olive)",
-                        fontSize: 8,
+                        width:        3,
+                        height:       14,
+                        borderRadius: 2,
+                        flexShrink:   0,
+                        background:   active ? "var(--gl-amber)" : "var(--gl-olive)",
+                        transition:   "background 0.15s",
+                      }}
+                    />
+                    <span
+                      className="font-bold uppercase tracking-[0.18em]"
+                      style={{
+                        color:      active ? "var(--gl-amber)" : "var(--gl-olive)",
+                        fontSize:   10,
+                        transition: "color 0.15s",
                       }}
                     >
                       {sec.title}
@@ -233,14 +378,14 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
                   )}
                 </div>
 
-                {/* Línea divisora fina */}
+                {/* Línea divisora */}
                 <div
                   style={{
-                    height:        1,
-                    background:    active ? "var(--gl-olive)" : "var(--gl-border)",
-                    opacity:       active ? 0.4 : 1,
-                    marginBottom:  12,
-                    transition:    "background 0.15s",
+                    height:       1,
+                    background:   active ? "var(--gl-olive)" : "var(--gl-border)",
+                    opacity:      active ? 0.4 : 1,
+                    marginBottom: 14,
+                    transition:   "background 0.15s",
                   }}
                 />
 
@@ -264,25 +409,14 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto 
                     }}
                   />
                 ) : (
-                  <pre
-                    className="whitespace-pre-wrap"
-                    style={{
-                      fontFamily: "inherit",
-                      fontSize:   12,
-                      lineHeight: 1.75,
-                      color:      "var(--gl-ink-2)",
-                      margin:     0,
-                    }}
-                  >
-                    {sec.content}
-                  </pre>
+                  <SectionContentWeb title={sec.title} content={sec.content} />
                 )}
               </div>
             )
           })}
         </div>
 
-        {/* Footer del documento — idéntico al PDF */}
+        {/* Footer */}
         <div
           className="flex items-center justify-between px-7 py-2.5"
           style={{ borderTop: "1px solid var(--gl-border)" }}
