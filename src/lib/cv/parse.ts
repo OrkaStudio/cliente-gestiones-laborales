@@ -137,7 +137,9 @@ export async function parsearCV(
 
   let partes: Parte[];
 
-  if (mimeType === MIME_DOCX) {
+  if (mimeType === "text/plain") {
+    partes = [{ type: "text", text: `CV en texto plano:\n\n${buffer.toString("utf-8")}` }];
+  } else if (mimeType === MIME_DOCX) {
     const { value: texto } = await mammoth.extractRawText({ buffer });
     partes = [
       {

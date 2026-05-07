@@ -1,13 +1,37 @@
-"use client";
+"use client"
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import { ArrowRight, Check, Loader2, Sparkles, Upload } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useRef, useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
+import {
+  Sparkles, Upload, Loader2, Check, AlertTriangle,
+  ArrowRight, FileText, RotateCcw,
+} from "lucide-react"
+import { guardarCandidatoProcesado } from "@/lib/actions/candidatos"
+import type { CVParseado } from "@/lib/cv/parse"
 
-type Step = "input" | "procesando" | "resultado";
+// ─── Constantes ───────────────────────────────────────────────────────────────
 
-const cvCrudoEjemplo = `Joaquin Chebaia
+const FASES = [
+  "Leyendo el CV",
+  "Identificando experiencias",
+  "Extrayendo datos personales",
+  "Generando preguntas de entrevista",
+]
+
+const AVATAR_HEX = [
+  { bg: "#dafbe1", color: "#1a7f37" },
+  { bg: "#ddf4ff", color: "#0550ae" },
+  { bg: "#ffd8eb", color: "#99286e" },
+  { bg: "#fff8c5", color: "#7d4e00" },
+  { bg: "#eddeff", color: "#6e40c9" },
+]
+
+function avatarPal(nombre: string, apellido: string) {
+  const idx = ((nombre.charCodeAt(0) ?? 0) + (apellido.charCodeAt(0) ?? 0)) % AVATAR_HEX.length
+  return AVATAR_HEX[idx]
+}
+
+const CV_EJEMPLO = `Joaquin Chebaia
 Olavarria, Bs As - 28 anios
 
 Experiencia
@@ -19,263 +43,519 @@ Pasturas, silaje, sanidad, recorridas diarias.
 Hacienda Aberdeen Angus. Tareas de campo.
 Alambrado.
 
-Educacion: Tec. Agropecuario - Esc. Agrotecnica
-Olavarria 2014.
-
+Educacion: Tec. Agropecuario - Esc. Agrotecnica Olavarria 2014.
 Disponible inmediato. Acepto mudarme.
-Telefono: 2284-555-0123`;
+Telefono: 2284-555-0123`
 
-const fasesProceso = [
-  "Leyendo el archivo",
-  "Identificando experiencias",
-  "Extrayendo datos personales",
-  "Generando preguntas",
-];
+// ─── Helpers de presentación ─────────────────────────────────────────────────
 
-const preguntasIA = [
-  {
-    pregunta: "¿Cuánta hacienda manejás hoy aproximadamente?",
-    razon: "El CV menciona cría + invernada pero no especifica cantidad de cabezas.",
-  },
-  {
-    pregunta: "¿Tenés experiencia con sistemas de gestión (planillas, ERP rural)?",
-    razon: "El cliente busca también capacidad administrativa básica para reportes.",
-  },
-  {
-    pregunta: "¿Tu pretensión es bruto o neto? ¿Incluye casa y servicios?",
-    razon: "Para alinear con el rango ofrecido por el cliente.",
-  },
-];
+function CampoRow({ label, value }: { label: string; value?: string | number | boolean | null }) {
+  if (value === null || value === undefined || value === "") return null
+  const display =
+    typeof value === "boolean" ? (value ? "Sí" : "No") : String(value)
+  return (
+    <div
+      className="grid items-baseline py-2.5"
+      style={{ gridTemplateColumns: "160px 1fr", columnGap: 16, borderBottom: "1px solid var(--gl-border)" }}
+    >
+      <span style={{ fontSize: 11.5, color: "var(--gl-ink-3)" }}>{label}</span>
+      <span style={{ fontSize: 13, color: "var(--gl-ink)" }}>{display}</span>
+    </div>
+  )
+}
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div
+      className="rounded-2xl"
+      style={{ background: "#fff", border: "1px solid var(--gl-border)", overflow: "hidden" }}
+    >
+      <div
+        className="flex items-center gap-2.5 px-6 py-4"
+        style={{ borderBottom: "1px solid var(--gl-border)" }}
+      >
+        <div style={{ width: 3, height: 14, borderRadius: 2, background: "var(--gl-olive)", flexShrink: 0 }} />
+        <span
+          className="font-bold uppercase tracking-[0.18em]"
+          style={{ fontSize: 10, color: "var(--gl-olive)" }}
+        >
+          {title}
+        </span>
+      </div>
+      <div className="px-6 py-5">{children}</div>
+    </div>
+  )
+}
+
+// ─── Página ───────────────────────────────────────────────────────────────────
+
+type Step = "input" | "procesando" | "resultado"
 
 export default function ProcesarPage() {
-  const [step, setStep] = useState<Step>("input");
-  const [cvText, setCvText] = useState(cvCrudoEjemplo);
-  const [phaseIdx, setPhaseIdx] = useState(0);
+  const router = useRouter()
+  const fileRef = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    if (step !== "procesando") return;
-    setPhaseIdx(0);
-    const interval = setInterval(() => {
-      setPhaseIdx((p) => Math.min(p + 1, fasesProceso.length - 1));
-    }, 480);
-    const timeout = setTimeout(() => setStep("resultado"), 2200);
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [step]);
+  const [step,      setStep]      = useState<Step>("input")
+  const [cvText,    setCvText]    = useState(CV_EJEMPLO)
+  const [archivo,   setArchivo]   = useState<File | null>(null)
+  const [faseIdx,   setFaseIdx]   = useState(0)
+  const [resultado, setResultado] = useState<CVParseado | null>(null)
+  const [error,     setError]     = useState<string | null>(null)
+  const [saving,    startSave]    = useTransition()
 
+  // ── Procesado ───────────────────────────────────────────────────────────────
+  async function procesar() {
+    setError(null)
+    setStep("procesando")
+    setFaseIdx(0)
+
+    // Avanzar fases visualmente mientras espera
+    const interval = setInterval(() =>
+      setFaseIdx(p => Math.min(p + 1, FASES.length - 2)), 2500
+    )
+
+    try {
+      const fd = new FormData()
+      if (archivo) fd.append("archivo", archivo)
+      else         fd.append("texto",   cvText)
+
+      const res = await fetch("/api/procesar", { method: "POST", body: fd })
+      const json = await res.json()
+
+      if (!res.ok) {
+        throw new Error(json.detail ?? json.error ?? "Error desconocido")
+      }
+
+      setFaseIdx(FASES.length - 1)
+      setResultado(json as CVParseado)
+      setTimeout(() => setStep("resultado"), 400)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setStep("input")
+    } finally {
+      clearInterval(interval)
+    }
+  }
+
+  // ── Guardar ─────────────────────────────────────────────────────────────────
+  function guardar() {
+    if (!resultado) return
+    startSave(async () => {
+      const res = await guardarCandidatoProcesado(resultado)
+      if (!res.success) { setError(res.error); return }
+      router.push(`/candidatos/${res.id}`)
+    })
+  }
+
+  function reiniciar() {
+    setStep("input")
+    setResultado(null)
+    setError(null)
+    setArchivo(null)
+    setFaseIdx(0)
+  }
+
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="px-12 py-14 max-w-3xl">
-      <header className="pb-10 border-b agro-rule">
-        <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.28em] text-[var(--agro-ink-soft)]">
-          <Sparkles className="h-3.5 w-3.5 text-[var(--agro-olive)]" />
-          Asistente IA
+    <div className="px-10 py-10 max-w-3xl">
+
+      {/* Header */}
+      <header className="mb-8">
+        <div
+          className="inline-flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-full"
+          style={{ background: "var(--gl-olive-bg)" }}
+        >
+          <Sparkles className="h-3 w-3" style={{ color: "var(--gl-olive)" }} />
+          <span
+            className="font-bold uppercase tracking-[0.18em]"
+            style={{ fontSize: 9.5, color: "var(--gl-olive)" }}
+          >
+            Asistente IA
+          </span>
         </div>
-        <h1 className="font-display text-5xl mt-3 leading-[1]">
-          Procesar<br />
-          <span className="italic text-[var(--agro-olive)]">un CV</span>.
+        <h1
+          className="font-bold leading-[1.1] tracking-tight"
+          style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--gl-ink)" }}
+        >
+          Procesar un CV
         </h1>
-        <p className="text-sm text-[var(--agro-ink-soft)] mt-4 leading-relaxed">
-          Pegá el texto crudo o subí un PDF. La IA extrae los campos y propone
-          preguntas para la entrevista.
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
+          Pegá el texto crudo o subí un PDF. La IA extrae todos los campos y genera preguntas de entrevista.
         </p>
       </header>
 
-      <div className="mt-10">
-        {step === "input" ? (
-          <div>
-            <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-              CV crudo
+      {/* ── Input ── */}
+      {step === "input" && (
+        <div className="space-y-4">
+          {error && (
+            <div
+              className="flex items-start gap-3 rounded-xl px-4 py-3"
+              style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
+            >
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "var(--gl-red)" }}>Error al procesar</p>
+                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--gl-red)" }}>{error}</p>
+              </div>
             </div>
-            <textarea
-              value={cvText}
-              onChange={(e) => setCvText(e.target.value)}
-              rows={14}
-              className="w-full bg-[rgba(255,253,247,0.5)] border agro-rule p-4 font-mono text-sm leading-relaxed resize-none outline-none focus:border-[var(--agro-olive)] transition-colors"
-            />
-            <div className="flex items-center justify-between gap-3 mt-4">
-              <button className="inline-flex items-center gap-2 px-4 py-2 text-sm border agro-rule text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors">
-                <Upload className="h-4 w-4" />
+          )}
+
+          <div
+            className="rounded-2xl overflow-hidden"
+            style={{ border: "1px solid var(--gl-border)", background: "#fff" }}
+          >
+            {/* Label */}
+            <div
+              className="flex items-center justify-between px-5 py-3"
+              style={{ borderBottom: "1px solid var(--gl-border)" }}
+            >
+              <div className="flex items-center gap-2">
+                <div style={{ width: 3, height: 14, borderRadius: 2, background: "var(--gl-olive)", flexShrink: 0 }} />
+                <span
+                  className="font-bold uppercase tracking-[0.18em]"
+                  style={{ fontSize: 10, color: "var(--gl-olive)" }}
+                >
+                  {archivo ? "Archivo seleccionado" : "CV crudo"}
+                </span>
+              </div>
+              {archivo && (
+                <button
+                  onClick={() => { setArchivo(null); if (fileRef.current) fileRef.current.value = "" }}
+                  className="text-[11px] font-medium"
+                  style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer" }}
+                >
+                  Quitar archivo
+                </button>
+              )}
+            </div>
+
+            {/* Textarea o nombre de archivo */}
+            {archivo ? (
+              <div className="flex items-center gap-3 px-5 py-8">
+                <div
+                  className="h-10 w-10 rounded-xl grid place-items-center shrink-0"
+                  style={{ background: "var(--gl-olive-bg)" }}
+                >
+                  <FileText className="h-5 w-5" style={{ color: "var(--gl-olive)" }} />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>{archivo.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                    {(archivo.size / 1024).toFixed(0)} KB · listo para procesar
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <textarea
+                value={cvText}
+                onChange={(e) => setCvText(e.target.value)}
+                rows={12}
+                className="w-full resize-none outline-none px-5 py-4 text-sm leading-relaxed"
+                style={{
+                  fontFamily: "ui-monospace, monospace",
+                  fontSize:   12.5,
+                  color:      "var(--gl-ink-2)",
+                  background: "transparent",
+                }}
+                placeholder="Pegá el texto del CV acá..."
+              />
+            )}
+
+            {/* Footer del textarea */}
+            <div
+              className="flex items-center justify-between px-5 py-3"
+              style={{ borderTop: "1px solid var(--gl-border)" }}
+            >
+              {/* Upload */}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0]
+                  if (f) { setArchivo(f); setCvText("") }
+                }}
+              />
+              <button
+                onClick={() => fileRef.current?.click()}
+                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors"
+                style={{
+                  color:      "var(--gl-ink-3)",
+                  border:     "1px solid var(--gl-border-md)",
+                  background: "transparent",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--gl-ink)"; e.currentTarget.style.borderColor = "var(--gl-ink-3)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gl-ink-3)"; e.currentTarget.style.borderColor = "var(--gl-border-md)" }}
+              >
+                <Upload className="h-3.5 w-3.5" />
                 Subir PDF / DOCX
               </button>
+
+              {/* Procesar */}
               <button
-                onClick={() => setStep("procesando")}
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--agro-ink)] text-[#f5f1e8] px-5 py-2.5 text-sm hover:bg-[var(--agro-olive)] transition-colors"
+                onClick={procesar}
+                disabled={!cvText.trim() && !archivo}
+                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold transition-all disabled:opacity-40"
+                style={{
+                  background: "var(--gl-olive)",
+                  color:      "#fff",
+                  boxShadow:  "0 2px 8px rgba(42,74,24,0.25)",
+                }}
+                onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.opacity = "0.88" }}
+                onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
               >
                 <Sparkles className="h-3.5 w-3.5" />
                 Procesar
               </button>
             </div>
           </div>
-        ) : null}
+        </div>
+      )}
 
-        {step === "procesando" ? (
-          <div>
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
-              <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--agro-olive)]" />
-              Procesando
-              <span className="ml-auto font-mono tabular-nums">
-                {phaseIdx + 1} / {fasesProceso.length}
-              </span>
-            </div>
-            <div className="space-y-px">
-              {fasesProceso.map((fase, i) => (
-                <div
-                  key={fase}
-                  className={cn(
-                    "flex items-center gap-3 py-3 border-t agro-rule text-sm transition-colors",
-                    i < phaseIdx && "text-[var(--agro-ink-soft)]",
-                    i === phaseIdx && "text-[var(--agro-ink)]",
-                    i > phaseIdx && "text-[var(--agro-ink-soft)]/40",
-                  )}
-                >
-                  {i < phaseIdx ? (
-                    <Check className="h-4 w-4 text-[var(--agro-olive)]" />
-                  ) : i === phaseIdx ? (
-                    <Loader2 className="h-4 w-4 text-[var(--agro-olive)] animate-spin" />
-                  ) : (
-                    <div className="h-4 w-4 grid place-items-center">
-                      <div className="h-1.5 w-1.5 rounded-full bg-[var(--agro-ink-soft)]/30" />
-                    </div>
-                  )}
-                  <span>{fase}</span>
-                </div>
-              ))}
-              <div className="border-t agro-rule" />
-            </div>
+      {/* ── Procesando ── */}
+      {step === "procesando" && (
+        <div
+          className="rounded-2xl"
+          style={{ background: "#fff", border: "1px solid var(--gl-border)" }}
+        >
+          <div
+            className="flex items-center gap-3 px-6 py-4"
+            style={{ borderBottom: "1px solid var(--gl-border)" }}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--gl-olive)" }} />
+            <span className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>
+              Procesando CV con IA…
+            </span>
+            <span className="ml-auto font-mono text-[11px] tabular-nums" style={{ color: "var(--gl-ink-3)" }}>
+              {faseIdx + 1} / {FASES.length}
+            </span>
           </div>
-        ) : null}
-
-        {step === "resultado" ? (
-          <div className="space-y-10">
-            <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.22em] text-[var(--agro-olive)]">
-              <Check className="h-3.5 w-3.5" />
-              Procesado en 1.8s
-              <span className="text-[var(--agro-ink-soft)] mx-1">·</span>
-              <span className="text-[var(--agro-ink-soft)]">
-                12 campos extraídos · 3 preguntas sugeridas
-              </span>
-            </div>
-
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
-                Datos extraídos
-              </div>
-              <div className="pb-6 border-b agro-rule">
-                <div className="flex items-start gap-6">
-                  <div className="h-14 w-14 shrink-0 rounded-full grid place-items-center border agro-rule font-display text-lg">
-                    JC
-                  </div>
-                  <div>
-                    <div className="font-display text-3xl leading-tight">Joaquín Chebaia</div>
-                    <p className="text-sm text-[var(--agro-ink-soft)] mt-1.5 italic">
-                      Encargado de campo · Olavarría, Buenos Aires · 28 años
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="space-y-px mt-2">
-                {[
-                  { label: "Teléfono", value: "+54 9 2284 555-0123" },
-                  { label: "Disponibilidad", value: "Inmediata, acepta mudarse" },
-                  { label: "Educación", value: "Tec. Agropecuario — Esc. Agrotécnica Olavarría (2014)" },
-                  { label: "Idiomas", value: "Español nativo" },
-                ].map((f) => (
+          <div className="px-6 py-2">
+            {FASES.map((fase, i) => (
+              <div
+                key={fase}
+                className="flex items-center gap-3 py-3"
+                style={{
+                  borderBottom: i < FASES.length - 1 ? "1px solid var(--gl-border)" : "none",
+                  opacity:      i > faseIdx ? 0.3 : 1,
+                  transition:   "opacity 0.3s",
+                }}
+              >
+                {i < faseIdx ? (
                   <div
-                    key={f.label}
-                    className="flex items-baseline justify-between gap-4 py-2.5 border-b agro-rule"
+                    className="h-5 w-5 rounded-full grid place-items-center shrink-0"
+                    style={{ background: "var(--gl-green-bg)" }}
                   >
-                    <span className="text-[11px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)] shrink-0">
-                      {f.label}
-                    </span>
-                    <span className="text-sm text-right">{f.value}</span>
+                    <Check className="h-3 w-3" style={{ color: "var(--gl-green)" }} />
                   </div>
-                ))}
-              </div>
-            </section>
-
-            <section>
-              <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-4">
-                Experiencia
-              </div>
-              <div className="space-y-px">
-                {[
-                  {
-                    rol: "Encargado",
-                    empresa: "Estancia La Esperanza",
-                    rango: "2022 — actual",
-                    detalle: "Cría + invernada. 3 peones a cargo. Pasturas, silaje, sanidad.",
-                  },
-                  {
-                    rol: "Peón general",
-                    empresa: "Cabaña San Antonio",
-                    rango: "2018 — 2022",
-                    detalle: "Hacienda Aberdeen Angus. Alambrado, recorridas.",
-                  },
-                ].map((job) => (
-                  <div key={job.empresa} className="py-5 border-t agro-rule">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="font-display text-base">{job.rol}</span>
-                      <span className="font-mono text-[11px] tabular-nums text-[var(--agro-ink-soft)] shrink-0">
-                        {job.rango}
-                      </span>
-                    </div>
-                    <p className="text-sm text-[var(--agro-olive)] mt-0.5 italic">{job.empresa}</p>
-                    <p className="text-sm text-[var(--agro-ink-soft)] leading-relaxed mt-2">
-                      {job.detalle}
-                    </p>
+                ) : i === faseIdx ? (
+                  <div
+                    className="h-5 w-5 rounded-full grid place-items-center shrink-0"
+                    style={{ background: "var(--gl-olive-bg)" }}
+                  >
+                    <Loader2 className="h-3 w-3 animate-spin" style={{ color: "var(--gl-olive)" }} />
                   </div>
-                ))}
-                <div className="border-t agro-rule" />
+                ) : (
+                  <div
+                    className="h-5 w-5 rounded-full shrink-0"
+                    style={{ background: "var(--gl-border)" }}
+                  />
+                )}
+                <span className="text-sm" style={{ color: i <= faseIdx ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
+                  {fase}
+                </span>
               </div>
-            </section>
+            ))}
+          </div>
+        </div>
+      )}
 
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)]">
-                  Preguntas sugeridas por IA
-                </div>
-                <Sparkles className="h-3.5 w-3.5 text-[var(--agro-olive)]" />
-              </div>
-              <div className="space-y-px">
-                {preguntasIA.map((p, i) => (
-                  <div key={p.pregunta} className="py-4 border-t agro-rule">
-                    <div className="flex items-baseline gap-4">
-                      <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)] w-5 shrink-0">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div>
-                        <p className="text-sm">{p.pregunta}</p>
-                        <p className="text-xs text-[var(--agro-ink-soft)] leading-relaxed mt-1.5">
-                          {p.razon}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-                <div className="border-t agro-rule" />
-              </div>
-            </section>
+      {/* ── Resultado ── */}
+      {step === "resultado" && resultado && (
+        <div className="space-y-4">
 
-            <div className="flex items-center justify-between pt-2">
-              <button
-                onClick={() => setStep("input")}
-                className="text-sm text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors"
-              >
-                ← Procesar otro
-              </button>
-              <Link
-                href="/candidatos"
-                className="inline-flex items-center gap-2 rounded-full bg-[var(--agro-ink)] text-[#f5f1e8] px-5 py-2.5 text-sm hover:bg-[var(--agro-olive)] transition-colors"
-              >
-                Guardar en la base
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+          {/* Banner de éxito */}
+          <div
+            className="flex items-center gap-3 rounded-2xl px-5 py-3.5"
+            style={{ background: "var(--gl-green-bg)", border: "1px solid #a8e6c0" }}
+          >
+            <div
+              className="h-7 w-7 rounded-full grid place-items-center shrink-0"
+              style={{ background: "#1a7f37" }}
+            >
+              <Check className="h-3.5 w-3.5" style={{ color: "#fff" }} />
+            </div>
+            <div className="flex-1">
+              <span className="text-sm font-semibold" style={{ color: "#1a7f37" }}>CV procesado correctamente</span>
+              <span className="text-xs ml-3" style={{ color: "#1a7f37", opacity: 0.75 }}>
+                {resultado.experiencia.length} experiencia{resultado.experiencia.length !== 1 ? "s" : ""} ·{" "}
+                {resultado.preguntas_sugeridas.length} preguntas
+              </span>
             </div>
           </div>
-        ) : null}
-      </div>
+
+          {/* Preview candidato */}
+          {(() => {
+            const pal = avatarPal(resultado.nombre, resultado.apellido)
+            return (
+              <div
+                className="rounded-2xl p-5 flex items-center gap-4"
+                style={{ background: "#fff", border: "1px solid var(--gl-border)" }}
+              >
+                <div
+                  className="h-14 w-14 rounded-full grid place-items-center text-lg font-bold shrink-0"
+                  style={{ background: pal.bg, color: pal.color }}
+                >
+                  {resultado.nombre[0]}{resultado.apellido[0]}
+                </div>
+                <div>
+                  <div className="text-xl font-bold" style={{ color: "var(--gl-ink)", letterSpacing: "-0.01em" }}>
+                    {resultado.nombre} {resultado.apellido}
+                  </div>
+                  <div className="text-sm mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                    {[resultado.ultimo_puesto, resultado.ubicacion].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Datos extraídos */}
+          <SectionCard title="Datos extraídos">
+            <div>
+              <CampoRow label="Teléfono"      value={resultado.telefono} />
+              <CampoRow label="Email"         value={resultado.email} />
+              <CampoRow label="Fecha de nac." value={resultado.fecha_nacimiento} />
+              <CampoRow label="Ubicación"     value={resultado.ubicacion} />
+              <CampoRow label="Disponibilidad" value={resultado.disponibilidad} />
+              <CampoRow label="Educación"     value={resultado.educacion} />
+              <CampoRow label="Pretensión"    value={resultado.pretension_salarial} />
+              <CampoRow label="Movilidad"     value={resultado.movilidad} />
+              {resultado.tipos_ganaderia.length > 0 && (
+                <CampoRow label="Ganadería" value={resultado.tipos_ganaderia.join(", ")} />
+              )}
+              {resultado.hectareas_max && (
+                <CampoRow label="Hás. máx." value={`${resultado.hectareas_max} ha`} />
+              )}
+              {resultado.personal_a_cargo_max && (
+                <CampoRow label="Pers. a cargo" value={`${resultado.personal_a_cargo_max}`} />
+              )}
+              {resultado.idiomas.length > 0 && (
+                <CampoRow label="Idiomas" value={resultado.idiomas.join(", ")} />
+              )}
+            </div>
+          </SectionCard>
+
+          {/* Experiencia */}
+          {resultado.experiencia.length > 0 && (
+            <SectionCard title="Experiencia laboral">
+              <div className="space-y-4">
+                {resultado.experiencia.map((exp, i) => (
+                  <div
+                    key={i}
+                    className="pl-3.5"
+                    style={{ borderLeft: "2px solid var(--gl-border)" }}
+                  >
+                    <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 2 }}>
+                      {exp.desde} — {exp.hasta ?? "actual"}
+                    </div>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)" }}>{exp.rol}</div>
+                    <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 1 }}>{exp.empresa}</div>
+                    {exp.descripcion && (
+                      <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.6, margin: "6px 0 0" }}>
+                        {exp.descripcion}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Preguntas sugeridas */}
+          {resultado.preguntas_sugeridas.length > 0 && (
+            <SectionCard title="Preguntas sugeridas para la entrevista">
+              <div className="space-y-3">
+                {resultado.preguntas_sugeridas.map((p, i) => (
+                  <div key={i} className="flex items-baseline gap-3">
+                    <span
+                      className="font-mono tabular-nums shrink-0"
+                      style={{ fontSize: 11, color: "var(--gl-ink-3)", minWidth: 20 }}
+                    >
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <p style={{ fontSize: 13, color: "var(--gl-ink-2)", lineHeight: 1.55, margin: 0 }}>{p}</p>
+                  </div>
+                ))}
+              </div>
+            </SectionCard>
+          )}
+
+          {/* Campos faltantes */}
+          {resultado.campos_faltantes.length > 0 && (
+            <div
+              className="flex items-start gap-3 rounded-xl px-4 py-3"
+              style={{ background: "var(--gl-amber-bg)", border: "1px solid #e3c06e" }}
+            >
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-amber)" }} />
+              <div>
+                <p className="text-[12px] font-semibold" style={{ color: "var(--gl-amber)" }}>
+                  Campos no encontrados en el CV
+                </p>
+                <p className="text-[11.5px] mt-0.5" style={{ color: "var(--gl-amber)" }}>
+                  {resultado.campos_faltantes.join(", ")} — podés completarlos editando el perfil después de guardar.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Error al guardar */}
+          {error && (
+            <div
+              className="flex items-start gap-3 rounded-xl px-4 py-3"
+              style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
+            >
+              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
+              <p className="text-sm" style={{ color: "var(--gl-red)" }}>{error}</p>
+            </div>
+          )}
+
+          {/* Acciones */}
+          <div className="flex items-center justify-between pt-2">
+            <button
+              onClick={reiniciar}
+              className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+              style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--gl-ink)")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--gl-ink-3)")}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Procesar otro
+            </button>
+
+            <button
+              onClick={guardar}
+              disabled={saving}
+              className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-[13.5px] font-semibold transition-all disabled:opacity-70"
+              style={{
+                background: "var(--gl-olive)",
+                color:      "#fff",
+                boxShadow:  "0 2px 10px rgba(42,74,24,0.28)",
+                border:     "none",
+                cursor:     saving ? "not-allowed" : "pointer",
+              }}
+              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.opacity = "0.88" }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
+            >
+              {saving
+                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando…</>
+                : <><ArrowRight className="h-3.5 w-3.5" /> Guardar en la base</>
+              }
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-  );
+  )
 }
