@@ -4,7 +4,8 @@ import { useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Sparkles, Upload, Loader2, Check, AlertTriangle,
-  ArrowRight, FileText, RotateCcw,
+  ArrowRight, FileText, RotateCcw, User, Briefcase,
+  MapPin, GraduationCap, MessageSquare, Tractor,
 } from "lucide-react"
 import { guardarCandidatoProcesado } from "@/lib/actions/candidatos"
 import type { CVParseado } from "@/lib/cv/parse"
@@ -26,10 +27,14 @@ const AVATAR_HEX = [
   { bg: "#eddeff", color: "#6e40c9" },
 ]
 
-function avatarPal(nombre: string, apellido: string) {
-  const idx = ((nombre.charCodeAt(0) ?? 0) + (apellido.charCodeAt(0) ?? 0)) % AVATAR_HEX.length
-  return AVATAR_HEX[idx]
-}
+const CAMPOS_QUE_EXTRAE = [
+  { icon: User,         label: "Nombre, teléfono, email, fecha de nac." },
+  { icon: MapPin,       label: "Ubicación y movilidad geográfica" },
+  { icon: Briefcase,    label: "Experiencia laboral ordenada" },
+  { icon: Tractor,      label: "Tipos de ganadería y hectáreas máximas" },
+  { icon: GraduationCap, label: "Formación y nivel educativo" },
+  { icon: MessageSquare, label: "Preguntas sugeridas para la entrevista" },
+]
 
 const CV_EJEMPLO = `Joaquin Chebaia
 Olavarria, Bs As - 28 anios
@@ -47,12 +52,16 @@ Educacion: Tec. Agropecuario - Esc. Agrotecnica Olavarria 2014.
 Disponible inmediato. Acepto mudarme.
 Telefono: 2284-555-0123`
 
+function avatarPal(nombre: string, apellido: string) {
+  const idx = ((nombre.charCodeAt(0) ?? 0) + (apellido.charCodeAt(0) ?? 0)) % AVATAR_HEX.length
+  return AVATAR_HEX[idx]
+}
+
 // ─── Helpers de presentación ─────────────────────────────────────────────────
 
 function CampoRow({ label, value }: { label: string; value?: string | number | boolean | null }) {
   if (value === null || value === undefined || value === "") return null
-  const display =
-    typeof value === "boolean" ? (value ? "Sí" : "No") : String(value)
+  const display = typeof value === "boolean" ? (value ? "Sí" : "No") : String(value)
   return (
     <div
       className="grid items-baseline py-2.5"
@@ -66,19 +75,10 @@ function CampoRow({ label, value }: { label: string; value?: string | number | b
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div
-      className="rounded-2xl"
-      style={{ background: "#fff", border: "1px solid var(--gl-border)", overflow: "hidden" }}
-    >
-      <div
-        className="flex items-center gap-2.5 px-6 py-4"
-        style={{ borderBottom: "1px solid var(--gl-border)" }}
-      >
+    <div className="rounded-2xl" style={{ background: "#fff", border: "1px solid var(--gl-border)", overflow: "hidden" }}>
+      <div className="flex items-center gap-2.5 px-6 py-4" style={{ borderBottom: "1px solid var(--gl-border)" }}>
         <div style={{ width: 3, height: 14, borderRadius: 2, background: "var(--gl-olive)", flexShrink: 0 }} />
-        <span
-          className="font-bold uppercase tracking-[0.18em]"
-          style={{ fontSize: 10, color: "var(--gl-olive)" }}
-        >
+        <span className="font-bold uppercase tracking-[0.18em]" style={{ fontSize: 10, color: "var(--gl-olive)" }}>
           {title}
         </span>
       </div>
@@ -103,13 +103,13 @@ export default function ProcesarPage() {
   const [error,     setError]     = useState<string | null>(null)
   const [saving,    startSave]    = useTransition()
 
-  // ── Procesado ───────────────────────────────────────────────────────────────
+  const procesando = step === "procesando"
+
   async function procesar() {
     setError(null)
     setStep("procesando")
     setFaseIdx(0)
 
-    // Avanzar fases visualmente mientras espera
     const interval = setInterval(() =>
       setFaseIdx(p => Math.min(p + 1, FASES.length - 2)), 2500
     )
@@ -119,15 +119,11 @@ export default function ProcesarPage() {
       if (archivo) fd.append("archivo", archivo)
       else         fd.append("texto",   cvText)
 
-      const res = await fetch("/api/procesar", { method: "POST", body: fd })
+      const res  = await fetch("/api/procesar", { method: "POST", body: fd })
       const json = await res.json()
 
-      if (res.status === 401) {
-        throw new Error("No autorizado. Iniciá sesión para procesar CVs.")
-      }
-      if (!res.ok) {
-        throw new Error(json.detail ?? json.error ?? "Error desconocido")
-      }
+      if (res.status === 401) throw new Error("No autorizado. Iniciá sesión para procesar CVs.")
+      if (!res.ok) throw new Error(json.detail ?? json.error ?? "Error desconocido")
 
       setFaseIdx(FASES.length - 1)
       setResultado(json as CVParseado)
@@ -140,7 +136,6 @@ export default function ProcesarPage() {
     }
   }
 
-  // ── Guardar ─────────────────────────────────────────────────────────────────
   function guardar() {
     if (!resultado) return
     startSave(async () => {
@@ -160,7 +155,7 @@ export default function ProcesarPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="px-10 py-10 max-w-3xl">
+    <div className="px-10 py-10">
 
       {/* Header */}
       <header className="mb-8">
@@ -169,10 +164,7 @@ export default function ProcesarPage() {
           style={{ background: "var(--gl-olive-bg)" }}
         >
           <Sparkles className="h-3 w-3" style={{ color: "var(--gl-olive)" }} />
-          <span
-            className="font-bold uppercase tracking-[0.18em]"
-            style={{ fontSize: 9.5, color: "var(--gl-olive)" }}
-          >
+          <span className="font-bold uppercase tracking-[0.18em]" style={{ fontSize: 9.5, color: "var(--gl-olive)" }}>
             Asistente IA
           </span>
         </div>
@@ -187,37 +179,29 @@ export default function ProcesarPage() {
         </p>
       </header>
 
-      {/* ── Input ── */}
-      {step === "input" && (
-        <div className="space-y-4">
-          {error && (
-            <div
-              className="flex items-start gap-3 rounded-xl px-4 py-3"
-              style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
-            >
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
-              <div>
-                <p className="text-sm font-semibold" style={{ color: "var(--gl-red)" }}>Error al procesar</p>
-                <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--gl-red)" }}>{error}</p>
-              </div>
-            </div>
-          )}
+      {/* 2 columnas */}
+      <div className="grid gap-6 items-start" style={{ gridTemplateColumns: "440px 1fr" }}>
 
+        {/* ── IZQUIERDA: input (siempre visible) ── */}
+        <div style={{ position: "sticky", top: 24 }}>
           <div
             className="rounded-2xl overflow-hidden"
-            style={{ border: "1px solid var(--gl-border)", background: "#fff" }}
+            style={{
+              border:     "1px solid var(--gl-border)",
+              background: "#fff",
+              opacity:    procesando ? 0.6 : 1,
+              transition: "opacity 0.3s",
+              pointerEvents: procesando ? "none" : "auto",
+            }}
           >
-            {/* Label */}
+            {/* Header del card */}
             <div
               className="flex items-center justify-between px-5 py-3"
               style={{ borderBottom: "1px solid var(--gl-border)" }}
             >
               <div className="flex items-center gap-2">
                 <div style={{ width: 3, height: 14, borderRadius: 2, background: "var(--gl-olive)", flexShrink: 0 }} />
-                <span
-                  className="font-bold uppercase tracking-[0.18em]"
-                  style={{ fontSize: 10, color: "var(--gl-olive)" }}
-                >
+                <span className="font-bold uppercase tracking-[0.18em]" style={{ fontSize: 10, color: "var(--gl-olive)" }}>
                   {archivo ? "Archivo seleccionado" : "CV crudo"}
                 </span>
               </div>
@@ -232,7 +216,7 @@ export default function ProcesarPage() {
               )}
             </div>
 
-            {/* Textarea o nombre de archivo */}
+            {/* Cuerpo */}
             {archivo ? (
               <div className="flex items-center gap-3 px-5 py-8">
                 <div
@@ -264,12 +248,11 @@ export default function ProcesarPage() {
               />
             )}
 
-            {/* Footer del textarea */}
+            {/* Footer */}
             <div
               className="flex items-center justify-between px-5 py-3"
               style={{ borderTop: "1px solid var(--gl-border)" }}
             >
-              {/* Upload */}
               <input
                 ref={fileRef}
                 type="file"
@@ -283,11 +266,7 @@ export default function ProcesarPage() {
               <button
                 onClick={() => fileRef.current?.click()}
                 className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors"
-                style={{
-                  color:      "var(--gl-ink-3)",
-                  border:     "1px solid var(--gl-border-md)",
-                  background: "transparent",
-                }}
+                style={{ color: "var(--gl-ink-3)", border: "1px solid var(--gl-border-md)", background: "transparent" }}
                 onMouseEnter={(e) => { e.currentTarget.style.color = "var(--gl-ink)"; e.currentTarget.style.borderColor = "var(--gl-ink-3)" }}
                 onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gl-ink-3)"; e.currentTarget.style.borderColor = "var(--gl-border-md)" }}
               >
@@ -295,16 +274,11 @@ export default function ProcesarPage() {
                 Subir PDF / DOCX
               </button>
 
-              {/* Procesar */}
               <button
                 onClick={procesar}
-                disabled={!cvText.trim() && !archivo}
+                disabled={procesando || (!cvText.trim() && !archivo)}
                 className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold transition-all disabled:opacity-40"
-                style={{
-                  background: "var(--gl-olive)",
-                  color:      "#fff",
-                  boxShadow:  "0 2px 8px rgba(42,74,24,0.25)",
-                }}
+                style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
                 onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.opacity = "0.88" }}
                 onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
               >
@@ -314,251 +288,295 @@ export default function ProcesarPage() {
             </div>
           </div>
         </div>
-      )}
 
-      {/* ── Procesando ── */}
-      {step === "procesando" && (
-        <div
-          className="rounded-2xl"
-          style={{ background: "#fff", border: "1px solid var(--gl-border)" }}
-        >
-          <div
-            className="flex items-center gap-3 px-6 py-4"
-            style={{ borderBottom: "1px solid var(--gl-border)" }}
-          >
-            <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--gl-olive)" }} />
-            <span className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>
-              Procesando CV con IA…
-            </span>
-            <span className="ml-auto font-mono text-[11px] tabular-nums" style={{ color: "var(--gl-ink-3)" }}>
-              {faseIdx + 1} / {FASES.length}
-            </span>
-          </div>
-          <div className="px-6 py-2">
-            {FASES.map((fase, i) => (
-              <div
-                key={fase}
-                className="flex items-center gap-3 py-3"
-                style={{
-                  borderBottom: i < FASES.length - 1 ? "1px solid var(--gl-border)" : "none",
-                  opacity:      i > faseIdx ? 0.3 : 1,
-                  transition:   "opacity 0.3s",
-                }}
-              >
-                {i < faseIdx ? (
-                  <div
-                    className="h-5 w-5 rounded-full grid place-items-center shrink-0"
-                    style={{ background: "var(--gl-green-bg)" }}
-                  >
-                    <Check className="h-3 w-3" style={{ color: "var(--gl-green)" }} />
-                  </div>
-                ) : i === faseIdx ? (
-                  <div
-                    className="h-5 w-5 rounded-full grid place-items-center shrink-0"
-                    style={{ background: "var(--gl-olive-bg)" }}
-                  >
-                    <Loader2 className="h-3 w-3 animate-spin" style={{ color: "var(--gl-olive)" }} />
-                  </div>
-                ) : (
-                  <div
-                    className="h-5 w-5 rounded-full shrink-0"
-                    style={{ background: "var(--gl-border)" }}
-                  />
-                )}
-                <span className="text-sm" style={{ color: i <= faseIdx ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
-                  {fase}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        {/* ── DERECHA: empty / procesando / resultado ── */}
+        <div>
 
-      {/* ── Resultado ── */}
-      {step === "resultado" && resultado && (
-        <div className="space-y-4">
-
-          {/* Banner de éxito */}
-          <div
-            className="flex items-center gap-3 rounded-2xl px-5 py-3.5"
-            style={{ background: "var(--gl-green-bg)", border: "1px solid #a8e6c0" }}
-          >
+          {/* Empty state */}
+          {step === "input" && !error && (
             <div
-              className="h-7 w-7 rounded-full grid place-items-center shrink-0"
-              style={{ background: "#1a7f37" }}
+              className="rounded-2xl p-8"
+              style={{
+                border:     "1.5px dashed var(--gl-border-md)",
+                background: "transparent",
+              }}
             >
-              <Check className="h-3.5 w-3.5" style={{ color: "#fff" }} />
-            </div>
-            <div className="flex-1">
-              <span className="text-sm font-semibold" style={{ color: "#1a7f37" }}>CV procesado correctamente</span>
-              <span className="text-xs ml-3" style={{ color: "#1a7f37", opacity: 0.75 }}>
-                {resultado.experiencia.length} experiencia{resultado.experiencia.length !== 1 ? "s" : ""} ·{" "}
-                {resultado.preguntas_sugeridas.length} preguntas
-              </span>
-            </div>
-          </div>
-
-          {/* Preview candidato */}
-          {(() => {
-            const pal = avatarPal(resultado.nombre, resultado.apellido)
-            return (
-              <div
-                className="rounded-2xl p-5 flex items-center gap-4"
-                style={{ background: "#fff", border: "1px solid var(--gl-border)" }}
-              >
-                <div
-                  className="h-14 w-14 rounded-full grid place-items-center text-lg font-bold shrink-0"
-                  style={{ background: pal.bg, color: pal.color }}
-                >
-                  {resultado.nombre[0]}{resultado.apellido[0]}
-                </div>
-                <div>
-                  <div className="text-xl font-bold" style={{ color: "var(--gl-ink)", letterSpacing: "-0.01em" }}>
-                    {resultado.nombre} {resultado.apellido}
-                  </div>
-                  <div className="text-sm mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                    {[resultado.ultimo_puesto, resultado.ubicacion].filter(Boolean).join(" · ")}
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
-
-          {/* Datos extraídos */}
-          <SectionCard title="Datos extraídos">
-            <div>
-              <CampoRow label="Teléfono"      value={resultado.telefono} />
-              <CampoRow label="Email"         value={resultado.email} />
-              <CampoRow label="Fecha de nac." value={resultado.fecha_nacimiento} />
-              <CampoRow label="Ubicación"     value={resultado.ubicacion} />
-              <CampoRow label="Disponibilidad" value={resultado.disponibilidad} />
-              <CampoRow label="Educación"     value={resultado.educacion} />
-              <CampoRow label="Pretensión"    value={resultado.pretension_salarial} />
-              <CampoRow label="Movilidad"     value={resultado.movilidad} />
-              {resultado.tipos_ganaderia.length > 0 && (
-                <CampoRow label="Ganadería" value={resultado.tipos_ganaderia.join(", ")} />
-              )}
-              {resultado.hectareas_max && (
-                <CampoRow label="Hás. máx." value={`${resultado.hectareas_max} ha`} />
-              )}
-              {resultado.personal_a_cargo_max && (
-                <CampoRow label="Pers. a cargo" value={`${resultado.personal_a_cargo_max}`} />
-              )}
-              {resultado.idiomas.length > 0 && (
-                <CampoRow label="Idiomas" value={resultado.idiomas.join(", ")} />
-              )}
-            </div>
-          </SectionCard>
-
-          {/* Experiencia */}
-          {resultado.experiencia.length > 0 && (
-            <SectionCard title="Experiencia laboral">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] mb-6" style={{ color: "var(--gl-ink-3)" }}>
+                Qué extrae la IA
+              </p>
               <div className="space-y-4">
-                {resultado.experiencia.map((exp, i) => (
-                  <div
-                    key={i}
-                    className="pl-3.5"
-                    style={{ borderLeft: "2px solid var(--gl-border)" }}
-                  >
-                    <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 2 }}>
-                      {exp.desde} — {exp.hasta ?? "actual"}
-                    </div>
-                    <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)" }}>{exp.rol}</div>
-                    <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 1 }}>{exp.empresa}</div>
-                    {exp.descripcion && (
-                      <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.6, margin: "6px 0 0" }}>
-                        {exp.descripcion}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-          )}
-
-          {/* Preguntas sugeridas */}
-          {resultado.preguntas_sugeridas.length > 0 && (
-            <SectionCard title="Preguntas sugeridas para la entrevista">
-              <div className="space-y-3">
-                {resultado.preguntas_sugeridas.map((p, i) => (
-                  <div key={i} className="flex items-baseline gap-3">
-                    <span
-                      className="font-mono tabular-nums shrink-0"
-                      style={{ fontSize: 11, color: "var(--gl-ink-3)", minWidth: 20 }}
+                {CAMPOS_QUE_EXTRAE.map(({ icon: Icon, label }) => (
+                  <div key={label} className="flex items-center gap-3">
+                    <div
+                      className="h-8 w-8 rounded-lg grid place-items-center shrink-0"
+                      style={{ background: "var(--gl-olive-bg)" }}
                     >
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <p style={{ fontSize: 13, color: "var(--gl-ink-2)", lineHeight: 1.55, margin: 0 }}>{p}</p>
+                      <Icon className="h-3.5 w-3.5" style={{ color: "var(--gl-olive)" }} />
+                    </div>
+                    <span style={{ fontSize: 13, color: "var(--gl-ink-2)" }}>{label}</span>
                   </div>
                 ))}
               </div>
-            </SectionCard>
-          )}
-
-          {/* Campos faltantes */}
-          {resultado.campos_faltantes.length > 0 && (
-            <div
-              className="flex items-start gap-3 rounded-xl px-4 py-3"
-              style={{ background: "var(--gl-amber-bg)", border: "1px solid #e3c06e" }}
-            >
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-amber)" }} />
-              <div>
-                <p className="text-[12px] font-semibold" style={{ color: "var(--gl-amber)" }}>
-                  Campos no encontrados en el CV
-                </p>
-                <p className="text-[11.5px] mt-0.5" style={{ color: "var(--gl-amber)" }}>
-                  {resultado.campos_faltantes.join(", ")} — podés completarlos editando el perfil después de guardar.
+              <div
+                className="mt-8 rounded-xl px-4 py-3"
+                style={{ background: "var(--gl-olive-bg)" }}
+              >
+                <p className="text-[12px] leading-relaxed" style={{ color: "var(--gl-olive)" }}>
+                  El resultado aparece acá. Podés revisarlo antes de guardar en la base.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Error al guardar */}
-          {error && (
+          {/* Error */}
+          {step === "input" && error && (
             <div
-              className="flex items-start gap-3 rounded-xl px-4 py-3"
+              className="rounded-2xl p-6"
               style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
             >
-              <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
-              <p className="text-sm" style={{ color: "var(--gl-red)" }}>{error}</p>
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--gl-red)" }}>Error al procesar</p>
+                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--gl-red)" }}>{error}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="mt-4 text-[12px] font-medium"
+                style={{ color: "var(--gl-red)", background: "none", border: "none", cursor: "pointer", padding: 0, opacity: 0.75 }}
+              >
+                Cerrar
+              </button>
             </div>
           )}
 
-          {/* Acciones */}
-          <div className="flex items-center justify-between pt-2">
-            <button
-              onClick={reiniciar}
-              className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
-              style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--gl-ink)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--gl-ink-3)")}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Procesar otro
-            </button>
+          {/* Procesando */}
+          {step === "procesando" && (
+            <div className="rounded-2xl" style={{ background: "#fff", border: "1px solid var(--gl-border)" }}>
+              <div
+                className="flex items-center gap-3 px-6 py-4"
+                style={{ borderBottom: "1px solid var(--gl-border)" }}
+              >
+                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--gl-olive)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>
+                  Procesando CV con IA…
+                </span>
+                <span className="ml-auto font-mono text-[11px] tabular-nums" style={{ color: "var(--gl-ink-3)" }}>
+                  {faseIdx + 1} / {FASES.length}
+                </span>
+              </div>
+              <div className="px-6 py-2">
+                {FASES.map((fase, i) => (
+                  <div
+                    key={fase}
+                    className="flex items-center gap-3 py-3"
+                    style={{
+                      borderBottom: i < FASES.length - 1 ? "1px solid var(--gl-border)" : "none",
+                      opacity:      i > faseIdx ? 0.3 : 1,
+                      transition:   "opacity 0.3s",
+                    }}
+                  >
+                    {i < faseIdx ? (
+                      <div className="h-5 w-5 rounded-full grid place-items-center shrink-0" style={{ background: "var(--gl-green-bg)" }}>
+                        <Check className="h-3 w-3" style={{ color: "var(--gl-green)" }} />
+                      </div>
+                    ) : i === faseIdx ? (
+                      <div className="h-5 w-5 rounded-full grid place-items-center shrink-0" style={{ background: "var(--gl-olive-bg)" }}>
+                        <Loader2 className="h-3 w-3 animate-spin" style={{ color: "var(--gl-olive)" }} />
+                      </div>
+                    ) : (
+                      <div className="h-5 w-5 rounded-full shrink-0" style={{ background: "var(--gl-border)" }} />
+                    )}
+                    <span className="text-sm" style={{ color: i <= faseIdx ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
+                      {fase}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-            <button
-              onClick={guardar}
-              disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-[13.5px] font-semibold transition-all disabled:opacity-70"
-              style={{
-                background: "var(--gl-olive)",
-                color:      "#fff",
-                boxShadow:  "0 2px 10px rgba(42,74,24,0.28)",
-                border:     "none",
-                cursor:     saving ? "not-allowed" : "pointer",
-              }}
-              onMouseEnter={(e) => { if (!saving) e.currentTarget.style.opacity = "0.88" }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
-            >
-              {saving
-                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando…</>
-                : <><ArrowRight className="h-3.5 w-3.5" /> Guardar en la base</>
-              }
-            </button>
-          </div>
+          {/* Resultado */}
+          {step === "resultado" && resultado && (
+            <div className="space-y-4">
+
+              {/* Banner de éxito */}
+              <div
+                className="flex items-center gap-3 rounded-2xl px-5 py-3.5"
+                style={{ background: "var(--gl-green-bg)", border: "1px solid #a8e6c0" }}
+              >
+                <div className="h-7 w-7 rounded-full grid place-items-center shrink-0" style={{ background: "#1a7f37" }}>
+                  <Check className="h-3.5 w-3.5" style={{ color: "#fff" }} />
+                </div>
+                <div className="flex-1">
+                  <span className="text-sm font-semibold" style={{ color: "#1a7f37" }}>CV procesado correctamente</span>
+                  <span className="text-xs ml-3" style={{ color: "#1a7f37", opacity: 0.75 }}>
+                    {resultado.experiencia.length} experiencia{resultado.experiencia.length !== 1 ? "s" : ""} ·{" "}
+                    {resultado.preguntas_sugeridas.length} preguntas
+                  </span>
+                </div>
+              </div>
+
+              {/* Preview candidato */}
+              {(() => {
+                const pal = avatarPal(resultado.nombre, resultado.apellido)
+                return (
+                  <div
+                    className="rounded-2xl p-5 flex items-center gap-4"
+                    style={{ background: "#fff", border: "1px solid var(--gl-border)" }}
+                  >
+                    <div
+                      className="h-14 w-14 rounded-full grid place-items-center text-lg font-bold shrink-0"
+                      style={{ background: pal.bg, color: pal.color }}
+                    >
+                      {resultado.nombre[0]}{resultado.apellido[0]}
+                    </div>
+                    <div>
+                      <div className="text-xl font-bold" style={{ color: "var(--gl-ink)", letterSpacing: "-0.01em" }}>
+                        {resultado.nombre} {resultado.apellido}
+                      </div>
+                      <div className="text-sm mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                        {[resultado.ultimo_puesto, resultado.ubicacion].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* Datos extraídos */}
+              <SectionCard title="Datos extraídos">
+                <div>
+                  <CampoRow label="Teléfono"        value={resultado.telefono} />
+                  <CampoRow label="Email"           value={resultado.email} />
+                  <CampoRow label="Fecha de nac."   value={resultado.fecha_nacimiento} />
+                  <CampoRow label="Ubicación"       value={resultado.ubicacion} />
+                  <CampoRow label="Disponibilidad"  value={resultado.disponibilidad} />
+                  <CampoRow label="Educación"       value={resultado.educacion} />
+                  <CampoRow label="Pretensión"      value={resultado.pretension_salarial} />
+                  <CampoRow label="Movilidad"       value={resultado.movilidad} />
+                  {resultado.tipos_ganaderia.length > 0 && (
+                    <CampoRow label="Ganadería"     value={resultado.tipos_ganaderia.join(", ")} />
+                  )}
+                  {resultado.hectareas_max && (
+                    <CampoRow label="Hás. máx."     value={`${resultado.hectareas_max} ha`} />
+                  )}
+                  {resultado.personal_a_cargo_max && (
+                    <CampoRow label="Pers. a cargo" value={`${resultado.personal_a_cargo_max}`} />
+                  )}
+                  {resultado.idiomas.length > 0 && (
+                    <CampoRow label="Idiomas"       value={resultado.idiomas.join(", ")} />
+                  )}
+                </div>
+              </SectionCard>
+
+              {/* Experiencia */}
+              {resultado.experiencia.length > 0 && (
+                <SectionCard title="Experiencia laboral">
+                  <div className="space-y-4">
+                    {resultado.experiencia.map((exp, i) => (
+                      <div key={i} className="pl-3.5" style={{ borderLeft: "2px solid var(--gl-border)" }}>
+                        <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 2 }}>
+                          {exp.desde} — {exp.hasta ?? "actual"}
+                        </div>
+                        <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)" }}>{exp.rol}</div>
+                        <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 1 }}>{exp.empresa}</div>
+                        {exp.descripcion && (
+                          <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.6, margin: "6px 0 0" }}>
+                            {exp.descripcion}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* Preguntas sugeridas */}
+              {resultado.preguntas_sugeridas.length > 0 && (
+                <SectionCard title="Preguntas sugeridas para la entrevista">
+                  <div className="space-y-3">
+                    {resultado.preguntas_sugeridas.map((p, i) => (
+                      <div key={i} className="flex items-baseline gap-3">
+                        <span
+                          className="font-mono tabular-nums shrink-0"
+                          style={{ fontSize: 11, color: "var(--gl-ink-3)", minWidth: 20 }}
+                        >
+                          {String(i + 1).padStart(2, "0")}
+                        </span>
+                        <p style={{ fontSize: 13, color: "var(--gl-ink-2)", lineHeight: 1.55, margin: 0 }}>{p}</p>
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+
+              {/* Campos faltantes */}
+              {resultado.campos_faltantes.length > 0 && (
+                <div
+                  className="flex items-start gap-3 rounded-xl px-4 py-3"
+                  style={{ background: "var(--gl-amber-bg)", border: "1px solid #e3c06e" }}
+                >
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-amber)" }} />
+                  <div>
+                    <p className="text-[12px] font-semibold" style={{ color: "var(--gl-amber)" }}>
+                      Campos no encontrados en el CV
+                    </p>
+                    <p className="text-[11.5px] mt-0.5" style={{ color: "var(--gl-amber)" }}>
+                      {resultado.campos_faltantes.join(", ")} — podés completarlos editando el perfil después de guardar.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Error al guardar */}
+              {error && (
+                <div
+                  className="flex items-start gap-3 rounded-xl px-4 py-3"
+                  style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
+                >
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
+                  <p className="text-sm" style={{ color: "var(--gl-red)" }}>{error}</p>
+                </div>
+              )}
+
+              {/* Acciones */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={reiniciar}
+                  className="inline-flex items-center gap-2 text-sm font-medium transition-colors"
+                  style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--gl-ink)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--gl-ink-3)")}
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Procesar otro
+                </button>
+
+                <button
+                  onClick={guardar}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-[13.5px] font-semibold transition-all disabled:opacity-70"
+                  style={{
+                    background: "var(--gl-olive)",
+                    color:      "#fff",
+                    boxShadow:  "0 2px 10px rgba(42,74,24,0.28)",
+                    border:     "none",
+                    cursor:     saving ? "not-allowed" : "pointer",
+                  }}
+                  onMouseEnter={(e) => { if (!saving) e.currentTarget.style.opacity = "0.88" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
+                >
+                  {saving
+                    ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando…</>
+                    : <><ArrowRight className="h-3.5 w-3.5" /> Guardar en la base</>
+                  }
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }
