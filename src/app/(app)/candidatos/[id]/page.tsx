@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { CVProcesadoEditor } from "@/components/app/cv-procesado-editor";
+import { CVSheet } from "@/components/app/cv-sheet";
 import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
@@ -180,7 +180,13 @@ export default async function CandidatoDetailPage({
           </div>
 
           {/* Acciones */}
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 flex-wrap">
+            <CVSheet
+              candidatoId={candidato.id}
+              nombre={candidato.nombre}
+              apellido={candidato.apellido}
+              cvTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
+            />
             <CandidatoSheet candidato={candidato} />
             <AsignarBusquedaDialog
               candidatoId={candidato.id}
@@ -504,14 +510,6 @@ export default async function CandidatoDetailPage({
 
         </div>
       </div>
-
-      {/* CV Procesado GL — editable */}
-      <CVProcesadoEditor
-        candidatoId={candidato.id}
-        nombre={candidato.nombre}
-        apellido={candidato.apellido}
-        initialTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
-      />
 
       {/* Preguntas sugeridas */}
       <section className="mt-12 pt-12 border-t agro-rule">
