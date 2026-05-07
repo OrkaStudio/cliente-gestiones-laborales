@@ -14,7 +14,7 @@ export function PreguntasSugeridas({ preguntas }: { preguntas: string[] }) {
 
   if (preguntas.length === 0) {
     return (
-      <p className="text-sm text-[var(--agro-ink-soft)] italic">
+      <p className="text-sm italic" style={{ color: "var(--gl-ink-3)" }}>
         Pendiente — se generarán al procesar el CV.
       </p>
     );
@@ -26,21 +26,25 @@ export function PreguntasSugeridas({ preguntas }: { preguntas: string[] }) {
         {preguntas.map((p, i) => (
           <div
             key={i}
-            className="flex items-start gap-3 py-3 border-b agro-rule group"
+            className="flex items-start gap-3 py-3 group"
+            style={{ borderBottom: "1px solid var(--gl-border)" }}
           >
-            <span className="font-mono text-[10px] tabular-nums text-[var(--agro-ink-soft)] shrink-0 mt-0.5">
+            <span
+              className="font-mono text-[10px] tabular-nums shrink-0 mt-0.5"
+              style={{ color: "var(--gl-ink-3)" }}
+            >
               {String(i + 1).padStart(2, "0")}
             </span>
-            <span className="text-sm leading-relaxed flex-1">{p}</span>
+            <span className="text-sm leading-relaxed flex-1" style={{ color: "var(--gl-ink-2)" }}>{p}</span>
             <button
               onClick={() => copiar(p, i)}
               className="shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-1"
               title="Copiar"
             >
               {copiado === i ? (
-                <Check className="h-3.5 w-3.5 text-[var(--agro-olive)]" />
+                <Check className="h-3.5 w-3.5" style={{ color: "var(--gl-olive)" }} />
               ) : (
-                <Copy className="h-3.5 w-3.5 text-[var(--agro-ink-soft)]" />
+                <Copy className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)" }} />
               )}
             </button>
           </div>
@@ -48,16 +52,21 @@ export function PreguntasSugeridas({ preguntas }: { preguntas: string[] }) {
       </div>
 
       <div className="flex items-center justify-between pt-1">
-        <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--agro-ink-soft)]">
+        <span
+          className="text-[10px] uppercase tracking-[0.15em]"
+          style={{ color: "var(--gl-ink-3)" }}
+        >
           Generadas por IA · revisar antes de enviar
         </span>
         <button
           onClick={() => copiar(preguntas.join("\n\n"), "all")}
-          className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em]
-                     text-[var(--agro-ink-soft)] hover:text-[var(--agro-ink)] transition-colors"
+          className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.15em] transition-colors"
+          style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = "var(--gl-ink)")}
+          onMouseLeave={(e) => (e.currentTarget.style.color = "var(--gl-ink-3)")}
         >
           {copiado === "all" ? (
-            <Check className="h-3 w-3 text-[var(--agro-olive)]" />
+            <Check className="h-3 w-3" style={{ color: "var(--gl-olive)" }} />
           ) : (
             <Copy className="h-3 w-3" />
           )}

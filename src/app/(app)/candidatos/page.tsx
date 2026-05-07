@@ -54,7 +54,8 @@ export default async function CandidatosPage({
   let query = supabase
     .from("candidatos")
     .select("*, gestiones(estado, busquedas(puesto))")
-    .order("fecha_ingreso", { ascending: false });
+    .order("fecha_ingreso", { ascending: false })
+    .limit(300);
 
   if (q?.trim()) {
     const term = q.trim();

@@ -1,5 +1,3 @@
-"use server"
-
 import Link from "next/link";
 import { ArrowRight, AlertCircle, Sparkles, TrendingUp, UserCheck, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -25,8 +23,15 @@ function diasDesde(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
 
+function displayName(email: string | null | undefined): string {
+  if (!email) return "bienvenida"
+  const local = email.split("@")[0]
+  return local.charAt(0).toUpperCase() + local.slice(1).replace(/[._]/g, " ")
+}
+
 export default async function Home() {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
   const [
     { count: candidatosActivos },
@@ -40,7 +45,7 @@ export default async function Home() {
     supabase.from("busquedas").select("*", { count: "exact", head: true }).eq("estado", "activa"),
     supabase.from("gestiones").select("*", { count: "exact", head: true }).neq("estado", "contratado").neq("estado", "descartado"),
     supabase.from("busquedas").select("id, puesto, cliente, gestiones(estado)").eq("estado", "activa"),
-    supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, gestiones(estado)").eq("estado", "activo").order("fecha_ingreso", { ascending: false }),
+    supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, gestiones(estado)").eq("estado", "activo").order("fecha_ingreso", { ascending: false }).limit(200),
     supabase.from("gestiones")
       .select("id, estado, updated_at, candidatos(id, nombre, apellido), busquedas(id, puesto)")
       .not("estado", "in", "(contratado,descartado)")
@@ -80,7 +85,7 @@ export default async function Home() {
             style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--gl-ink)" }}
           >
             Buen día,{" "}
-            <span style={{ color: "var(--gl-olive-light)" }}>Oriana</span>
+            <span style={{ color: "var(--gl-olive-light)" }}>{displayName(user?.email)}</span>
           </h1>
         </div>
 

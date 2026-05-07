@@ -491,8 +491,8 @@ export default async function CandidatoDetailPage({
       </div>
 
       {/* Preguntas sugeridas */}
-      <section className="mt-12 pt-12 border-t agro-rule">
-        <div className="text-[10px] uppercase tracking-[0.22em] text-[var(--agro-ink-soft)] mb-6">
+      <section className="mt-12 pt-12 border-t" style={{ borderColor: "var(--gl-border)" }}>
+        <div className="text-[10px] uppercase tracking-[0.22em] mb-6" style={{ color: "var(--gl-ink-3)" }}>
           Preguntas sugeridas para la entrevista
         </div>
         <PreguntasSugeridas
