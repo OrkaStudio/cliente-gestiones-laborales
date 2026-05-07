@@ -28,10 +28,10 @@ const AVATAR_HEX = [
 ]
 
 const CAMPOS_QUE_EXTRAE = [
-  { icon: User,         label: "Nombre, teléfono, email, fecha de nac." },
-  { icon: MapPin,       label: "Ubicación y movilidad geográfica" },
-  { icon: Briefcase,    label: "Experiencia laboral ordenada" },
-  { icon: Tractor,      label: "Tipos de ganadería y hectáreas máximas" },
+  { icon: User,          label: "Nombre, teléfono, email, fecha de nac." },
+  { icon: MapPin,        label: "Ubicación y movilidad geográfica" },
+  { icon: Briefcase,     label: "Experiencia laboral ordenada" },
+  { icon: Tractor,       label: "Tipos de ganadería y hectáreas máximas" },
   { icon: GraduationCap, label: "Formación y nivel educativo" },
   { icon: MessageSquare, label: "Preguntas sugeridas para la entrevista" },
 ]
@@ -92,7 +92,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 type Step = "input" | "procesando" | "resultado"
 
 export default function ProcesarPage() {
-  const router = useRouter()
+  const router  = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [step,      setStep]      = useState<Step>("input")
@@ -155,10 +155,12 @@ export default function ProcesarPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="px-10 py-10">
-
+    <div
+      className="px-10 py-10"
+      style={{ display: "flex", flexDirection: "column", minHeight: "100%" }}
+    >
       {/* Header */}
-      <header className="mb-8">
+      <header className="mb-8 shrink-0">
         <div
           className="inline-flex items-center gap-1.5 mb-3 px-2.5 py-1 rounded-full"
           style={{ background: "var(--gl-olive-bg)" }}
@@ -179,126 +181,157 @@ export default function ProcesarPage() {
         </p>
       </header>
 
-      {/* 2 columnas */}
-      <div className="grid gap-6 items-start" style={{ gridTemplateColumns: "440px 1fr" }}>
-
-        {/* ── IZQUIERDA: input (siempre visible) ── */}
-        <div style={{ position: "sticky", top: 24 }}>
+      {/* 2 columnas — se estiran para llenar el espacio restante */}
+      <div
+        className="grid gap-6"
+        style={{
+          gridTemplateColumns: "440px 1fr",
+          flex: 1,
+          alignItems: "stretch",
+          minHeight: 0,
+        }}
+      >
+        {/* ── IZQUIERDA: input, sticky ── */}
+        <div style={{ display: "flex", flexDirection: "column" }}>
           <div
-            className="rounded-2xl overflow-hidden"
             style={{
-              border:     "1px solid var(--gl-border)",
-              background: "#fff",
-              opacity:    procesando ? 0.6 : 1,
-              transition: "opacity 0.3s",
+              position:      "sticky",
+              top:           24,
+              flex:          1,
+              display:       "flex",
+              flexDirection: "column",
+              opacity:       procesando ? 0.55 : 1,
+              transition:    "opacity 0.3s",
               pointerEvents: procesando ? "none" : "auto",
             }}
           >
-            {/* Header del card */}
             <div
-              className="flex items-center justify-between px-5 py-3"
-              style={{ borderBottom: "1px solid var(--gl-border)" }}
+              className="rounded-2xl"
+              style={{
+                flex:          1,
+                display:       "flex",
+                flexDirection: "column",
+                border:        "1px solid var(--gl-border)",
+                background:    "#fff",
+                overflow:      "hidden",
+              }}
             >
-              <div className="flex items-center gap-2">
-                <div style={{ width: 3, height: 14, borderRadius: 2, background: "var(--gl-olive)", flexShrink: 0 }} />
-                <span className="font-bold uppercase tracking-[0.18em]" style={{ fontSize: 10, color: "var(--gl-olive)" }}>
-                  {archivo ? "Archivo seleccionado" : "CV crudo"}
-                </span>
+              {/* Header del card */}
+              <div
+                className="flex items-center justify-between px-5 py-3 shrink-0"
+                style={{ borderBottom: "1px solid var(--gl-border)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <div style={{ width: 3, height: 14, borderRadius: 2, background: "var(--gl-olive)", flexShrink: 0 }} />
+                  <span className="font-bold uppercase tracking-[0.18em]" style={{ fontSize: 10, color: "var(--gl-olive)" }}>
+                    {archivo ? "Archivo seleccionado" : "CV crudo"}
+                  </span>
+                </div>
+                {archivo && (
+                  <button
+                    onClick={() => { setArchivo(null); if (fileRef.current) fileRef.current.value = "" }}
+                    className="text-[11px] font-medium"
+                    style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer" }}
+                  >
+                    Quitar archivo
+                  </button>
+                )}
               </div>
-              {archivo && (
-                <button
-                  onClick={() => { setArchivo(null); if (fileRef.current) fileRef.current.value = "" }}
-                  className="text-[11px] font-medium"
-                  style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer" }}
-                >
-                  Quitar archivo
-                </button>
-              )}
-            </div>
 
-            {/* Cuerpo */}
-            {archivo ? (
-              <div className="flex items-center gap-3 px-5 py-8">
+              {/* Cuerpo — crece para llenar el espacio */}
+              {archivo ? (
                 <div
-                  className="h-10 w-10 rounded-xl grid place-items-center shrink-0"
-                  style={{ background: "var(--gl-olive-bg)" }}
+                  className="flex items-center gap-3 px-5"
+                  style={{ flex: 1, paddingTop: "2rem", paddingBottom: "2rem", alignSelf: "flex-start", width: "100%" }}
                 >
-                  <FileText className="h-5 w-5" style={{ color: "var(--gl-olive)" }} />
+                  <div
+                    className="h-10 w-10 rounded-xl grid place-items-center shrink-0"
+                    style={{ background: "var(--gl-olive-bg)" }}
+                  >
+                    <FileText className="h-5 w-5" style={{ color: "var(--gl-olive)" }} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>{archivo.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                      {(archivo.size / 1024).toFixed(0)} KB · listo para procesar
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>{archivo.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                    {(archivo.size / 1024).toFixed(0)} KB · listo para procesar
-                  </p>
+              ) : (
+                <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+                  <textarea
+                    value={cvText}
+                    onChange={(e) => setCvText(e.target.value)}
+                    className="w-full outline-none px-5 py-4 leading-relaxed"
+                    style={{
+                      flex:       1,
+                      resize:     "none",
+                      fontSize:   13.5,
+                      lineHeight: 1.75,
+                      color:      "var(--gl-ink-2)",
+                      background: "transparent",
+                      minHeight:  0,
+                    }}
+                    placeholder="Pegá el texto del CV acá..."
+                  />
                 </div>
+              )}
+
+              {/* Footer */}
+              <div
+                className="flex items-center justify-between px-5 py-3 shrink-0"
+                style={{ borderTop: "1px solid var(--gl-border)" }}
+              >
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) { setArchivo(f); setCvText("") }
+                  }}
+                />
+                <button
+                  onClick={() => fileRef.current?.click()}
+                  className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors"
+                  style={{ color: "var(--gl-ink-3)", border: "1px solid var(--gl-border-md)", background: "transparent" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = "var(--gl-ink)"; e.currentTarget.style.borderColor = "var(--gl-ink-3)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gl-ink-3)"; e.currentTarget.style.borderColor = "var(--gl-border-md)" }}
+                >
+                  <Upload className="h-3.5 w-3.5" />
+                  Subir PDF / DOCX
+                </button>
+
+                <button
+                  onClick={procesar}
+                  disabled={procesando || (!cvText.trim() && !archivo)}
+                  className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold transition-all disabled:opacity-40"
+                  style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
+                  onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.opacity = "0.88" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Procesar
+                </button>
               </div>
-            ) : (
-              <textarea
-                value={cvText}
-                onChange={(e) => setCvText(e.target.value)}
-                rows={12}
-                className="w-full resize-none outline-none px-5 py-4 text-sm leading-relaxed"
-                style={{
-                  fontFamily: "ui-monospace, monospace",
-                  fontSize:   12.5,
-                  color:      "var(--gl-ink-2)",
-                  background: "transparent",
-                }}
-                placeholder="Pegá el texto del CV acá..."
-              />
-            )}
-
-            {/* Footer */}
-            <div
-              className="flex items-center justify-between px-5 py-3"
-              style={{ borderTop: "1px solid var(--gl-border)" }}
-            >
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.docx,.doc,.jpg,.jpeg,.png"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) { setArchivo(f); setCvText("") }
-                }}
-              />
-              <button
-                onClick={() => fileRef.current?.click()}
-                className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors"
-                style={{ color: "var(--gl-ink-3)", border: "1px solid var(--gl-border-md)", background: "transparent" }}
-                onMouseEnter={(e) => { e.currentTarget.style.color = "var(--gl-ink)"; e.currentTarget.style.borderColor = "var(--gl-ink-3)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gl-ink-3)"; e.currentTarget.style.borderColor = "var(--gl-border-md)" }}
-              >
-                <Upload className="h-3.5 w-3.5" />
-                Subir PDF / DOCX
-              </button>
-
-              <button
-                onClick={procesar}
-                disabled={procesando || (!cvText.trim() && !archivo)}
-                className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold transition-all disabled:opacity-40"
-                style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
-                onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.opacity = "0.88" }}
-                onMouseLeave={(e) => { e.currentTarget.style.opacity = "1" }}
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                Procesar
-              </button>
             </div>
           </div>
         </div>
 
         {/* ── DERECHA: empty / procesando / resultado ── */}
-        <div>
+        <div style={{ display: "flex", flexDirection: "column" }}>
 
           {/* Empty state */}
           {step === "input" && !error && (
             <div
-              className="rounded-2xl p-8"
+              className="rounded-2xl"
               style={{
-                border:     "1.5px dashed var(--gl-border-md)",
-                background: "transparent",
+                flex:           1,
+                display:        "flex",
+                flexDirection:  "column",
+                border:         "1.5px dashed var(--gl-border-md)",
+                padding:        "2rem",
               }}
             >
               <p className="text-xs font-bold uppercase tracking-[0.2em] mb-6" style={{ color: "var(--gl-ink-3)" }}>
@@ -317,8 +350,9 @@ export default function ProcesarPage() {
                   </div>
                 ))}
               </div>
+              <div style={{ flex: 1 }} />
               <div
-                className="mt-8 rounded-xl px-4 py-3"
+                className="rounded-xl px-4 py-3 mt-6"
                 style={{ background: "var(--gl-olive-bg)" }}
               >
                 <p className="text-[12px] leading-relaxed" style={{ color: "var(--gl-olive)" }}>
@@ -331,23 +365,28 @@ export default function ProcesarPage() {
           {/* Error */}
           {step === "input" && error && (
             <div
-              className="rounded-2xl p-6"
-              style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
+              className="rounded-2xl"
+              style={{ flex: 1, display: "flex", flexDirection: "column" }}
             >
-              <div className="flex items-start gap-3">
-                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
-                <div>
-                  <p className="text-sm font-semibold" style={{ color: "var(--gl-red)" }}>Error al procesar</p>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--gl-red)" }}>{error}</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setError(null)}
-                className="mt-4 text-[12px] font-medium"
-                style={{ color: "var(--gl-red)", background: "none", border: "none", cursor: "pointer", padding: 0, opacity: 0.75 }}
+              <div
+                className="rounded-2xl p-6"
+                style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
               >
-                Cerrar
-              </button>
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "var(--gl-red)" }}>Error al procesar</p>
+                    <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--gl-red)" }}>{error}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setError(null)}
+                  className="mt-4 text-[12px] font-medium"
+                  style={{ color: "var(--gl-red)", background: "none", border: "none", cursor: "pointer", padding: 0, opacity: 0.75 }}
+                >
+                  Cerrar
+                </button>
+              </div>
             </div>
           )}
 
@@ -401,7 +440,6 @@ export default function ProcesarPage() {
           {step === "resultado" && resultado && (
             <div className="space-y-4">
 
-              {/* Banner de éxito */}
               <div
                 className="flex items-center gap-3 rounded-2xl px-5 py-3.5"
                 style={{ background: "var(--gl-green-bg)", border: "1px solid #a8e6c0" }}
@@ -418,7 +456,6 @@ export default function ProcesarPage() {
                 </div>
               </div>
 
-              {/* Preview candidato */}
               {(() => {
                 const pal = avatarPal(resultado.nombre, resultado.apellido)
                 return (
@@ -444,7 +481,6 @@ export default function ProcesarPage() {
                 )
               })()}
 
-              {/* Datos extraídos */}
               <SectionCard title="Datos extraídos">
                 <div>
                   <CampoRow label="Teléfono"        value={resultado.telefono} />
@@ -470,7 +506,6 @@ export default function ProcesarPage() {
                 </div>
               </SectionCard>
 
-              {/* Experiencia */}
               {resultado.experiencia.length > 0 && (
                 <SectionCard title="Experiencia laboral">
                   <div className="space-y-4">
@@ -492,7 +527,6 @@ export default function ProcesarPage() {
                 </SectionCard>
               )}
 
-              {/* Preguntas sugeridas */}
               {resultado.preguntas_sugeridas.length > 0 && (
                 <SectionCard title="Preguntas sugeridas para la entrevista">
                   <div className="space-y-3">
@@ -511,7 +545,6 @@ export default function ProcesarPage() {
                 </SectionCard>
               )}
 
-              {/* Campos faltantes */}
               {resultado.campos_faltantes.length > 0 && (
                 <div
                   className="flex items-start gap-3 rounded-xl px-4 py-3"
@@ -529,7 +562,6 @@ export default function ProcesarPage() {
                 </div>
               )}
 
-              {/* Error al guardar */}
               {error && (
                 <div
                   className="flex items-start gap-3 rounded-xl px-4 py-3"
@@ -540,7 +572,6 @@ export default function ProcesarPage() {
                 </div>
               )}
 
-              {/* Acciones */}
               <div className="flex items-center justify-between pt-2">
                 <button
                   onClick={reiniciar}
