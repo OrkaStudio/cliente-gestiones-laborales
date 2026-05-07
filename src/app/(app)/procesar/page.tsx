@@ -122,6 +122,9 @@ export default function ProcesarPage() {
       const res = await fetch("/api/procesar", { method: "POST", body: fd })
       const json = await res.json()
 
+      if (res.status === 401) {
+        throw new Error("No autorizado. Iniciá sesión para procesar CVs.")
+      }
       if (!res.ok) {
         throw new Error(json.detail ?? json.error ?? "Error desconocido")
       }

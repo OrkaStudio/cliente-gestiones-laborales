@@ -15,7 +15,7 @@ function toISODate(str: string | null | undefined): string | null {
 
 export async function upsertCandidato(
   data: CVParseado,
-  cvCrudoPath: string,
+  cvCrudoPath: string | null,
 ): Promise<string> {
   const supabase = createServiceClient();
 
@@ -57,7 +57,7 @@ export async function upsertCandidato(
     personal_a_cargo_max: data.personal_a_cargo_max ?? null,
     ultimo_puesto: data.ultimo_puesto ?? null,
     idiomas: data.idiomas,
-    cv_crudo_url: cvCrudoPath,
+    ...(cvCrudoPath !== null && { cv_crudo_url: cvCrudoPath }),
     notas_recruiter:
       data.campos_faltantes.length > 0
         ? `Campos no encontrados en el CV: ${data.campos_faltantes.join(", ")}`

@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { parsearCV } from "@/lib/cv/parse"
+import { createClient } from "@/lib/supabase/server"
 
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   let buffer: Buffer
   let mimeType: string
   let nombreArchivo: string
