@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
+import { MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
+import { BackButton } from "@/components/app/back-button";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { CVSheet } from "@/components/app/cv-sheet";
@@ -116,14 +117,7 @@ export default async function CandidatoDetailPage({
     <div className="px-10 py-10 space-y-5">
 
       {/* Back */}
-      <Link
-        href="/candidatos"
-        className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
-        style={{ color: "var(--gl-ink-3)" }}
-      >
-        <ArrowLeft className="h-3.5 w-3.5" />
-        Candidatos
-      </Link>
+      <BackButton />
 
       {/* ── Header card ──────────────────────────────────────────── */}
       <div className="rounded-2xl border p-6" style={CARD}>
