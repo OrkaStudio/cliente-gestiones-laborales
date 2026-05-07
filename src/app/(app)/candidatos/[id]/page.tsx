@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Mail, MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
+import { ArrowLeft, MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
+import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { CVSheet } from "@/components/app/cv-sheet";
 import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
@@ -413,23 +414,7 @@ export default async function CandidatoDetailPage({
               <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Contacto</h2>
               <div className="space-y-2">
                 {candidato.email && (
-                  <a
-                    href={`mailto:${candidato.email}`}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl"
-                    style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}
-                  >
-                    <div className="h-8 w-8 rounded-lg grid place-items-center shrink-0" style={{ background: "#ddf4ff" }}>
-                      <Mail className="h-3.5 w-3.5" style={{ color: "#0550ae" }} />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                        Email
-                      </div>
-                      <div className="text-sm truncate mt-0.5" style={{ color: "var(--gl-ink)" }}>
-                        {candidato.email}
-                      </div>
-                    </div>
-                  </a>
+                  <CopyEmailButton email={candidato.email} />
                 )}
                 {candidato.telefono && (
                   <a
