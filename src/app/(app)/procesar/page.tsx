@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, useState, useTransition } from "react"
+import { useEffect, useRef, useState, useTransition } from "react"
 import { useRouter } from "next/navigation"
 import {
   Sparkles, Upload, Loader2, Check, AlertTriangle,
@@ -16,7 +16,7 @@ const FASES = [
   "Leyendo el CV",
   "Identificando experiencias",
   "Extrayendo datos personales",
-  "Generando preguntas de entrevista",
+  "Generando preguntas para la planilla",
 ]
 
 const AVATAR_HEX = [
@@ -28,12 +28,12 @@ const AVATAR_HEX = [
 ]
 
 const CAMPOS_QUE_EXTRAE = [
-  { icon: User,          label: "Nombre, teléfono, email, fecha de nac." },
-  { icon: MapPin,        label: "Ubicación y movilidad geográfica" },
-  { icon: Briefcase,     label: "Experiencia laboral ordenada" },
-  { icon: Tractor,       label: "Tipos de ganadería y hectáreas máximas" },
+  { icon: User,          label: "Nombre, DNI, estado civil, situación familiar" },
+  { icon: MapPin,        label: "Domicilio completo, vehículo, licencia, animales" },
+  { icon: Briefcase,     label: "Experiencia con propietario, fechas y hectáreas" },
+  { icon: Tractor,       label: "Tipos de ganadería y dimensión del establecimiento" },
   { icon: GraduationCap, label: "Formación y nivel educativo" },
-  { icon: MessageSquare, label: "Preguntas sugeridas para la entrevista" },
+  { icon: MessageSquare, label: "Preguntas para completar la planilla GL" },
 ]
 
 const CV_EJEMPLO = `Joaquin Chebaia
@@ -95,18 +95,30 @@ export default function ProcesarPage() {
   const router  = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const [step,      setStep]      = useState<Step>("input")
-  const [cvText,    setCvText]    = useState(CV_EJEMPLO)
-  const [archivo,   setArchivo]   = useState<File | null>(null)
-  const [faseIdx,   setFaseIdx]   = useState(0)
-  const [resultado, setResultado] = useState<CVParseado | null>(null)
-  const [error,     setError]     = useState<string | null>(null)
-  const [saving,    startSave]    = useTransition()
+  const [step,       setStep]      = useState<Step>("input")
+  const [cvText,     setCvText]    = useState(CV_EJEMPLO)
+  const [archivo,    setArchivo]   = useState<File | null>(null)
+  const [faseIdx,    setFaseIdx]   = useState(0)
+  const [resultado,  setResultado] = useState<CVParseado | null>(null)
+  const [error,      setError]     = useState<string | null>(null)
+  const [savedId,    setSavedId]   = useState<string | null>(null)
+  const [saveError,  setSaveError] = useState<string | null>(null)
+  const [saving,     startSave]    = useTransition()
 
   const procesando = step === "procesando"
 
+  // Warning al cerrar/refrescar mientras procesa
+  useEffect(() => {
+    if (!procesando) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = "" }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [procesando])
+
   async function procesar() {
     setError(null)
+    setSavedId(null)
+    setSaveError(null)
     setStep("procesando")
     setFaseIdx(0)
 
@@ -125,9 +137,17 @@ export default function ProcesarPage() {
       if (res.status === 401) throw new Error("No autorizado. Iniciá sesión para procesar CVs.")
       if (!res.ok) throw new Error(json.detail ?? json.error ?? "Error desconocido")
 
+      const parsedResult = json as CVParseado
       setFaseIdx(FASES.length - 1)
-      setResultado(json as CVParseado)
+      setResultado(parsedResult)
       setTimeout(() => setStep("resultado"), 400)
+
+      // Guardar automáticamente — sin esperar al usuario
+      startSave(async () => {
+        const saveRes = await guardarCandidatoProcesado(parsedResult)
+        if (saveRes.success) setSavedId(saveRes.id)
+        else setSaveError(saveRes.error ?? "Error al guardar")
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       setStep("input")
@@ -136,12 +156,17 @@ export default function ProcesarPage() {
     }
   }
 
-  function guardar() {
+  function irAlPerfil() {
+    if (savedId) router.push(`/candidatos/${savedId}`)
+  }
+
+  function reintentarGuardado() {
     if (!resultado) return
+    setSaveError(null)
     startSave(async () => {
-      const res = await guardarCandidatoProcesado(resultado)
-      if (!res.success) { setError(res.error); return }
-      router.push(`/candidatos/${res.id}`)
+      const saveRes = await guardarCandidatoProcesado(resultado)
+      if (saveRes.success) setSavedId(saveRes.id)
+      else setSaveError(saveRes.error ?? "Error al guardar")
     })
   }
 
@@ -151,6 +176,8 @@ export default function ProcesarPage() {
     setError(null)
     setArchivo(null)
     setFaseIdx(0)
+    setSavedId(null)
+    setSaveError(null)
   }
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -177,11 +204,11 @@ export default function ProcesarPage() {
           Procesar un CV
         </h1>
         <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
-          Pegá el texto crudo o subí un PDF. La IA extrae todos los campos y genera preguntas de entrevista.
+          Pegá el texto crudo o subí un PDF. La IA extrae todos los campos y genera las preguntas para completar la planilla.
         </p>
       </header>
 
-      {/* 2 columnas — se estiran para llenar el espacio restante */}
+      {/* 2 columnas */}
       <div
         className="grid gap-6"
         style={{
@@ -238,7 +265,7 @@ export default function ProcesarPage() {
                 )}
               </div>
 
-              {/* Cuerpo — crece para llenar el espacio */}
+              {/* Cuerpo */}
               {archivo ? (
                 <div
                   className="flex items-center gap-3 px-5"
@@ -356,18 +383,15 @@ export default function ProcesarPage() {
                 style={{ background: "var(--gl-olive-bg)" }}
               >
                 <p className="text-[12px] leading-relaxed" style={{ color: "var(--gl-olive)" }}>
-                  El resultado aparece acá. Podés revisarlo antes de guardar en la base.
+                  El CV se guarda automáticamente al procesar. Podés cerrar la pestaña sin perder datos.
                 </p>
               </div>
             </div>
           )}
 
-          {/* Error */}
+          {/* Error de parseo */}
           {step === "input" && error && (
-            <div
-              className="rounded-2xl"
-              style={{ flex: 1, display: "flex", flexDirection: "column" }}
-            >
+            <div className="rounded-2xl" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
               <div
                 className="rounded-2xl p-6"
                 style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
@@ -440,6 +464,7 @@ export default function ProcesarPage() {
           {step === "resultado" && resultado && (
             <div className="space-y-4">
 
+              {/* Banner de estado */}
               <div
                 className="flex items-center gap-3 rounded-2xl px-5 py-3.5"
                 style={{ background: "var(--gl-green-bg)", border: "1px solid #a8e6c0" }}
@@ -448,14 +473,45 @@ export default function ProcesarPage() {
                   <Check className="h-3.5 w-3.5" style={{ color: "#fff" }} />
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-semibold" style={{ color: "#1a7f37" }}>CV procesado correctamente</span>
+                  <span className="text-sm font-semibold" style={{ color: "#1a7f37" }}>CV procesado</span>
                   <span className="text-xs ml-3" style={{ color: "#1a7f37", opacity: 0.75 }}>
                     {resultado.experiencia.length} experiencia{resultado.experiencia.length !== 1 ? "s" : ""} ·{" "}
                     {resultado.preguntas_sugeridas.length} preguntas
                   </span>
                 </div>
+                {saving && (
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px]" style={{ color: "#1a7f37", opacity: 0.7 }}>
+                    <Loader2 className="h-3 w-3 animate-spin" /> Guardando…
+                  </span>
+                )}
+                {savedId && !saving && (
+                  <span className="inline-flex items-center gap-1.5 text-[11.5px] font-medium" style={{ color: "#1a7f37" }}>
+                    <Check className="h-3 w-3" /> Guardado en la base
+                  </span>
+                )}
               </div>
 
+              {/* Error de guardado */}
+              {saveError && (
+                <div
+                  className="flex items-center justify-between rounded-xl px-4 py-3"
+                  style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
+                >
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: "var(--gl-red)" }} />
+                    <p className="text-[12.5px]" style={{ color: "var(--gl-red)" }}>Error al guardar: {saveError}</p>
+                  </div>
+                  <button
+                    onClick={reintentarGuardado}
+                    className="text-[12px] font-semibold shrink-0 ml-4"
+                    style={{ color: "var(--gl-red)", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              )}
+
+              {/* Avatar + nombre */}
               {(() => {
                 const pal = avatarPal(resultado.nombre, resultado.apellido)
                 return (
@@ -483,10 +539,18 @@ export default function ProcesarPage() {
 
               <SectionCard title="Datos extraídos">
                 <div>
+                  <CampoRow label="DNI"            value={resultado.dni} />
                   <CampoRow label="Teléfono"        value={resultado.telefono} />
                   <CampoRow label="Email"           value={resultado.email} />
                   <CampoRow label="Fecha de nac."   value={resultado.fecha_nacimiento} />
+                  <CampoRow label="Lugar de nac."   value={resultado.lugar_nacimiento} />
+                  <CampoRow label="Estado civil"    value={resultado.estado_civil} />
+                  <CampoRow label="Hijos"           value={resultado.hijos} />
+                  <CampoRow label="Domicilio"       value={resultado.domicilio_completo} />
                   <CampoRow label="Ubicación"       value={resultado.ubicacion} />
+                  <CampoRow label="Vehículo propio" value={resultado.vehiculo_propio} />
+                  <CampoRow label="Licencia"        value={resultado.licencia_conducir} />
+                  <CampoRow label="Animales"        value={resultado.animales} />
                   <CampoRow label="Disponibilidad"  value={resultado.disponibilidad} />
                   <CampoRow label="Educación"       value={resultado.educacion} />
                   <CampoRow label="Pretensión"      value={resultado.pretension_salarial} />
@@ -494,10 +558,10 @@ export default function ProcesarPage() {
                   {resultado.tipos_ganaderia.length > 0 && (
                     <CampoRow label="Ganadería"     value={resultado.tipos_ganaderia.join(", ")} />
                   )}
-                  {resultado.hectareas_max && (
+                  {resultado.hectareas_max != null && (
                     <CampoRow label="Hás. máx."     value={`${resultado.hectareas_max} ha`} />
                   )}
-                  {resultado.personal_a_cargo_max && (
+                  {resultado.personal_a_cargo_max != null && (
                     <CampoRow label="Pers. a cargo" value={`${resultado.personal_a_cargo_max}`} />
                   )}
                   {resultado.idiomas.length > 0 && (
@@ -516,6 +580,16 @@ export default function ProcesarPage() {
                         </div>
                         <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)" }}>{exp.rol}</div>
                         <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 1 }}>{exp.empresa}</div>
+                        {exp.nombre_propietario && (
+                          <div style={{ fontSize: 12, color: "var(--gl-ink-3)", marginTop: 2 }}>
+                            Propietario: {exp.nombre_propietario}
+                          </div>
+                        )}
+                        {exp.dimension_establecimiento && (
+                          <div style={{ fontSize: 12, color: "var(--gl-ink-3)" }}>
+                            {exp.dimension_establecimiento}
+                          </div>
+                        )}
                         {exp.descripcion && (
                           <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.6, margin: "6px 0 0" }}>
                             {exp.descripcion}
@@ -527,8 +601,22 @@ export default function ProcesarPage() {
                 </SectionCard>
               )}
 
+              {resultado.referencias.length > 0 && (
+                <SectionCard title="Referencias">
+                  <div className="space-y-3">
+                    {resultado.referencias.map((ref, i) => (
+                      <div key={i} style={{ fontSize: 13, color: "var(--gl-ink-2)" }}>
+                        <span className="font-semibold" style={{ color: "var(--gl-ink)" }}>{ref.nombre}</span>
+                        {ref.relacion && <span style={{ color: "var(--gl-ink-3)" }}> · {ref.relacion}</span>}
+                        {ref.contacto && <span style={{ color: "var(--gl-ink-3)" }}> · {ref.contacto}</span>}
+                      </div>
+                    ))}
+                  </div>
+                </SectionCard>
+              )}
+
               {resultado.preguntas_sugeridas.length > 0 && (
-                <SectionCard title="Preguntas sugeridas para la entrevista">
+                <SectionCard title="Preguntas para completar la planilla">
                   <div className="space-y-3">
                     {resultado.preguntas_sugeridas.map((p, i) => (
                       <div key={i} className="flex items-baseline gap-3">
@@ -556,19 +644,9 @@ export default function ProcesarPage() {
                       Campos no encontrados en el CV
                     </p>
                     <p className="text-[11.5px] mt-0.5" style={{ color: "var(--gl-amber)" }}>
-                      {resultado.campos_faltantes.join(", ")} — podés completarlos editando el perfil después de guardar.
+                      {resultado.campos_faltantes.join(", ")} — completar con las respuestas del candidato.
                     </p>
                   </div>
-                </div>
-              )}
-
-              {error && (
-                <div
-                  className="flex items-start gap-3 rounded-xl px-4 py-3"
-                  style={{ background: "var(--gl-red-bg)", border: "1px solid #f1aeb5" }}
-                >
-                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--gl-red)" }} />
-                  <p className="text-sm" style={{ color: "var(--gl-red)" }}>{error}</p>
                 </div>
               )}
 
@@ -585,7 +663,7 @@ export default function ProcesarPage() {
                 </button>
 
                 <button
-                  onClick={guardar}
+                  onClick={savedId ? irAlPerfil : reintentarGuardado}
                   disabled={saving}
                   className="inline-flex items-center gap-2 rounded-xl px-6 py-2.5 text-[13.5px] font-semibold transition-all disabled:opacity-70"
                   style={{
@@ -600,7 +678,9 @@ export default function ProcesarPage() {
                 >
                   {saving
                     ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Guardando…</>
-                    : <><ArrowRight className="h-3.5 w-3.5" /> Guardar en la base</>
+                    : savedId
+                      ? <><ArrowRight className="h-3.5 w-3.5" /> Ver perfil</>
+                      : <><ArrowRight className="h-3.5 w-3.5" /> Guardar en la base</>
                   }
                 </button>
               </div>
