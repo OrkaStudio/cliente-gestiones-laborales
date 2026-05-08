@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.71",
-    "@ai-sdk/openai": "^3.0.60",
-    "@react-pdf/renderer": "^4.5.1",
+"@react-pdf/renderer": "^4.5.1",
     "@supabase/ssr": "0.10.2",
     "@supabase/supabase-js": "2.104.1",
     "ai": "6.0.168",
@@ -44,7 +43,7 @@
     "@types/react-dom": "19.2.3",
     "eslint": "10.2.1",
     "eslint-plugin-react-hooks": "7.1.1",
-    "pdf-parse": "^2.4.5",
+    "pdf-parse": "^1.1.1",
     "tailwindcss": "4.2.4",
     "tsx": "^4.21.0",
     "typescript": "5.9.3"

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await parsearCV(buffer, mimeType, nombreArchivo, [])
+    const result = await parsearCV(buffer, mimeType, nombreArchivo)
     return NextResponse.json(result)
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)

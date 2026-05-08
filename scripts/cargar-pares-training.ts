@@ -5,7 +5,7 @@
  *   pnpm tsx scripts/cargar-pares-training.ts
  *
  * Requiere en .env.local:
- *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY
+ *   NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ANTHROPIC_API_KEY
  *
  * Estructura esperada en training-data/confirmed/:
  *   CRUDOS/   — archivos .pdf, .docx, .jpeg, .jpg, .png
@@ -21,7 +21,6 @@ import * as pdfParseMod from "pdf-parse";
 const pdfParse = (pdfParseMod as any).default ?? pdfParseMod;
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateText } from "ai";
-import { embedTexto } from "../src/lib/cv/rag";
 import { createClient } from "@supabase/supabase-js";
 
 const TRAINING_DIR = path.join(process.cwd(), "training-data", "confirmed");
@@ -157,8 +156,6 @@ async function main() {
         path.join(PROCESADOS_DIR, procesadoFile),
       );
 
-      const embedding = await embedTexto(crudoTexto);
-
       const candidatoNombre = path.basename(
         procesadoFile,
         path.extname(procesadoFile),
@@ -168,7 +165,6 @@ async function main() {
         candidato_nombre: candidatoNombre,
         cv_crudo_texto: crudoTexto,
         cv_procesado_texto: procesadoTexto,
-        embedding: embedding as unknown as string,
       });
 
       if (error) {
