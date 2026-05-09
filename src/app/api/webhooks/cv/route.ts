@@ -2,9 +2,10 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { z, ZodError } from "zod";
 
-// Parsear CVs con Claude puede tomar hasta 30s
+// Claude puede tardar 30s+ — respondemos 202 a Make y procesamos en background
 export const maxDuration = 60;
 
 const BodySchema = z.object({
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
   // 5. Decodificar archivo desde base64
   const buffer = Buffer.from(body.archivo_base64, "base64");
 
-  // 5. Normalizar MIME: octet-stream o vacío → inferir por extensión
+  // 6. Normalizar MIME: octet-stream o vacío → inferir por extensión
   const ext = body.archivo_nombre.split(".").pop()?.toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
     pdf: "application/pdf",
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
   const mimeGenerico = !body.archivo_mime || body.archivo_mime === "application/octet-stream";
   const mimeEfectivo = mimeGenerico && mimeMap[ext] ? mimeMap[ext] : (body.archivo_mime || "application/octet-stream");
 
-  // 6. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
+  // 7. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
   const storagePath = `${body.email_id}/${body.archivo_nombre}`;
   const { error: uploadError } = await supabase.storage
     .from("cv-crudos")
@@ -105,52 +106,47 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 7. Parsear CV con Claude
-  console.log("[webhook/cv] pre_parse mimeEfectivo:", mimeEfectivo, "bufferLen:", buffer.length);
-  let candidatoParseado;
-  try {
-    candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    const errName = err instanceof Error ? err.constructor.name : typeof err;
-    const stack = err instanceof Error ? (err.stack ?? "").slice(0, 800) : "";
-    console.error("[webhook/cv] parse_failed type:", errName, "detail:", detail);
-    console.error("[webhook/cv] parse_failed stack:", stack);
-    return NextResponse.json(
-      { error: "parse_failed", detail },
-      { status: 500 },
-    );
-  }
+  // 8. Parsear CV con Claude + upsert en background para no exceder el timeout de Make (40s)
+  after(async () => {
+    console.log("[webhook/cv] background_start email_id:", body.email_id);
 
-  // 8. Upsert candidato en Supabase
-  let candidatoId: string;
-  try {
-    candidatoId = await upsertCandidato(candidatoParseado, storagePath);
-  } catch (err) {
-    return NextResponse.json(
-      { error: "upsert_failed", detail: err instanceof Error ? err.message : "unknown" },
-      { status: 500 },
-    );
-  }
+    let candidatoParseado;
+    try {
+      candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      console.error("[webhook/cv] parse_failed:", detail);
+      return;
+    }
 
-  // 9. Guardar cv_procesado_texto y preguntas_sugeridas
-  try {
-    await supabase
-      .from("candidatos")
-      .update({
-        cv_procesado_texto: candidatoParseado.cv_procesado_texto,
-        preguntas_sugeridas: candidatoParseado.preguntas_sugeridas,
-      })
-      .eq("id", candidatoId);
-  } catch (err) {
-    console.warn("[webhook/cv] post_update_skip:", err instanceof Error ? err.message : String(err));
-  }
+    let candidatoId: string;
+    try {
+      candidatoId = await upsertCandidato(candidatoParseado, storagePath);
+    } catch (err) {
+      console.error("[webhook/cv] upsert_failed:", err instanceof Error ? err.message : String(err));
+      return;
+    }
 
-  // 10. Marcar email como procesado (solo en éxito, para permitir reintentos en error)
-  await supabase.from("emails_procesados").insert({
-    email_id: body.email_id,
-    candidato_id: candidatoId,
+    try {
+      await supabase
+        .from("candidatos")
+        .update({
+          cv_procesado_texto: candidatoParseado.cv_procesado_texto,
+          preguntas_sugeridas: candidatoParseado.preguntas_sugeridas,
+        })
+        .eq("id", candidatoId);
+    } catch (err) {
+      console.warn("[webhook/cv] post_update_skip:", err instanceof Error ? err.message : String(err));
+    }
+
+    await supabase.from("emails_procesados").insert({
+      email_id: body.email_id,
+      candidato_id: candidatoId,
+    });
+
+    console.log("[webhook/cv] background_complete candidato_id:", candidatoId);
   });
 
-  return NextResponse.json({ status: "ok", candidato_id: candidatoId });
+  // Respondemos 202 inmediatamente — el procesamiento continúa en background
+  return NextResponse.json({ status: "processing" }, { status: 202 });
 }
