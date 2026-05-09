@@ -55,10 +55,54 @@ const CVParseadoSchema = z.object({
   experiencia: z.array(ExperienciaSchema),
   referencias: z.array(ReferenciaSchema).describe("Referencias laborales mencionadas en el CV"),
   cv_procesado_texto: z.string().describe(
-    `CV reformateado completo en el estilo de Gestiones Laborales.
-Secciones: DATOS PERSONALES, PERFIL LABORAL, EXPERIENCIA LABORAL (trabajo actual primero, luego anteriores), FORMACIÓN, REFERENCIAS.
-Para cada trabajo incluir: establecimiento, propietario, fechas, ubicación, cargo, tareas, dimensión, personal a cargo, si está en blanco.
-Completar con la información disponible. Omitir los campos desconocidos.`,
+    `CV reformateado completo en el estilo de Gestiones Laborales. Seguir EXACTAMENTE este formato:
+
+DATOS PERSONALES
+─────────────────────────────────────────────────
+Nombre y Apellido: Juan García
+Fecha de nacimiento: 15/05/1986
+DNI: 12345678
+Domicilio: Calle Mitre 259, Maciá, Entre Ríos
+Teléfono: 3445-535086
+Email: juan@gmail.com
+Estado civil: Soltero
+Hijos: 2 hijos, 5 y 8 años
+Estudios: Secundaria completa
+
+PERFIL LABORAL
+─────────────────────────────────────────────────
+Trabajador rural con experiencia en ganadería bovina y tambo...
+
+EXPERIENCIA LABORAL
+─────────────────────────────────────────────────
+2022 – Actualidad
+Encargado — Estancia La Pampa
+Coronel Suárez, Buenos Aires. Establecimiento de 1.200 hectáreas. 3 personas a cargo. En blanco.
+Conducción general del establecimiento. Manejo de rodeo bovino.
+Ingresos actuales: $450.000. Beneficios: carne, vivienda.
+Motivo de cambio: búsqueda de nuevas oportunidades.
+
+2018 – 2022
+Peón ganadero — Estancia San Juan
+General Villegas, Buenos Aires. 800 hectáreas. Trabajo individual.
+Tareas de campo: rodeo, alambrado, mantenimiento general.
+Motivo de salida: fin de contrato.
+
+FORMACIÓN
+─────────────────────────────────────────────────
+Secundaria completa — Escuela Agrotécnica N°1
+
+REFERENCIAS
+─────────────────────────────────────────────────
+Juan Pérez
+Tel: 1234-5678
+Propietario — Estancia La Pampa
+
+Reglas:
+- Separar secciones SIEMPRE con ─────────────────────────────────────────────────── (guiones, no ═══ ni ***)
+- Para experiencia: fecha primero (ej: "2020 – Actualidad"), luego "Cargo — Empresa" en la línea siguiente, luego descripción
+- Omitir completamente los campos desconocidos — NO escribir "(a confirmar)", "desconocido" ni "N/D"
+- Solo incluir la información que efectivamente está en el CV`,
   ),
   preguntas_sugeridas: z.array(z.string()).describe(
     `Preguntas para hacerle al candidato para completar los datos faltantes de la planilla de Gestiones Laborales.

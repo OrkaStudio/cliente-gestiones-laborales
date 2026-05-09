@@ -88,8 +88,21 @@ export function parseRefs(content: string): string[][] {
   return blocks
 }
 
+const GL_SECTIONS = new Set([
+  "DATOS PERSONALES", "PERFIL LABORAL", "EXPERIENCIA LABORAL",
+  "FORMACIÓN", "FORMACION", "REFERENCIAS", "CONOCIMIENTOS",
+  "FORMACIÓN ACADÉMICA", "FORMACION ACADEMICA",
+])
+
 export function parseSections(text: string): CvSection[] {
-  const lines  = text.split("\n")
+  // Limpiar caracteres problemáticos antes de parsear
+  const cleaned = text
+    .replace(/[═╔╗╚╝║╠╣╦╩╬─]{3,}/g, "─".repeat(49)) // normalizar separadores
+    .replace(/\(a confirmar\)/gi, "")                  // eliminar campos vacíos
+    .replace(/\(sin datos\)/gi, "")
+    .replace(/\(desconocido\)/gi, "")
+
+  const lines  = cleaned.split("\n")
   const result: CvSection[] = []
   let current: { title: string; lines: string[] } | null = null
 
@@ -98,16 +111,19 @@ export function parseSections(text: string): CvSection[] {
     const trimmed = line.trim()
     const next    = lines[i + 1]?.trim() ?? ""
 
-    const isSectionHeader =
+    // Header con separador ─────
+    const hasRule = next.startsWith("─") || next.startsWith("-")
+    const isAllCaps =
       trimmed.length > 0 &&
       trimmed.length < 80 &&
-      /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s/()]+$/.test(trimmed) &&
-      (next.startsWith("─") || next.startsWith("-"))
+      /^[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ\s/()]+$/.test(trimmed)
+
+    const isSectionHeader = isAllCaps && (hasRule || GL_SECTIONS.has(trimmed))
 
     if (isSectionHeader) {
       if (current) result.push({ title: current.title, content: clean(current.lines) })
       current = { title: trimmed, lines: [] }
-      i++ // saltar línea ─────
+      if (hasRule) i++ // saltar línea ─────
       continue
     }
 
@@ -120,7 +136,7 @@ export function parseSections(text: string): CvSection[] {
 
 function clean(lines: string[]): string {
   return lines
-    .map((l) => (/^─+$/.test(l.trim()) ? "" : l))
+    .map((l) => /^[─\-═\*]{3,}$/.test(l.trim()) ? "" : l)
     .join("\n")
     .trim()
 }
