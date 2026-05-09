@@ -66,10 +66,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "already_processed" });
   }
 
-  // 4. Decodificar archivo desde base64
+  // 4. Validar que hay adjunto real (Make puede enviar campos vacíos en Replay)
+  if (!body.archivo_base64 || !body.archivo_nombre) {
+    console.warn("[webhook/cv] adjunto_vacio: email_id:", body.email_id);
+    return NextResponse.json({ error: "bad_request", detail: "adjunto_vacio" }, { status: 400 });
+  }
+
+  // 5. Decodificar archivo desde base64
   const buffer = Buffer.from(body.archivo_base64, "base64");
 
-  // 5. Normalizar MIME si viene como octet-stream
+  // 5. Normalizar MIME: octet-stream o vacío → inferir por extensión
   const ext = body.archivo_nombre.split(".").pop()?.toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
     pdf: "application/pdf",
@@ -80,9 +86,8 @@ export async function POST(req: NextRequest) {
     png: "image/png",
     webp: "image/webp",
   };
-  const mimeEfectivo = body.archivo_mime === "application/octet-stream" && mimeMap[ext]
-    ? mimeMap[ext]
-    : body.archivo_mime;
+  const mimeGenerico = !body.archivo_mime || body.archivo_mime === "application/octet-stream";
+  const mimeEfectivo = mimeGenerico && mimeMap[ext] ? mimeMap[ext] : (body.archivo_mime || "application/octet-stream");
 
   // 6. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
   const storagePath = `${body.email_id}/${body.archivo_nombre}`;
