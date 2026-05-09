@@ -40,6 +40,23 @@ export async function updateCVProcesado(candidatoId: string, texto: string) {
   revalidatePath(`/candidatos/${candidatoId}`);
 }
 
+export async function registrarEnvioWhatsapp(candidatoId: string, mensajeEnviado: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase
+    .from("candidatos")
+    .update({
+      fecha_consultado: new Date().toISOString(),
+      mensaje_whatsapp: mensajeEnviado,
+    })
+    .eq("id", candidatoId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/candidatos")
+  revalidatePath(`/candidatos/${candidatoId}`)
+  return { success: true, id: candidatoId }
+}
+
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
 
 type CandidatoData = {

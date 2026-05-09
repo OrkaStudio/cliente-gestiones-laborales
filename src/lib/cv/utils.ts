@@ -1,3 +1,26 @@
+export function waUrl(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("54")) return `https://wa.me/${digits}`;
+  if (digits.startsWith("0"))  return `https://wa.me/54${digits.slice(1)}`;
+  return `https://wa.me/54${digits}`;
+}
+
+export function generarMensajeWhatsapp(nombre: string, preguntas: string[]): string {
+  const lista = preguntas.map((p, i) => `${i + 1}. ${p}`).join("\n");
+  return `Hola ${nombre}! 👋
+
+Te contactamos desde Gestiones Laborales porque recibimos tu CV y nos interesó tu perfil.
+
+Para poder avanzar, necesitamos completar algunos datos:
+
+${lista}
+
+¡Muchas gracias por tu tiempo! 🙏
+
+---
+📝 NOTA (borrar antes de enviar): Confirmar con GL si el mensaje debe ir en primera persona de Oriana ("Te escribo yo, Oriana") o como empresa ("Somos Gestiones Laborales"). Pendiente definir con Andrea/Oriana.`;
+}
+
 export type CvSection = { title: string; content: string }
 export type KVPair    = { label: string; value: string }
 export type JobBlock  = { periodo: string; titulo: string; empresa: string; desc: string }

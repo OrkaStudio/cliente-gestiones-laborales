@@ -83,11 +83,13 @@ export type Database = {
           email: string | null
           embedding: string | null
           estado: Database["public"]["Enums"]["estado_candidato"]
+          fecha_consultado: string | null
           fecha_ingreso: string
           fecha_nacimiento: string | null
           hectareas_max: number | null
           id: string
           idiomas: string[]
+          mensaje_whatsapp: string | null
           movilidad: boolean | null
           nombre: string
           notas_recruiter: string | null
@@ -111,11 +113,13 @@ export type Database = {
           email?: string | null
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_candidato"]
+          fecha_consultado?: string | null
           fecha_ingreso?: string
           fecha_nacimiento?: string | null
           hectareas_max?: number | null
           id?: string
           idiomas?: string[]
+          mensaje_whatsapp?: string | null
           movilidad?: boolean | null
           nombre: string
           notas_recruiter?: string | null
@@ -139,11 +143,13 @@ export type Database = {
           email?: string | null
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_candidato"]
+          fecha_consultado?: string | null
           fecha_ingreso?: string
           fecha_nacimiento?: string | null
           hectareas_max?: number | null
           id?: string
           idiomas?: string[]
+          mensaje_whatsapp?: string | null
           movilidad?: boolean | null
           nombre?: string
           notas_recruiter?: string | null

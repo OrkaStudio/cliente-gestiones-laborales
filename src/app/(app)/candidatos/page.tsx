@@ -257,8 +257,16 @@ export default async function CandidatosPage({
                   ))}
                 </div>
 
-                {/* Derecha: teléfono o fecha */}
+                {/* Derecha: consultado + teléfono o fecha */}
                 <div className="flex items-center gap-2 shrink-0">
+                  {c.fecha_consultado && (
+                    <span
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ background: "#dafbe1", color: "#1a7f37" }}
+                    >
+                      Consultado
+                    </span>
+                  )}
                   {c.telefono ? (
                     <span
                       className="flex items-center gap-1 font-mono text-[11px]"

@@ -5,9 +5,10 @@ import { BackButton } from "@/components/app/back-button";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { CVSheet } from "@/components/app/cv-sheet";
-import { PreguntasSugeridas } from "@/components/app/preguntas-sugeridas";
+import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
+import { waUrl } from "@/lib/cv/utils";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -57,13 +58,6 @@ function calcCompleteness(c: Record<string, unknown>, exp: unknown[]) {
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
 
-// Convierte número argentino a URL de WhatsApp
-function waUrl(phone: string): string {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("54")) return `https://wa.me/${digits}`;
-  if (digits.startsWith("0"))  return `https://wa.me/54${digits.slice(1)}`;
-  return `https://wa.me/54${digits}`;
-}
 
 const CARD = {
   background: "#ffffff",
@@ -161,6 +155,14 @@ export default async function CandidatoDetailPage({
                 >
                   {candidato.estado}
                 </span>
+                {candidato.fecha_consultado && (
+                  <span
+                    className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                    style={{ background: "#dafbe1", color: "#1a7f37" }}
+                  >
+                    Consultado
+                  </span>
+                )}
                 {candidato.idiomas?.map((lang: string) => (
                   <span
                     key={lang}
@@ -490,13 +492,18 @@ export default async function CandidatoDetailPage({
         </div>
       </div>
 
-      {/* Preguntas sugeridas */}
+      {/* WhatsApp */}
       <section className="mt-12 pt-12 border-t" style={{ borderColor: "var(--gl-border)" }}>
         <div className="text-[10px] uppercase tracking-[0.22em] mb-6" style={{ color: "var(--gl-ink-3)" }}>
-          Preguntas sugeridas para la entrevista
+          Contacto WhatsApp
         </div>
-        <PreguntasSugeridas
-          preguntas={(candidato as { preguntas_sugeridas?: string[] }).preguntas_sugeridas ?? []}
+        <WhatsappMessagePanel
+          candidatoId={candidato.id}
+          nombre={candidato.nombre}
+          telefono={candidato.telefono}
+          preguntas_sugeridas={candidato.preguntas_sugeridas ?? []}
+          fecha_consultado={candidato.fecha_consultado ?? null}
+          mensaje_whatsapp={candidato.mensaje_whatsapp ?? null}
         />
       </section>
     </div>
