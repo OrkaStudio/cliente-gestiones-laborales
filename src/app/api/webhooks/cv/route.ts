@@ -69,23 +69,7 @@ export async function POST(req: NextRequest) {
   // 4. Decodificar archivo desde base64
   const buffer = Buffer.from(body.archivo_base64, "base64");
 
-  // 5. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
-  const storagePath = `${body.email_id}/${body.archivo_nombre}`;
-  const { error: uploadError } = await supabase.storage
-    .from("cv-crudos")
-    .upload(storagePath, buffer, {
-      contentType: body.archivo_mime,
-      upsert: true,
-    });
-
-  if (uploadError) {
-    return NextResponse.json(
-      { error: "storage_upload_failed", detail: uploadError.message },
-      { status: 500 },
-    );
-  }
-
-  // 6. Normalizar MIME si viene como octet-stream
+  // 5. Normalizar MIME si viene como octet-stream
   const ext = body.archivo_nombre.split(".").pop()?.toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
     pdf: "application/pdf",
@@ -99,6 +83,22 @@ export async function POST(req: NextRequest) {
   const mimeEfectivo = body.archivo_mime === "application/octet-stream" && mimeMap[ext]
     ? mimeMap[ext]
     : body.archivo_mime;
+
+  // 6. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
+  const storagePath = `${body.email_id}/${body.archivo_nombre}`;
+  const { error: uploadError } = await supabase.storage
+    .from("cv-crudos")
+    .upload(storagePath, buffer, {
+      contentType: mimeEfectivo,
+      upsert: true,
+    });
+
+  if (uploadError) {
+    return NextResponse.json(
+      { error: "storage_upload_failed", detail: uploadError.message },
+      { status: 500 },
+    );
+  }
 
   // 7. Parsear CV con Claude
   console.log("[webhook/cv] pre_parse mimeEfectivo:", mimeEfectivo, "bufferLen:", buffer.length);
