@@ -1,79 +1,42 @@
-import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer"
+import path from "path"
+import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
 import { parseSections, parseKV, parseJobs, parseBullets, parseRefs } from "./utils"
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const C = {
-  olive:   "#2a4a18",
-  ink:     "#1a1d23",
-  ink2:    "#3d4451",
-  ink3:    "#6b7280",
-  border:  "#e5e7eb",
-  white:   "#ffffff",
-  bg:      "#f9fafb",
+  olive:  "#45602a",
+  ink:    "#1a1d23",
+  ink2:   "#3d4451",
+  ink3:   "#6b7280",
+  border: "#d1d5db",
+  white:  "#ffffff",
 }
 
-// ─── Dimensiones A4 ───────────────────────────────────────────────────────────
-const PL = 48   // padding left
-const PR = 44   // padding right
-const PT = 20   // padding top body
+// ─── Assets ───────────────────────────────────────────────────────────────────
+const LOGO_LEYENDA = path.join(process.cwd(), "public", "brand", "logo-leyenda.png")
+const LOGO_ICON    = path.join(process.cwd(), "public", "brand", "logo.png")
+
+// ─── Márgenes ─────────────────────────────────────────────────────────────────
+const PL = 52
+const PR = 48
+const PT = 52   // top padding (espacio para la marca fija)
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
 
   page: {
     backgroundColor: C.white,
-    fontFamily: "Helvetica",
-    paddingBottom: 50,
+    fontFamily:      "Helvetica",
+    paddingBottom:   48,
   },
 
-  // Espaciador fijo que solo se renderiza en páginas 2+ (header full-bleed en pág. 1)
-  pageTopGap: {
-    height: 28,
-  },
-
-  // ── HEADER ────────────────────────────────────────────────────────────────
-  header: {
-    backgroundColor: C.olive,
-    paddingLeft:  PL,
-    paddingRight: PR,
-    paddingTop:   32,
-    paddingBottom: 28,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-end",
-  },
-  headerLeft: {},
-  brandName: {
-    color: C.white,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 11,
-    letterSpacing: 3,
-  },
-  brandSub: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 6.5,
-    letterSpacing: 1.5,
-    marginTop: 5,
-  },
-  headerRight: {
-    alignItems: "flex-end",
-  },
-  cvLabel: {
-    color: "rgba(255,255,255,0.5)",
-    fontSize: 7,
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  candidateName: {
-    color: C.white,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 20,
-  },
-
-  // Línea debajo del header
-  headerLine: {
-    height: 2,
-    backgroundColor: "rgba(255,255,255,0.12)",
+  // ── MARCA FIJA (top-right en todas las páginas) ───────────────────────────
+  brandFixed: {
+    position:  "absolute",
+    top:       24,
+    right:     PR,
+    width:     90,
+    height:    "auto",
   },
 
   // ── BODY ──────────────────────────────────────────────────────────────────
@@ -82,174 +45,200 @@ const s = StyleSheet.create({
     paddingRight: PR,
     paddingTop:   PT,
   },
+
+  // ── NOMBRE DEL CANDIDATO (primera página) ─────────────────────────────────
+  candidatoHeader: {
+    marginBottom: 22,
+    borderBottomWidth: 1.5,
+    borderBottomColor: C.olive,
+    paddingBottom: 10,
+  },
+  candidatoNombre: {
+    fontFamily:    "Helvetica-Bold",
+    fontSize:      20,
+    color:         C.ink,
+    letterSpacing: -0.3,
+  },
+  candidatoSub: {
+    fontSize:  9,
+    color:     C.ink3,
+    marginTop: 3,
+    letterSpacing: 0.5,
+  },
+
+  // ── SECTION ───────────────────────────────────────────────────────────────
   section: {
-    marginBottom: 14,
+    marginBottom: 16,
   },
 
-  // ── SECTION HEADER ────────────────────────────────────────────────────────
-  sectionTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
-  sectionDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: C.olive,
-    marginRight: 7,
-  },
   sectionTitle: {
-    color: C.olive,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 7.5,
-    letterSpacing: 2.5,
-  },
-  sectionRule: {
-    height: 1,
-    backgroundColor: C.border,
-    marginBottom: 9,
+    fontFamily:      "Helvetica-BoldOblique",
+    fontSize:        10,
+    color:           C.olive,
+    letterSpacing:   0.3,
+    textDecoration:  "underline",
+    marginBottom:    8,
   },
 
-  // ── KEY-VALUE (DATOS PERSONALES) ──────────────────────────────────────────
-  kvRow: {
+  // ── BULLETS (datos personales y formación) ────────────────────────────────
+  bulletRow: {
     flexDirection: "row",
-    marginBottom: 4,
+    marginBottom:  4,
+    paddingLeft:   4,
   },
-  kvLabel: {
-    width: 110,
-    color: C.ink3,
-    fontSize: 9,
+  bulletDot: {
+    color:     C.olive,
+    fontSize:  9,
+    width:     12,
+    marginTop: 0.5,
   },
-  kvValue: {
-    flex: 1,
-    color: C.ink,
-    fontSize: 9,
+  bulletLabel: {
     fontFamily: "Helvetica-Bold",
+    fontSize:   9.5,
+    color:      C.ink,
+    marginRight: 3,
   },
-
-  // ── PÁRRAFO JUSTIFICADO ───────────────────────────────────────────────────
-  para: {
-    color: C.ink2,
-    fontSize: 9.5,
-    lineHeight: 1.72,
-    textAlign: "justify",
+  bulletValue: {
+    flex:       1,
+    fontSize:   9.5,
+    color:      C.ink2,
+    lineHeight: 1.5,
   },
 
   // ── EXPERIENCIA ───────────────────────────────────────────────────────────
   jobBlock: {
-    marginBottom: 10,
+    marginBottom: 12,
   },
   jobPeriod: {
-    color: C.olive,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 8,
-    letterSpacing: 0.5,
-    marginBottom: 1,
+    fontFamily:    "Helvetica-Bold",
+    fontSize:      8.5,
+    color:         C.olive,
+    letterSpacing: 0.3,
+    marginBottom:  1,
   },
   jobTitle: {
-    color: C.ink,
     fontFamily: "Helvetica-Bold",
-    fontSize: 9.5,
-    marginBottom: 3,
+    fontSize:   10,
+    color:      C.ink,
+    marginBottom: 2,
   },
   jobCompany: {
-    color: C.ink3,
+    fontSize:     9,
+    color:        C.ink3,
+    marginBottom: 5,
+  },
+  jobBulletRow: {
+    flexDirection: "row",
+    marginBottom:  3,
+    paddingLeft:   4,
+  },
+  jobBulletDot: {
+    color:    C.ink3,
     fontSize: 9,
-    marginBottom: 4,
+    width:    12,
+  },
+  jobBulletText: {
+    flex:       1,
+    fontSize:   9.5,
+    color:      C.ink2,
+    lineHeight: 1.6,
   },
   jobDesc: {
-    color: C.ink2,
-    fontSize: 9.5,
+    fontSize:   9.5,
+    color:      C.ink2,
     lineHeight: 1.7,
-    textAlign: "justify",
+    textAlign:  "justify",
   },
 
-  // ── BULLETS (CONOCIMIENTOS) ───────────────────────────────────────────────
+  // ── BULLETS GRID (conocimientos) ──────────────────────────────────────────
   bulletGrid: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    flexWrap:      "wrap",
   },
-  bulletItem: {
-    width: "50%",
+  bulletGridItem: {
+    width:         "50%",
     flexDirection: "row",
-    marginBottom: 4,
-    paddingRight: 8,
-  },
-  bulletDot: {
-    color: C.olive,
-    fontSize: 9,
-    marginRight: 5,
-    marginTop: 1,
-  },
-  bulletText: {
-    flex: 1,
-    color: C.ink2,
-    fontSize: 9,
-    lineHeight: 1.5,
+    marginBottom:  4,
+    paddingRight:  8,
   },
 
   // ── REFERENCIAS ───────────────────────────────────────────────────────────
   refBlock: {
-    marginBottom: 8,
-    paddingLeft: 10,
+    marginBottom:    8,
+    paddingLeft:     10,
     borderLeftWidth: 2,
     borderLeftColor: C.border,
   },
   refName: {
-    color: C.ink,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 9.5,
+    fontFamily:   "Helvetica-Bold",
+    fontSize:     9.5,
+    color:        C.ink,
     marginBottom: 2,
   },
   refDetail: {
-    color: C.ink3,
     fontSize: 9,
+    color:    C.ink3,
+  },
+
+  // ── PÁRRAFO GENÉRICO ──────────────────────────────────────────────────────
+  para: {
+    fontSize:   9.5,
+    color:      C.ink2,
+    lineHeight: 1.72,
+    textAlign:  "justify",
   },
 
   // ── FOOTER ────────────────────────────────────────────────────────────────
   footer: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 32,
-    backgroundColor: C.bg,
-    borderTopWidth: 1,
-    borderTopColor: C.border,
-    paddingLeft:  PL,
-    paddingRight: PR,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+    position:        "absolute",
+    bottom:          0,
+    left:            0,
+    right:           0,
+    height:          36,
+    paddingLeft:     PL,
+    paddingRight:    PR,
+    borderTopWidth:  1,
+    borderTopColor:  C.border,
+    flexDirection:   "row",
+    alignItems:      "center",
+    justifyContent:  "space-between",
+    backgroundColor: C.white,
   },
-  footerBrand: {
-    color: C.olive,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 6.5,
-    letterSpacing: 1,
+  footerLogo: {
+    width:  52,
+    height: "auto",
   },
   footerMid: {
-    color: C.ink3,
-    fontSize: 6.5,
+    fontSize:      7,
+    color:         C.ink3,
+    letterSpacing: 0.3,
   },
   footerPage: {
-    color: C.ink3,
-    fontFamily: "Helvetica-Bold",
-    fontSize: 6.5,
+    fontFamily:    "Helvetica-Bold",
+    fontSize:      7,
+    color:         C.olive,
+    letterSpacing: 0.5,
   },
 })
 
-// ─── Renderers por sección ────────────────────────────────────────────────────
+// ─── Renderers ────────────────────────────────────────────────────────────────
 
 function DatosPersonales({ content }: { content: string }) {
   const pairs = parseKV(content)
   return (
     <View>
       {pairs.map((p, i) => (
-        <View key={i} style={s.kvRow}>
-          <Text style={s.kvLabel}>{p.label}</Text>
-          <Text style={s.kvValue}>{p.value}</Text>
+        <View key={i} style={s.bulletRow}>
+          <Text style={s.bulletDot}>•</Text>
+          {p.label
+            ? (
+              <>
+                <Text style={s.bulletLabel}>{p.label}:</Text>
+                <Text style={s.bulletValue}>{p.value}</Text>
+              </>
+            )
+            : <Text style={s.bulletValue}>{p.value}</Text>
+          }
         </View>
       ))}
     </View>
@@ -263,14 +252,43 @@ function Parrafo({ content }: { content: string }) {
 function Experiencia({ content }: { content: string }) {
   const jobs = parseJobs(content)
   if (!jobs.length) return <Parrafo content={content} />
+
   return (
     <View>
-      {jobs.map((job, i) => (
-        <View key={i} style={s.jobBlock} wrap={false}>
-          <Text style={s.jobPeriod}>{job.periodo}</Text>
-          <Text style={s.jobTitle}>{job.titulo}</Text>
-          {!!job.empresa && <Text style={s.jobCompany}>{job.empresa}</Text>}
-          {!!job.desc && <Text style={s.jobDesc}>{job.desc}</Text>}
+      {jobs.map((job, i) => {
+        const lines = job.desc
+          ? job.desc.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean)
+          : []
+
+        return (
+          <View key={i} style={s.jobBlock} wrap={false}>
+            {!!job.periodo && <Text style={s.jobPeriod}>{job.periodo}</Text>}
+            {!!job.titulo  && <Text style={s.jobTitle}>{job.titulo}</Text>}
+            {!!job.empresa && <Text style={s.jobCompany}>{job.empresa}</Text>}
+            {lines.length > 1
+              ? lines.map((line, j) => (
+                  <View key={j} style={s.jobBulletRow}>
+                    <Text style={s.jobBulletDot}>•</Text>
+                    <Text style={s.jobBulletText}>{line}</Text>
+                  </View>
+                ))
+              : !!job.desc && <Text style={s.jobDesc}>{job.desc}</Text>
+            }
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
+function Formacion({ content }: { content: string }) {
+  const items = content.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean)
+  return (
+    <View>
+      {items.map((item, i) => (
+        <View key={i} style={s.bulletRow}>
+          <Text style={s.bulletDot}>•</Text>
+          <Text style={s.bulletValue}>{item}</Text>
         </View>
       ))}
     </View>
@@ -282,23 +300,9 @@ function Conocimientos({ content }: { content: string }) {
   return (
     <View style={s.bulletGrid}>
       {items.map((item, i) => (
-        <View key={i} style={s.bulletItem}>
-          <Text style={s.bulletDot}>▪</Text>
-          <Text style={s.bulletText}>{item}</Text>
-        </View>
-      ))}
-    </View>
-  )
-}
-
-function Formacion({ content }: { content: string }) {
-  const items = content.split("\n").filter(l => l.trim())
-  return (
-    <View>
-      {items.map((item, i) => (
-        <View key={i} style={{ flexDirection: "row", marginBottom: 4 }}>
-          <Text style={s.bulletDot}>▪</Text>
-          <Text style={[s.bulletText, { fontSize: 9.5 }]}>{item.trim()}</Text>
+        <View key={i} style={s.bulletGridItem}>
+          <Text style={s.bulletDot}>•</Text>
+          <Text style={[s.bulletValue, { fontSize: 9 }]}>{item}</Text>
         </View>
       ))}
     </View>
@@ -322,15 +326,15 @@ function Referencias({ content }: { content: string }) {
 }
 
 function SectionContent({ title, content }: { title: string; content: string }) {
-  if (title === "DATOS PERSONALES")                return <DatosPersonales content={content} />
-  if (title === "EXPERIENCIA LABORAL")             return <Experiencia     content={content} />
-  if (title.startsWith("CONOCIMIENTOS"))           return <Conocimientos   content={content} />
-  if (title === "FORMACIÓN" || title === "FORMACION") return <Formacion   content={content} />
-  if (title === "REFERENCIAS")                     return <Referencias     content={content} />
+  if (title === "DATOS PERSONALES")                   return <DatosPersonales content={content} />
+  if (title === "EXPERIENCIA LABORAL")                return <Experiencia     content={content} />
+  if (title.startsWith("CONOCIMIENTOS"))              return <Conocimientos   content={content} />
+  if (title === "FORMACIÓN" || title === "FORMACION") return <Formacion       content={content} />
+  if (title === "REFERENCIAS")                        return <Referencias     content={content} />
   return <Parrafo content={content} />
 }
 
-// ─── Documento final ──────────────────────────────────────────────────────────
+// ─── Documento ────────────────────────────────────────────────────────────────
 export function CVDocument({
   nombre,
   apellido,
@@ -348,37 +352,24 @@ export function CVDocument({
     <Document>
       <Page size="A4" style={s.page}>
 
-        {/* Margen superior solo en páginas 2+ — página 1 usa el header como full-bleed */}
-        <View
-          fixed
-          render={({ pageNumber }) => pageNumber > 1 ? <View style={s.pageTopGap} /> : null}
-        />
+        {/* Marca GL — fija en todas las páginas, esquina superior derecha */}
+        <Image src={LOGO_LEYENDA} style={s.brandFixed} fixed />
 
-        {/* ── Header ───────────────────────────────────────────────────── */}
-        <View style={s.header}>
-          <View style={s.headerLeft}>
-            <Text style={s.brandName}>GESTIONES LABORALES</Text>
-            <Text style={s.brandSub}>CONSULTORA RRHH AGROPECUARIO</Text>
-          </View>
-          <View style={s.headerRight}>
-            <Text style={s.cvLabel}>CURRÍCULUM VITAE</Text>
-            <Text style={s.candidateName}>{nombre} {apellido}</Text>
-          </View>
-        </View>
-        <View style={s.headerLine} />
-
-        {/* ── Cuerpo ───────────────────────────────────────────────────── */}
+        {/* Cuerpo */}
         <View style={s.body}>
+
+          {/* Nombre del candidato — solo página 1 */}
+          <View style={s.candidatoHeader}>
+            <Text style={s.candidatoNombre}>{nombre} {apellido}</Text>
+            <Text style={s.candidatoSub}>CURRÍCULUM VITAE</Text>
+          </View>
+
+          {/* Secciones */}
           {sections.length > 0
             ? sections.map((sec, i) => (
                 <View key={i} style={s.section}>
-                  {/* Título — se mantiene pegado a al menos las primeras líneas */}
                   <View wrap={false}>
-                    <View style={s.sectionTitleRow}>
-                      <View style={s.sectionDot} />
-                      <Text style={s.sectionTitle}>{sec.title}</Text>
-                    </View>
-                    <View style={s.sectionRule} />
+                    <Text style={s.sectionTitle}>{sec.title}</Text>
                   </View>
                   <SectionContent title={sec.title} content={sec.content} />
                 </View>
@@ -387,9 +378,9 @@ export function CVDocument({
           }
         </View>
 
-        {/* ── Footer — fijo ─────────────────────────────────────────────── */}
+        {/* Footer — fijo en todas las páginas */}
         <View style={s.footer} fixed>
-          <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
+          <Image src={LOGO_ICON} style={s.footerLogo} />
           <Text style={s.footerMid}>Documento confidencial  ·  {fecha}</Text>
           <Text
             style={s.footerPage}
