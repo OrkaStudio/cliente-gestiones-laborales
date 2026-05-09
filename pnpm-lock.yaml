@@ -11,9 +11,6 @@ importers:
       '@ai-sdk/anthropic':
         specifier: 3.0.71
         version: 3.0.71(zod@4.3.6)
-      '@ai-sdk/openai':
-        specifier: ^3.0.60
-        version: 3.0.60(zod@4.3.6)
       '@react-pdf/renderer':
         specifier: ^4.5.1
         version: 4.5.1(react@19.2.4)
