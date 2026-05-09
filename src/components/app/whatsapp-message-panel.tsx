@@ -197,8 +197,8 @@ export function WhatsappMessagePanel({
           onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false) }}
         >
           <div
-            className="w-full max-w-2xl rounded-2xl p-8 flex flex-col gap-4"
-            style={{ background: "#ffffff", boxShadow: "0 8px 32px rgba(13,17,23,0.18)", maxHeight: "92vh", overflowY: "auto" }}
+            className="w-full rounded-2xl p-8 flex flex-col gap-4"
+            style={{ background: "#ffffff", boxShadow: "0 8px 32px rgba(13,17,23,0.18)", width: "min(860px, 94vw)", height: "88vh", overflowY: "auto" }}
           >
             {/* Modal header */}
             <div className="flex items-center justify-between">
@@ -229,7 +229,7 @@ export function WhatsappMessagePanel({
             <textarea
               value={mensajeEnModal}
               onChange={(e) => setMensajeEnModal(e.target.value)}
-              rows={16}
+              rows={24}
               className="w-full rounded-xl px-4 py-3 text-sm font-mono resize-y outline-none"
               style={{
                 background: "var(--gl-surface)",
