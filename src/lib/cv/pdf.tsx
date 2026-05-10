@@ -92,9 +92,9 @@ const s = StyleSheet.create({
     marginTop: 0.5,
   },
   bulletLabel: {
-    fontFamily: "Helvetica-Bold",
-    fontSize:   9.5,
-    color:      C.ink,
+    fontFamily:  "Helvetica-Bold",
+    fontSize:    9.5,
+    color:       C.ink3,
     marginRight: 3,
   },
   bulletValue: {
@@ -110,20 +110,21 @@ const s = StyleSheet.create({
   },
   jobPeriod: {
     fontFamily:    "Helvetica-Bold",
-    fontSize:      8.5,
+    fontSize:      8,
     color:         C.olive,
-    letterSpacing: 0.3,
-    marginBottom:  1,
+    letterSpacing: 0.5,
+    marginBottom:  2,
   },
   jobTitle: {
-    fontFamily: "Helvetica-Bold",
-    fontSize:   10,
-    color:      C.ink,
-    marginBottom: 2,
+    fontFamily:   "Helvetica-Bold",
+    fontSize:     11,
+    color:        C.ink,
+    marginBottom: 1,
   },
   jobCompany: {
-    fontSize:     9,
-    color:        C.ink3,
+    fontFamily:   "Helvetica-BoldOblique",
+    fontSize:     9.5,
+    color:        C.ink2,
     marginBottom: 5,
   },
   jobBulletRow: {

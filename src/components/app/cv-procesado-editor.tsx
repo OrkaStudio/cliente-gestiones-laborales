@@ -17,11 +17,11 @@ function autoResize(el: HTMLTextAreaElement) {
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  candidatoId:  string
-  nombre:       string
-  apellido:     string
-  initialTexto: string | null
-  hideToolbar?: boolean
+  candidatoId:   string
+  nombre:        string
+  apellido:      string
+  initialTexto:  string | null
+  hideDownload?: boolean  // oculta solo el botón PDF (cuando el padre ya lo tiene)
 }
 
 // ─── Renderers vista ──────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ function SectionContentWeb({ title, content }: { title: string; content: string 
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
-export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto, hideToolbar = false }: Props) {
+export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto, hideDownload = false }: Props) {
   const [sections,    setSections]    = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
   const [editMode,    setEditMode]    = useState(false)
   const [activeIdx,   setActiveIdx]   = useState<number | null>(null)
@@ -213,7 +213,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
     <div>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
-      {!hideToolbar && (
+      {(
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
             {editMode
@@ -257,14 +257,16 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
                 >
                   <Pencil className="h-3.5 w-3.5" /> Editar CV
                 </button>
-                <a
-                  href={`/api/cv/${candidatoId}/pdf`}
-                  download
-                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all hover:opacity-90"
-                  style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
-                >
-                  <Download className="h-3.5 w-3.5" /> Descargar PDF
-                </a>
+                {!hideDownload && (
+                  <a
+                    href={`/api/cv/${candidatoId}/pdf`}
+                    download
+                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all hover:opacity-90"
+                    style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
+                  >
+                    <Download className="h-3.5 w-3.5" /> Descargar PDF
+                  </a>
+                )}
               </>
             )}
           </div>

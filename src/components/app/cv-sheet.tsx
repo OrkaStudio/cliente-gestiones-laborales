@@ -122,7 +122,7 @@ export function CVSheet({ candidatoId, nombre, apellido, cvTexto }: Props) {
               >
                 {editing
                   ? "Editando sección — guardá los cambios antes de continuar"
-                  : "Hover sobre cada sección para editar"}
+                  : "CV procesado — usá 'Editar CV' para modificar"}
               </div>
             </div>
 
@@ -208,7 +208,7 @@ export function CVSheet({ candidatoId, nombre, apellido, cvTexto }: Props) {
               nombre={nombre}
               apellido={apellido}
               initialTexto={cvTexto}
-              hideToolbar
+              hideDownload
             />
           </div>
         </SheetContent>
