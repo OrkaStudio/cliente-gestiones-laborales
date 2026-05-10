@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useRef, useTransition } from "react"
+import { useState, useRef, useTransition, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Pencil, Check, X, Download, FileText, Save } from "lucide-react"
 import { updateCVProcesado } from "@/lib/actions/candidatos"
 import {
@@ -120,13 +121,42 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
   const [editMode,    setEditMode]    = useState(false)
   const [activeIdx,   setActiveIdx]   = useState<number | null>(null)
   const [drafts,      setDrafts]      = useState<Record<number, string>>({})
-  const [showConfirm, setShowConfirm] = useState(false) // confirmar salir sin guardar
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
   const [saved,       setSaved]       = useState(false)
   const [isPending,   start]          = useTransition()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const router = useRouter()
 
   const hasText   = !!initialTexto?.trim()
   const hasDrafts = Object.keys(drafts).length > 0
+  const isDirty   = editMode && (hasDrafts || activeIdx !== null)
+
+  // Bloquear cierre de tab / refresh cuando hay cambios sin guardar
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = "" }
+    window.addEventListener("beforeunload", handler)
+    return () => window.removeEventListener("beforeunload", handler)
+  }, [isDirty])
+
+  // Interceptar clicks en links internos cuando hay cambios sin guardar
+  useEffect(() => {
+    if (!isDirty) return
+    const handleClick = (e: MouseEvent) => {
+      const anchor = (e.target as Element).closest("a")
+      if (!anchor) return
+      if (anchor.hasAttribute("download")) return       // descargas: dejar pasar
+      const href = anchor.getAttribute("href")
+      if (!href || href.startsWith("http") || href.startsWith("#")) return
+      e.preventDefault()
+      e.stopPropagation()
+      setPendingHref(href)
+      setShowConfirm(true)
+    }
+    document.addEventListener("click", handleClick, true)
+    return () => document.removeEventListener("click", handleClick, true)
+  }, [isDirty])
 
   // Entrar en modo edición
   function enterEditMode() {
@@ -174,20 +204,25 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
     })
   }
 
-  // Intentar salir — pedir confirmación si hay cambios sin guardar
+  // Intentar cancelar edición — pedir confirmación si hay cambios sin guardar
   function tryExitEdit() {
+    setPendingHref(null)
     if (hasDrafts || activeIdx !== null) {
       setShowConfirm(true)
     } else {
-      exitEdit()
+      doExitEdit()
     }
   }
 
-  function exitEdit() {
+  function doExitEdit() {
     setEditMode(false)
     setActiveIdx(null)
     setDrafts({})
     setShowConfirm(false)
+    if (pendingHref) {
+      router.push(pendingHref)
+      setPendingHref(null)
+    }
   }
 
   // ── Empty state ─────────────────────────────────────────────────────────────
@@ -291,11 +326,11 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
               Seguir editando
             </button>
             <button
-              onClick={exitEdit}
+              onClick={doExitEdit}
               className="rounded-lg px-3 py-1.5 text-[11px] font-semibold"
               style={{ background: "#c0392b", color: "#fff" }}
             >
-              Salir sin guardar
+              {pendingHref ? "Salir sin guardar" : "Descartar cambios"}
             </button>
           </div>
         </div>
