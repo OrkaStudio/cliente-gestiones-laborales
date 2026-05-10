@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react"
+import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare } from "lucide-react"
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
-import { registrarEnvioWhatsapp } from "@/lib/actions/candidatos"
+import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas } from "@/lib/actions/candidatos"
 
 interface Props {
   candidatoId: string
@@ -12,6 +12,7 @@ interface Props {
   preguntas_sugeridas: string[]
   fecha_consultado: string | null
   mensaje_whatsapp: string | null
+  initialRespuestas?: { pregunta: string; respuesta: string }[] | null
 }
 
 const CARD = {
@@ -27,12 +28,46 @@ export function WhatsappMessagePanel({
   preguntas_sugeridas,
   fecha_consultado,
   mensaje_whatsapp,
+  initialRespuestas,
 }: Props) {
   const [preguntas, setPreguntas] = useState(preguntas_sugeridas)
   const [modalOpen, setModalOpen] = useState(false)
   const [mensajeEnModal, setMensajeEnModal] = useState("")
   const [showOriginal, setShowOriginal] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // ── Respuestas ──────────────────────────────────────────────────────────────
+  const hasRespuestas = !!initialRespuestas?.some((r) => r.respuesta.trim())
+  const [showRespuestas, setShowRespuestas] = useState(hasRespuestas)
+  const [answers, setAnswers] = useState<string[]>(() =>
+    preguntas_sugeridas.map((p) => initialRespuestas?.find((r) => r.pregunta === p)?.respuesta ?? "")
+  )
+  const [savePending,   startSave]   = useTransition()
+  const [updatePending, startUpdate] = useTransition()
+  const [saveOk,   setSaveOk]   = useState(false)
+  const [updateOk, setUpdateOk] = useState(false)
+  const [respErr,  setRespErr]  = useState<string | null>(null)
+
+  function handleGuardar() {
+    setRespErr(null); setSaveOk(false)
+    startSave(async () => {
+      const payload = preguntas_sugeridas.map((p, i) => ({ pregunta: p, respuesta: answers[i] ?? "" }))
+      const result = await guardarRespuestas(candidatoId, payload)
+      if (result.success) { setSaveOk(true); setTimeout(() => setSaveOk(false), 2500) }
+      else setRespErr(result.error)
+    })
+  }
+
+  function handleActualizarCV() {
+    setRespErr(null); setUpdateOk(false)
+    startUpdate(async () => {
+      const payload = preguntas_sugeridas.map((p, i) => ({ pregunta: p, respuesta: answers[i] ?? "" }))
+      await guardarRespuestas(candidatoId, payload)
+      const result = await actualizarCVConRespuestas(candidatoId)
+      if (result.success) { setUpdateOk(true); setTimeout(() => setUpdateOk(false), 3000) }
+      else setRespErr(result.error)
+    })
+  }
 
   const sinTelefono = !telefono
 
@@ -154,6 +189,112 @@ export function WhatsappMessagePanel({
             </div>
           ))}
         </div>
+
+        {/* ── Respuestas del candidato ── */}
+        {preguntas_sugeridas.length > 0 && (
+          <div
+            style={{
+              marginBottom: "1.25rem",
+              borderTop: "1px solid var(--gl-border)",
+              paddingTop: "1.25rem",
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowRespuestas((v) => !v)}
+              className="flex items-center gap-2 w-full text-left mb-3"
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              <MessageSquare className="h-3.5 w-3.5" style={{ color: "var(--gl-olive)", flexShrink: 0 }} />
+              <span className="text-[12px] font-semibold" style={{ color: "var(--gl-ink)", flex: 1 }}>
+                Respuestas del candidato
+              </span>
+              {hasRespuestas && (
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}>
+                  {initialRespuestas!.filter((r) => r.respuesta.trim()).length} cargadas
+                </span>
+              )}
+              {showRespuestas
+                ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)", flexShrink: 0 }} />
+                : <ChevronDown className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)", flexShrink: 0 }} />
+              }
+            </button>
+
+            {showRespuestas && (
+              <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+                {preguntas_sugeridas.map((pregunta, i) => (
+                  <div key={i}>
+                    <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--gl-olive)" }}>
+                      {i + 1}. {pregunta}
+                    </div>
+                    <textarea
+                      value={answers[i] ?? ""}
+                      onChange={(e) => {
+                        const next = [...answers]
+                        next[i] = e.target.value
+                        setAnswers(next)
+                      }}
+                      rows={2}
+                      placeholder="Respuesta del candidato..."
+                      className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
+                      style={{
+                        background: "var(--gl-surface)",
+                        border: "1px solid var(--gl-border)",
+                        color: "var(--gl-ink)",
+                        lineHeight: 1.5,
+                        fontFamily: "inherit",
+                        transition: "border-color 0.15s",
+                      }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
+                    />
+                  </div>
+                ))}
+
+                {respErr && (
+                  <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "#ffebe9", color: "#cf222e", border: "1px solid #f1aeb5" }}>
+                    {respErr}
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleGuardar}
+                    disabled={savePending || updatePending}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-opacity"
+                    style={{
+                      background: saveOk ? "#dafbe1" : "var(--gl-surface)",
+                      border: `1px solid ${saveOk ? "#1a7f37" : "var(--gl-border)"}`,
+                      color: saveOk ? "#1a7f37" : "var(--gl-ink-3)",
+                      opacity: savePending ? 0.7 : 1,
+                      cursor: savePending ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {saveOk ? <CheckCircle className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                    {saveOk ? "Guardado" : savePending ? "Guardando…" : "Guardar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleActualizarCV}
+                    disabled={savePending || updatePending}
+                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-opacity"
+                    style={{
+                      background: updateOk ? "#1a7f37" : "var(--gl-olive)",
+                      color: "#fff",
+                      border: "none",
+                      opacity: updatePending ? 0.8 : 1,
+                      cursor: updatePending ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" style={{ animation: updatePending ? "spin 1s linear infinite" : "none" }} />
+                    {updateOk ? "CV actualizado ✓" : updatePending ? "Actualizando…" : "Actualizar CV"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Acciones */}
         <div className="flex items-center justify-between gap-3">

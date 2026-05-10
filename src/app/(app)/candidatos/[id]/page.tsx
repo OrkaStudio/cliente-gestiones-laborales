@@ -6,7 +6,6 @@ import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
-import { ProfileTabs } from "@/components/app/profile-tabs";
 import { waUrl } from "@/lib/cv/utils";
 
 const AVATAR_HEX = [
@@ -263,11 +262,6 @@ export default async function CandidatoDetailPage({
       </div>
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
-      <ProfileTabs
-        candidatoId={candidato.id}
-        preguntas={candidato.preguntas_sugeridas ?? []}
-        initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as { pregunta: string; respuesta: string }[] | null}
-      >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* ── Izquierda: gestiones + trayectoria + notas ── */}
@@ -524,7 +518,6 @@ export default async function CandidatoDetailPage({
 
         </div>
       </div>
-      </ProfileTabs>
 
       {/* WhatsApp */}
       <section className="mt-12 pt-12 border-t" style={{ borderColor: "var(--gl-border)" }}>
@@ -538,6 +531,7 @@ export default async function CandidatoDetailPage({
           preguntas_sugeridas={candidato.preguntas_sugeridas ?? []}
           fecha_consultado={candidato.fecha_consultado ?? null}
           mensaje_whatsapp={candidato.mensaje_whatsapp ?? null}
+          initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as { pregunta: string; respuesta: string }[] | null}
         />
       </section>
     </div>
