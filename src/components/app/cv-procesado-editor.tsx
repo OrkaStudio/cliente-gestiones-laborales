@@ -308,30 +308,104 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
         </div>
       )}
 
-      {/* ── Diálogo confirmar salir sin guardar ─────────────────────────────── */}
+      {/* ── Modal confirmar salir sin guardar ───────────────────────────────── */}
       {showConfirm && (
         <div
-          className="mb-3 rounded-xl px-4 py-3 flex items-center justify-between gap-4"
-          style={{ background: "#fff8e6", border: "1px solid #f5c842" }}
+          style={{
+            position:        "fixed",
+            inset:           0,
+            zIndex:          9999,
+            background:      "rgba(13,17,23,0.55)",
+            display:         "flex",
+            alignItems:      "center",
+            justifyContent:  "center",
+            padding:         "1.5rem",
+            backdropFilter:  "blur(2px)",
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setShowConfirm(false) }}
         >
-          <span className="text-[12px] font-medium" style={{ color: "#7a5500" }}>
-            Tenés cambios sin guardar. ¿Salir igual?
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowConfirm(false)}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-medium"
-              style={{ background: "#fff", border: "1px solid #f5c842", color: "#7a5500" }}
+          <div
+            style={{
+              background:   "#fff",
+              borderRadius: "1.25rem",
+              padding:      "2.5rem 2.25rem",
+              maxWidth:     440,
+              width:        "100%",
+              boxShadow:    "0 24px 64px rgba(13,17,23,0.22), 0 4px 16px rgba(13,17,23,0.12)",
+              display:      "flex",
+              flexDirection:"column",
+              gap:          "1.5rem",
+            }}
+          >
+            {/* Icono */}
+            <div
+              style={{
+                width:          48,
+                height:         48,
+                borderRadius:   "0.875rem",
+                background:     "#fff8e6",
+                display:        "flex",
+                alignItems:     "center",
+                justifyContent: "center",
+                fontSize:       22,
+              }}
             >
-              Seguir editando
-            </button>
-            <button
-              onClick={doExitEdit}
-              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold"
-              style={{ background: "#c0392b", color: "#fff" }}
-            >
-              {pendingHref ? "Salir sin guardar" : "Descartar cambios"}
-            </button>
+              ⚠️
+            </div>
+
+            {/* Texto */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#0d1117", letterSpacing: "-0.02em" }}>
+                Cambios sin guardar
+              </div>
+              <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6, margin: 0 }}>
+                {pendingHref
+                  ? "Si salís ahora perdés las ediciones que hiciste en el CV. ¿Salir igual?"
+                  : "Si descartás los cambios no se van a guardar. ¿Estás seguro?"}
+              </p>
+            </div>
+
+            {/* Botones */}
+            <div style={{ display: "flex", gap: "0.75rem" }}>
+              <button
+                onClick={() => setShowConfirm(false)}
+                style={{
+                  flex:         1,
+                  padding:      "0.75rem 1rem",
+                  fontSize:     14,
+                  fontWeight:   600,
+                  color:        "#0d1117",
+                  background:   "#f6f8fa",
+                  border:       "1px solid #d4d8de",
+                  borderRadius: "0.75rem",
+                  cursor:       "pointer",
+                  transition:   "background 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#eaecef")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#f6f8fa")}
+              >
+                Seguir editando
+              </button>
+              <button
+                onClick={doExitEdit}
+                style={{
+                  flex:         1,
+                  padding:      "0.75rem 1rem",
+                  fontSize:     14,
+                  fontWeight:   700,
+                  color:        "#fff",
+                  background:   "#c0392b",
+                  border:       "none",
+                  borderRadius: "0.75rem",
+                  cursor:       "pointer",
+                  transition:   "background 0.15s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#a93226")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#c0392b")}
+              >
+                {pendingHref ? "Salir sin guardar" : "Descartar cambios"}
+              </button>
+            </div>
           </div>
         </div>
       )}
