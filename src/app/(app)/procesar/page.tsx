@@ -152,14 +152,14 @@ export default function ProcesarPage() {
       {step === "input" && (
         <div
           className="grid gap-6"
-          style={{ gridTemplateColumns: "440px 1fr", flex: 1, alignItems: "stretch", minHeight: 0 }}
+          style={{ gridTemplateColumns: "440px 1fr", alignItems: "start" }}
         >
           {/* IZQUIERDA: input */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <div style={{ position: "sticky", top: 24, flex: 1, display: "flex", flexDirection: "column" }}>
+          <div>
+            <div style={{ position: "sticky", top: 24 }}>
               <div
                 className="rounded-2xl"
-                style={{ flex: 1, display: "flex", flexDirection: "column", border: "1px solid var(--gl-border)", background: "#fff", overflow: "hidden" }}
+                style={{ height: "360px", display: "flex", flexDirection: "column", border: "1px solid var(--gl-border)", background: "#fff", overflow: "hidden" }}
               >
                 {/* Header del card */}
                 <div
@@ -253,11 +253,11 @@ export default function ProcesarPage() {
           </div>
 
           {/* DERECHA: info o error */}
-          <div style={{ display: "flex", flexDirection: "column" }}>
+          <div>
             {!error ? (
               <div
                 className="rounded-2xl"
-                style={{ flex: 1, display: "flex", flexDirection: "column", border: "1.5px dashed var(--gl-border-md)", padding: "2rem" }}
+                style={{ display: "flex", flexDirection: "column", border: "1.5px dashed var(--gl-border-md)", padding: "2rem" }}
               >
                 <p className="text-xs font-bold uppercase tracking-[0.2em] mb-6" style={{ color: "var(--gl-ink-3)" }}>
                   Qué extrae la IA
@@ -272,7 +272,6 @@ export default function ProcesarPage() {
                     </div>
                   ))}
                 </div>
-                <div style={{ flex: 1 }} />
                 <div className="rounded-xl px-4 py-3 mt-6" style={{ background: "var(--gl-olive-bg)" }}>
                   <p className="text-[12px] leading-relaxed" style={{ color: "var(--gl-olive)" }}>
                     El CV se guarda automáticamente al procesar. Podés cerrar la pestaña sin perder datos.
