@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { Home, Users, Search, FileText, LogOut } from "lucide-react"
 import { signOut } from "@/lib/actions/auth"
@@ -39,22 +40,14 @@ export function Sidebar({ userEmail }: SidebarProps) {
     >
       {/* Brand */}
       <div className="px-3 mb-8">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="h-8 w-8 rounded-xl grid place-items-center font-bold text-sm text-white shadow-sm"
-            style={{ background: "var(--gl-olive)" }}
-          >
-            GL
-          </div>
-          <div>
-            <div className="text-sm font-bold leading-tight" style={{ color: "var(--gl-ink)" }}>
-              Gestiones
-            </div>
-            <div className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
-              Panel interno
-            </div>
-          </div>
-        </div>
+        <Image
+          src="/brand/logo-leyenda.png"
+          alt="Gestiones Laborales"
+          width={140}
+          height={48}
+          style={{ objectFit: "contain", objectPosition: "left" }}
+          priority
+        />
       </div>
 
       {/* Nav */}
