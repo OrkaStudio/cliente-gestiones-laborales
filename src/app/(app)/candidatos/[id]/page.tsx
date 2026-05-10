@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
+import { CandidatoStickyBar } from "@/components/app/candidato-sticky-bar";
 import { waUrl } from "@/lib/cv/utils";
 
 const AVATAR_HEX = [
@@ -106,6 +107,16 @@ export default async function CandidatoDetailPage({
   ].filter(Boolean) as { label: string; value: string; accent?: boolean }[];
 
   return (
+    <>
+    <CandidatoStickyBar
+      nombre={candidato.nombre}
+      apellido={candidato.apellido}
+      avatarBg={avatarPal.bg}
+      avatarColor={avatarPal.color}
+      ultimoPuesto={candidato.ultimo_puesto ?? null}
+      candidatoId={candidato.id}
+      hasCv={!!(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto}
+    />
     <div className="px-10 py-10 space-y-5">
 
       {/* Back */}
@@ -120,7 +131,7 @@ export default async function CandidatoDetailPage({
       </Link>
 
       {/* ── Header card ──────────────────────────────────────────── */}
-      <div className="rounded-2xl border p-6" style={CARD}>
+      <div id="profile-header" className="rounded-2xl border p-6" style={CARD}>
         <div className="flex items-start justify-between gap-6">
 
           {/* Avatar + info */}
@@ -535,5 +546,6 @@ export default async function CandidatoDetailPage({
         />
       </section>
     </div>
+    </>
   );
 }
