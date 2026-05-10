@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MessageCircle, BookOpen, MapPin, TrendingUp, FileText } from "lucide-react";
-import { BackButton } from "@/components/app/back-button";
+import { MessageCircle, BookOpen, MapPin, TrendingUp, FileText, ArrowLeft } from "lucide-react";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
@@ -111,7 +110,15 @@ export default async function CandidatoDetailPage({
     <div className="px-10 py-10 space-y-5">
 
       {/* Back */}
-      <BackButton />
+      <Link
+        href="/candidatos"
+        className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
+        style={{ color: "var(--gl-ink-3)", textDecoration: "none" }}
+        onMouseEnter={undefined}
+      >
+        <ArrowLeft className="h-3.5 w-3.5" />
+        Candidatos
+      </Link>
 
       {/* ── Header card ──────────────────────────────────────────── */}
       <div className="rounded-2xl border p-6" style={CARD}>
