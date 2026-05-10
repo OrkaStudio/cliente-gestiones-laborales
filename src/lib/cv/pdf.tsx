@@ -356,6 +356,9 @@ export function CVDocument({
         {/* Marca GL — fija en todas las páginas, esquina superior derecha */}
         <Image src={LOGO_LEYENDA} style={s.brandFixed} fixed />
 
+        {/* Espaciador para páginas 2+ — deja aire bajo la marca fija */}
+        <View fixed render={({ pageNumber }) => pageNumber > 1 ? <View style={{ height: 64 }} /> : null} />
+
         {/* Cuerpo */}
         <View style={s.body}>
 
@@ -382,7 +385,7 @@ export function CVDocument({
         {/* Footer — fijo en todas las páginas */}
         <View style={s.footer} fixed>
           <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
-          <Text style={s.footerMid}>Documento confidencial  ·  {fecha}</Text>
+          <Text style={s.footerMid}>{fecha}</Text>
           <Text
             style={s.footerPage}
             render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}

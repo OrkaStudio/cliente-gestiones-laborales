@@ -1,7 +1,7 @@
 "use client"
 
-import { useState, useTransition } from "react"
-import { Pencil, Check, X, Download, FileText } from "lucide-react"
+import { useState, useRef, useTransition } from "react"
+import { Pencil, Check, X, Download, FileText, Save } from "lucide-react"
 import { updateCVProcesado } from "@/lib/actions/candidatos"
 import {
   parseSections, assembleSections,
@@ -14,7 +14,7 @@ function autoResize(el: HTMLTextAreaElement) {
   el.style.height = `${el.scrollHeight}px`
 }
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   candidatoId:  string
@@ -24,26 +24,16 @@ interface Props {
   hideToolbar?: boolean
 }
 
-// ─── Renderers web por tipo de sección ───────────────────────────────────────
+// ─── Renderers vista ──────────────────────────────────────────────────────────
 
 function KVContent({ content }: { content: string }) {
   const pairs = parseKV(content)
   return (
     <div className="space-y-2.5">
       {pairs.map(({ label, value }, i) => (
-        <div
-          key={i}
-          className="grid items-baseline"
-          style={{ gridTemplateColumns: "155px 1fr", columnGap: 16 }}
-        >
-          {label && (
-            <span style={{ fontSize: 12, color: "var(--gl-ink-3)", lineHeight: 1.5 }}>
-              {label}
-            </span>
-          )}
-          <span style={{ fontSize: 13, color: "var(--gl-ink)", lineHeight: 1.5, gridColumn: label ? "auto" : "1 / -1" }}>
-            {value}
-          </span>
+        <div key={i} className="grid items-baseline" style={{ gridTemplateColumns: "155px 1fr", columnGap: 16 }}>
+          {label && <span style={{ fontSize: 12, color: "var(--gl-ink-3)", lineHeight: 1.5 }}>{label}</span>}
+          <span style={{ fontSize: 13, color: "var(--gl-ink)", lineHeight: 1.5, gridColumn: label ? "auto" : "1 / -1" }}>{value}</span>
         </div>
       ))}
     </div>
@@ -56,29 +46,11 @@ function ExperienceContent({ content }: { content: string }) {
   return (
     <div className="space-y-5">
       {jobs.map((job, i) => (
-        <div
-          key={i}
-          className="pl-3.5"
-          style={{ borderLeft: "2px solid var(--gl-border)" }}
-        >
-          <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 3, letterSpacing: "0.01em" }}>
-            {job.periodo}
-          </div>
-          {job.titulo && (
-            <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.35 }}>
-              {job.titulo}
-            </div>
-          )}
-          {job.empresa && (
-            <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 2, marginBottom: 5 }}>
-              {job.empresa}
-            </div>
-          )}
-          {job.desc && (
-            <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.7, margin: 0 }}>
-              {job.desc}
-            </p>
-          )}
+        <div key={i} className="pl-3.5" style={{ borderLeft: "2px solid var(--gl-border)" }}>
+          <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 3 }}>{job.periodo}</div>
+          {job.titulo  && <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.35 }}>{job.titulo}</div>}
+          {job.empresa && <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 2, marginBottom: 5 }}>{job.empresa}</div>}
+          {job.desc    && <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.7, margin: 0 }}>{job.desc}</p>}
         </div>
       ))}
     </div>
@@ -90,18 +62,7 @@ function BulletContent({ content }: { content: string }) {
   return (
     <div className="flex flex-wrap gap-2">
       {items.map((item, i) => (
-        <span
-          key={i}
-          style={{
-            fontSize:   12,
-            fontWeight: 500,
-            background: "var(--gl-olive-bg)",
-            color:      "var(--gl-olive)",
-            padding:    "4px 10px",
-            borderRadius: 8,
-            lineHeight: 1.4,
-          }}
-        >
+        <span key={i} style={{ fontSize: 12, fontWeight: 500, background: "var(--gl-olive-bg)", color: "var(--gl-olive)", padding: "4px 10px", borderRadius: 8 }}>
           {item}
         </span>
       ))}
@@ -116,9 +77,7 @@ function ListContent({ content }: { content: string }) {
       {items.map((item, i) => (
         <div key={i} className="flex items-baseline gap-2.5">
           <span style={{ color: "var(--gl-olive)", flexShrink: 0, fontSize: 10 }}>▪</span>
-          <span style={{ fontSize: 12.5, color: "var(--gl-ink-2)", lineHeight: 1.6 }}>
-            {item.trim().replace(/^[-•▪]\s*/, "")}
-          </span>
+          <span style={{ fontSize: 12.5, color: "var(--gl-ink-2)", lineHeight: 1.6 }}>{item.trim().replace(/^[-•▪]\s*/, "")}</span>
         </div>
       ))}
     </div>
@@ -142,64 +101,100 @@ function RefsContent({ content }: { content: string }) {
 }
 
 function DefaultContent({ content }: { content: string }) {
-  return (
-    <p style={{ fontSize: 12.5, lineHeight: 1.8, color: "var(--gl-ink-2)", margin: 0 }}>
-      {content}
-    </p>
-  )
+  return <p style={{ fontSize: 12.5, lineHeight: 1.8, color: "var(--gl-ink-2)", margin: 0 }}>{content}</p>
 }
 
 function SectionContentWeb({ title, content }: { title: string; content: string }) {
-  if (title === "DATOS PERSONALES")                     return <KVContent         content={content} />
-  if (title === "EXPERIENCIA LABORAL")                  return <ExperienceContent content={content} />
-  if (title.startsWith("CONOCIMIENTOS"))                return <BulletContent     content={content} />
-  if (title === "FORMACIÓN" || title === "FORMACION")   return <ListContent       content={content} />
-  if (title === "REFERENCIAS")                          return <RefsContent       content={content} />
+  if (title === "DATOS PERSONALES")                   return <KVContent        content={content} />
+  if (title === "EXPERIENCIA LABORAL")                return <ExperienceContent content={content} />
+  if (title.startsWith("CONOCIMIENTOS"))              return <BulletContent    content={content} />
+  if (title === "FORMACIÓN" || title === "FORMACION") return <ListContent      content={content} />
+  if (title === "REFERENCIAS")                        return <RefsContent      content={content} />
   return <DefaultContent content={content} />
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
+// ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto, hideToolbar = false }: Props) {
-  const [sections,   setSections]   = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
-  const [editingIdx, setEditingIdx] = useState<number | null>(null)
-  const [draft,      setDraft]      = useState("")
-  const [savedIdx,   setSavedIdx]   = useState<number | null>(null)
-  const [isPending,  start]         = useTransition()
+  const [sections,    setSections]    = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
+  const [editMode,    setEditMode]    = useState(false)
+  const [activeIdx,   setActiveIdx]   = useState<number | null>(null)
+  const [drafts,      setDrafts]      = useState<Record<number, string>>({})
+  const [showConfirm, setShowConfirm] = useState(false) // confirmar salir sin guardar
+  const [saved,       setSaved]       = useState(false)
+  const [isPending,   start]          = useTransition()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const hasText   = !!initialTexto?.trim()
-  const isEditing = editingIdx !== null
+  const hasDrafts = Object.keys(drafts).length > 0
 
-  function startEdit(idx: number) {
-    setEditingIdx(idx)
-    setDraft(sections[idx].content)
+  // Entrar en modo edición
+  function enterEditMode() {
+    setEditMode(true)
+    setDrafts({})
+    setActiveIdx(null)
+    setSaved(false)
   }
 
-  function cancelEdit() {
-    setEditingIdx(null)
-    setDraft("")
+  // Abrir una sección para editar (guarda el draft de la anterior si existía)
+  function openSection(idx: number) {
+    if (!editMode) return
+    if (activeIdx !== null && activeIdx !== idx) {
+      // Guardar textarea actual al draft local antes de cambiar
+      const currentVal = textareaRef.current?.value
+      if (currentVal !== undefined) {
+        setDrafts(d => ({ ...d, [activeIdx]: currentVal }))
+      }
+    }
+    setActiveIdx(idx)
+    setTimeout(() => {
+      if (textareaRef.current) autoResize(textareaRef.current)
+    }, 0)
   }
 
-  function saveSection(idx: number) {
-    const updated  = sections.map((s, i) => i === idx ? { ...s, content: draft } : s)
+  // Guardar todo en DB y salir de edición
+  function saveAll() {
+    // Capturar el textarea activo si lo hay
+    const finalDrafts = { ...drafts }
+    if (activeIdx !== null && textareaRef.current) {
+      finalDrafts[activeIdx] = textareaRef.current.value
+    }
+    const updated = sections.map((s, i) =>
+      finalDrafts[i] !== undefined ? { ...s, content: finalDrafts[i] } : s
+    )
     const fullText = assembleSections(updated)
     start(async () => {
       await updateCVProcesado(candidatoId, fullText)
       setSections(updated)
-      setEditingIdx(null)
-      setDraft("")
-      setSavedIdx(idx)
-      setTimeout(() => setSavedIdx(null), 2200)
+      setEditMode(false)
+      setActiveIdx(null)
+      setDrafts({})
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
     })
+  }
+
+  // Intentar salir — pedir confirmación si hay cambios sin guardar
+  function tryExitEdit() {
+    if (hasDrafts || activeIdx !== null) {
+      setShowConfirm(true)
+    } else {
+      exitEdit()
+    }
+  }
+
+  function exitEdit() {
+    setEditMode(false)
+    setActiveIdx(null)
+    setDrafts({})
+    setShowConfirm(false)
   }
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (!hasText) {
     return (
-      <div
-        className="rounded-2xl border flex flex-col items-center justify-center py-20 gap-4 text-center"
-        style={{ background: "#fff", borderColor: "var(--gl-border)" }}
-      >
+      <div className="rounded-2xl border flex flex-col items-center justify-center py-20 gap-4 text-center"
+        style={{ background: "#fff", borderColor: "var(--gl-border)" }}>
         <div className="h-14 w-14 rounded-2xl grid place-items-center" style={{ background: "var(--gl-olive-bg)" }}>
           <FileText className="h-6 w-6" style={{ color: "var(--gl-olive)" }} />
         </div>
@@ -217,24 +212,90 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
   return (
     <div>
 
-      {/* ── Toolbar (solo en modo inline) ─────────────────────────────────── */}
+      {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
       {!hideToolbar && (
         <div className="flex items-center justify-between mb-3">
           <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
-            {isEditing
-              ? "Editando una sección — guardá los cambios antes de continuar"
-              : "Hacé hover sobre una sección para editarla"}
+            {editMode
+              ? activeIdx !== null
+                ? `Editando ${sections[activeIdx]?.title} — hacé clic en otra sección para continuar`
+                : "Modo edición — hacé clic en una sección para editarla"
+              : "CV procesado por IA — editá si necesitás corregir algo"}
           </span>
-          <a
-            href={`/api/cv/${candidatoId}/pdf`}
-            download
-            className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-[13px] font-semibold
-                       transition-all hover:opacity-90"
-            style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
-          >
-            <Download className="h-4 w-4" />
-            Descargar PDF
-          </a>
+          <div className="flex items-center gap-2">
+            {editMode ? (
+              <>
+                <button
+                  onClick={tryExitEdit}
+                  disabled={isPending}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors disabled:opacity-50"
+                  style={{ background: "var(--gl-gray-bg)", color: "var(--gl-gray)" }}
+                >
+                  <X className="h-3.5 w-3.5" /> Cancelar
+                </button>
+                <button
+                  onClick={saveAll}
+                  disabled={isPending || (!hasDrafts && activeIdx === null)}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all disabled:opacity-40"
+                  style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
+                >
+                  <Save className="h-3.5 w-3.5" />
+                  {isPending ? "Guardando…" : "Guardar CV"}
+                </button>
+              </>
+            ) : (
+              <>
+                {saved && (
+                  <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "var(--gl-olive)" }}>
+                    <Check className="h-3.5 w-3.5" /> Guardado
+                  </span>
+                )}
+                <button
+                  onClick={enterEditMode}
+                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors"
+                  style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "1px solid rgba(42,74,24,0.2)" }}
+                >
+                  <Pencil className="h-3.5 w-3.5" /> Editar CV
+                </button>
+                <a
+                  href={`/api/cv/${candidatoId}/pdf`}
+                  download
+                  className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all hover:opacity-90"
+                  style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
+                >
+                  <Download className="h-3.5 w-3.5" /> Descargar PDF
+                </a>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Diálogo confirmar salir sin guardar ─────────────────────────────── */}
+      {showConfirm && (
+        <div
+          className="mb-3 rounded-xl px-4 py-3 flex items-center justify-between gap-4"
+          style={{ background: "#fff8e6", border: "1px solid #f5c842" }}
+        >
+          <span className="text-[12px] font-medium" style={{ color: "#7a5500" }}>
+            Tenés cambios sin guardar. ¿Salir igual?
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowConfirm(false)}
+              className="rounded-lg px-3 py-1.5 text-[11px] font-medium"
+              style={{ background: "#fff", border: "1px solid #f5c842", color: "#7a5500" }}
+            >
+              Seguir editando
+            </button>
+            <button
+              onClick={exitEdit}
+              className="rounded-lg px-3 py-1.5 text-[11px] font-semibold"
+              style={{ background: "#c0392b", color: "#fff" }}
+            >
+              Salir sin guardar
+            </button>
+          </div>
         </div>
       )}
 
@@ -244,203 +305,119 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
         style={{
           background: "#fff",
           boxShadow:  "0 4px 32px rgba(13,17,23,0.10), 0 1px 4px rgba(13,17,23,0.06)",
-          border:     "1px solid var(--gl-border)",
+          border:     editMode ? "1.5px solid var(--gl-olive)" : "1px solid var(--gl-border)",
+          transition: "border-color 0.2s",
         }}
       >
-
-        {/* Header oliva */}
-        <div
-          className="flex items-start justify-between px-7 py-5"
-          style={{ background: "var(--gl-olive)" }}
-        >
+        {/* Header */}
+        <div className="flex items-start justify-between px-7 py-5" style={{ background: "var(--gl-olive)" }}>
           <div>
-            <div
-              className="font-bold tracking-[0.12em] uppercase"
-              style={{ color: "#fff", fontSize: 12 }}
-            >
+            <div className="font-bold tracking-[0.12em] uppercase" style={{ color: "#fff", fontSize: 12 }}>
               Gestiones Laborales
             </div>
-            <div
-              className="mt-1 uppercase tracking-[0.16em]"
-              style={{ color: "rgba(255,255,255,0.55)", fontSize: 7 }}
-            >
+            <div className="mt-1 uppercase tracking-[0.16em]" style={{ color: "rgba(255,255,255,0.55)", fontSize: 7 }}>
               Consultora RRHH Agropecuario
             </div>
           </div>
           <div className="text-right">
-            <div
-              className="uppercase tracking-[0.2em]"
-              style={{ color: "rgba(255,255,255,0.55)", fontSize: 7, marginBottom: 3 }}
-            >
+            <div className="uppercase tracking-[0.2em]" style={{ color: "rgba(255,255,255,0.55)", fontSize: 7, marginBottom: 3 }}>
               Currículum Vitae
             </div>
-            <div className="font-bold" style={{ color: "#fff", fontSize: 12 }}>
-              {nombre} {apellido}
-            </div>
+            <div className="font-bold" style={{ color: "#fff", fontSize: 12 }}>{nombre} {apellido}</div>
           </div>
         </div>
 
-        {/* Barra acento */}
         <div style={{ height: 3, background: "var(--gl-olive-light)", opacity: 0.35 }} />
 
         {/* Secciones */}
         <div style={{ background: "#fff" }}>
           {sections.length === 0 && (
             <div className="px-7 py-8">
-              <p className="text-[11px] mb-3 font-medium" style={{ color: "var(--gl-ink-3)" }}>
-                El texto no tiene secciones detectables — se descargará como texto corrido.
-              </p>
               <DefaultContent content={initialTexto ?? ""} />
             </div>
           )}
 
           {sections.map((sec, idx) => {
-            const active   = editingIdx === idx
-            const wasSaved = savedIdx   === idx
+            const isActive = activeIdx === idx
+            const isDirty  = drafts[idx] !== undefined
+            const content  = drafts[idx] ?? sec.content
 
             return (
               <div
                 key={idx}
-                className="group relative"
+                onClick={() => !isActive && openSection(idx)}
                 style={{
                   borderBottom: idx < sections.length - 1 ? "1px solid var(--gl-border)" : "none",
                   padding:      "18px 28px",
-                  background:   active ? "#fafffe" : "#fff",
+                  background:   isActive ? "#fafffe" : editMode && !isActive ? "#fafafa" : "#fff",
+                  cursor:       editMode && !isActive ? "pointer" : "default",
                   transition:   "background 0.15s",
                 }}
               >
                 {/* Cabecera de sección */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2.5">
-                    <div
-                      style={{
-                        width:        3,
-                        height:       14,
-                        borderRadius: 2,
-                        flexShrink:   0,
-                        background:   active ? "var(--gl-amber)" : "var(--gl-olive)",
-                        transition:   "background 0.15s",
-                      }}
-                    />
-                    <span
-                      className="font-bold uppercase tracking-[0.18em]"
-                      style={{
-                        color:      active ? "var(--gl-amber)" : "var(--gl-olive)",
-                        fontSize:   10,
-                        transition: "color 0.15s",
-                      }}
-                    >
+                    <div style={{
+                      width: 3, height: 14, borderRadius: 2, flexShrink: 0,
+                      background: isActive ? "var(--gl-amber)" : "var(--gl-olive)",
+                      transition: "background 0.15s",
+                    }} />
+                    <span className="font-bold uppercase tracking-[0.18em]" style={{
+                      color:    isActive ? "var(--gl-amber)" : "var(--gl-olive)",
+                      fontSize: 10, transition: "color 0.15s",
+                    }}>
                       {sec.title}
                     </span>
-                    {wasSaved && (
-                      <span
-                        className="flex items-center gap-1 font-semibold"
-                        style={{ color: "var(--gl-green)", fontSize: 10 }}
-                      >
-                        <Check className="h-3 w-3" /> Guardado
-                      </span>
+                    {isDirty && !isActive && (
+                      <span style={{ fontSize: 9, color: "var(--gl-amber)", fontWeight: 600 }}>● editado</span>
                     )}
                   </div>
-
-                  {/* Controles */}
-                  {active ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={cancelEdit}
-                        disabled={isPending}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px]
-                                   font-medium transition-colors disabled:opacity-50"
-                        style={{ background: "var(--gl-gray-bg)", color: "var(--gl-gray)" }}
-                      >
-                        <X className="h-3 w-3" />
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={() => saveSection(idx)}
-                        disabled={isPending}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px]
-                                   font-semibold transition-colors disabled:opacity-50"
-                        style={{ background: "var(--gl-olive)", color: "#fff" }}
-                      >
-                        <Check className="h-3 w-3" />
-                        {isPending ? "Guardando…" : "Guardar"}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => startEdit(idx)}
-                      disabled={isEditing}
-                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px]
-                                 font-medium transition-all disabled:opacity-20
-                                 opacity-0 group-hover:opacity-100"
-                      style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
-                    >
-                      <Pencil className="h-3 w-3" />
-                      Editar
-                    </button>
+                  {editMode && !isActive && (
+                    <span style={{ fontSize: 10, color: "var(--gl-ink-3)" }}>clic para editar</span>
                   )}
                 </div>
 
-                {/* Línea divisora */}
-                <div
-                  style={{
-                    height:       1,
-                    background:   active ? "var(--gl-olive)" : "var(--gl-border)",
-                    opacity:      active ? 0.4 : 1,
-                    marginBottom: 14,
-                    transition:   "background 0.15s",
-                  }}
-                />
+                <div style={{
+                  height: 1,
+                  background: isActive ? "var(--gl-olive)" : "var(--gl-border)",
+                  opacity: isActive ? 0.4 : 1,
+                  marginBottom: 14,
+                  transition: "background 0.15s",
+                }} />
 
                 {/* Contenido */}
-                {active ? (
+                {editMode && isActive ? (
                   <textarea
-                    value={draft}
+                    ref={textareaRef}
+                    defaultValue={content}
                     autoFocus
-                    onChange={(e) => { setDraft(e.target.value); autoResize(e.target) }}
                     onFocus={(e) => autoResize(e.target)}
+                    onChange={(e) => autoResize(e.target)}
                     className="w-full resize-none focus:outline-none rounded-xl px-4 py-3"
                     style={{
                       fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
-                      fontSize:   12.5,
-                      lineHeight: 1.75,
-                      color:      "var(--gl-ink)",
-                      background: "#f6f8fa",
-                      border:     "1.5px solid var(--gl-olive)",
-                      minHeight:  72,
-                      overflow:   "hidden",
+                      fontSize:   12.5, lineHeight: 1.75, color: "var(--gl-ink)",
+                      background: "#f6f8fa", border: "1.5px solid var(--gl-olive)",
+                      minHeight:  72, overflow: "hidden",
                     }}
                   />
                 ) : (
-                  <SectionContentWeb title={sec.title} content={sec.content} />
+                  <SectionContentWeb title={sec.title} content={content} />
                 )}
               </div>
             )
           })}
         </div>
 
-        {/* Footer */}
-        <div
-          className="flex items-center justify-between px-7 py-2.5"
-          style={{ borderTop: "1px solid var(--gl-border)" }}
-        >
-          <div className="flex items-center gap-2">
-            <span
-              className="font-bold uppercase tracking-[0.1em]"
-              style={{ color: "var(--gl-olive)", fontSize: 7.5 }}
-            >
-              Gestiones Laborales
-            </span>
-            <span style={{ color: "var(--gl-border)", fontSize: 9 }}>·</span>
-            <span style={{ color: "var(--gl-ink-3)", fontSize: 7.5 }}>
-              Documento confidencial
-            </span>
-          </div>
+        {/* Footer del documento */}
+        <div className="flex items-center justify-between px-7 py-2.5" style={{ borderTop: "1px solid var(--gl-border)" }}>
+          <span className="font-bold uppercase tracking-[0.1em]" style={{ color: "var(--gl-olive)", fontSize: 7.5 }}>
+            Gestiones Laborales
+          </span>
           <span style={{ color: "var(--gl-ink-3)", fontSize: 7.5 }}>
             {new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
           </span>
         </div>
-
       </div>
     </div>
   )
