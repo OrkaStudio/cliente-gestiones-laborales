@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { CVParseado } from "@/lib/cv/parse"
 import { upsertCandidato } from "@/lib/cv/upsert-candidato"
+import { anthropic } from "@ai-sdk/anthropic"
+import { generateText } from "ai"
 
 export async function guardarCandidatoProcesado(data: CVParseado): Promise<ActionResult> {
   const supabase = createServiceClient()
@@ -54,6 +56,57 @@ export async function registrarEnvioWhatsapp(candidatoId: string, mensajeEnviado
 
   revalidatePath("/candidatos")
   revalidatePath(`/candidatos/${candidatoId}`)
+  return { success: true, id: candidatoId }
+}
+
+export type RespuestaItem = { pregunta: string; respuesta: string }
+
+export async function guardarRespuestas(candidatoId: string, respuestas: RespuestaItem[]): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase
+    .from("candidatos")
+    .update({ respuestas_candidato: respuestas as unknown as import("@/lib/supabase/types").Json })
+    .eq("id", candidatoId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath(`/candidatos/${candidatoId}`)
+  return { success: true, id: candidatoId }
+}
+
+export async function actualizarCVConRespuestas(candidatoId: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { data: candidato, error: fetchError } = await supabase
+    .from("candidatos")
+    .select("nombre, cv_procesado_texto, preguntas_sugeridas, respuestas_candidato")
+    .eq("id", candidatoId)
+    .single()
+
+  if (fetchError || !candidato) return { success: false, error: "Candidato no encontrado" }
+  if (!candidato.cv_procesado_texto) return { success: false, error: "El candidato no tiene CV procesado" }
+
+  const respuestas = candidato.respuestas_candidato as RespuestaItem[] | null
+  if (!respuestas?.length) return { success: false, error: "No hay respuestas cargadas" }
+
+  const qaTexto = respuestas
+    .map((r, i) => `${i + 1}. Pregunta: ${r.pregunta}\n   Respuesta: ${r.respuesta || "(sin respuesta)"}`)
+    .join("\n\n")
+
+  const { text } = await generateText({
+    model: anthropic("claude-sonnet-4-6"),
+    system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y sus respuestas a preguntas de preselección, actualizá el CV incorporando la información nueva sin inventar datos. Mantenés el formato exacto: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). No agregues secciones nuevas si el CV no las tiene. Respondé solo con el CV actualizado, sin explicaciones.`,
+    prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nRespuestas del candidato a preguntas de preselección:\n${qaTexto}`,
+  })
+
+  const { error: updateError } = await supabase
+    .from("candidatos")
+    .update({ cv_procesado_texto: text })
+    .eq("id", candidatoId)
+
+  if (updateError) return { success: false, error: updateError.message }
+
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: candidatoId }
 }
 

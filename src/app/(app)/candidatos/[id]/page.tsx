@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MessageCircle, BookOpen, MapPin, TrendingUp } from "lucide-react";
+import { MessageCircle, BookOpen, MapPin, TrendingUp, FileText } from "lucide-react";
 import { BackButton } from "@/components/app/back-button";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
-import { CVSheet } from "@/components/app/cv-sheet";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
+import { ProfileTabs } from "@/components/app/profile-tabs";
 import { waUrl } from "@/lib/cv/utils";
 
 const AVATAR_HEX = [
@@ -75,7 +75,7 @@ export default async function CandidatoDetailPage({
 
   const [{ data: candidato }, { data: experiencia }, { data: gestionesData }, { data: busquedasActivas }] =
     await Promise.all([
-      supabase.from("candidatos").select("*").eq("id", id).single(),
+      supabase.from("candidatos").select("*, respuestas_candidato").eq("id", id).single(),
       supabase.from("experiencia_laboral").select("*").eq("candidato_id", id).order("orden"),
       supabase.from("gestiones").select("*, busquedas(id, puesto, cliente)").eq("candidato_id", id),
       supabase.from("busquedas").select("id, puesto, cliente, ubicacion, fecha_apertura, estado").eq("estado", "activa").order("fecha_apertura", { ascending: false }),
@@ -178,12 +178,33 @@ export default async function CandidatoDetailPage({
 
           {/* Acciones */}
           <div className="flex gap-2 shrink-0 flex-wrap">
-            <CVSheet
-              candidatoId={candidato.id}
-              nombre={candidato.nombre}
-              apellido={candidato.apellido}
-              cvTexto={(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto ?? null}
-            />
+            <Link
+              href={`/candidatos/${candidato.id}/cv`}
+              style={{
+                display:        "inline-flex",
+                alignItems:     "center",
+                gap:            "0.375rem",
+                padding:        "0.5rem 1rem",
+                fontSize:       "13.5px",
+                fontWeight:     600,
+                color:          (candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto
+                  ? "var(--gl-olive)"
+                  : "var(--gl-ink-3)",
+                background:     (candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto
+                  ? "var(--gl-olive-bg)"
+                  : "transparent",
+                border:         (candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto
+                  ? "1px solid rgba(42,74,24,0.25)"
+                  : "1px solid var(--gl-border-md)",
+                borderRadius:   "0.75rem",
+                textDecoration: "none",
+                whiteSpace:     "nowrap",
+                transition:     "all 0.15s",
+              }}
+            >
+              <FileText style={{ width: 14, height: 14 }} />
+              Ver CV
+            </Link>
             <CandidatoSheet candidato={candidato} />
             <AsignarBusquedaDialog
               candidatoId={candidato.id}
@@ -235,6 +256,11 @@ export default async function CandidatoDetailPage({
       </div>
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
+      <ProfileTabs
+        candidatoId={candidato.id}
+        preguntas={candidato.preguntas_sugeridas ?? []}
+        initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as { pregunta: string; respuesta: string }[] | null}
+      >
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
         {/* ── Izquierda: gestiones + trayectoria + notas ── */}
@@ -491,6 +517,7 @@ export default async function CandidatoDetailPage({
 
         </div>
       </div>
+      </ProfileTabs>
 
       {/* WhatsApp */}
       <section className="mt-12 pt-12 border-t" style={{ borderColor: "var(--gl-border)" }}>

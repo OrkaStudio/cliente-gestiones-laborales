@@ -96,6 +96,7 @@ export type Database = {
           personal_a_cargo_max: number | null
           preguntas_sugeridas: string[]
           pretension_salarial: string | null
+          respuestas_candidato: Json | null
           telefono: string | null
           tipos_ganaderia: string[]
           ubicacion: string | null
@@ -126,6 +127,7 @@ export type Database = {
           personal_a_cargo_max?: number | null
           preguntas_sugeridas?: string[]
           pretension_salarial?: string | null
+          respuestas_candidato?: Json | null
           telefono?: string | null
           tipos_ganaderia?: string[]
           ubicacion?: string | null
@@ -156,6 +158,7 @@ export type Database = {
           personal_a_cargo_max?: number | null
           preguntas_sugeridas?: string[]
           pretension_salarial?: string | null
+          respuestas_candidato?: Json | null
           telefono?: string | null
           tipos_ganaderia?: string[]
           ubicacion?: string | null
