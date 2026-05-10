@@ -22,36 +22,31 @@ function getInitial(email: string | null): string {
   return email[0].toUpperCase()
 }
 
-function getDisplayName(email: string | null): string {
-  if (!email) return "Usuario"
-  return email.split("@")[0]
-}
-
 export function Sidebar({ userEmail }: SidebarProps) {
   const pathname = usePathname()
 
   return (
     <aside
-      className="hidden lg:flex w-60 shrink-0 flex-col py-6 px-4"
+      className="hidden lg:flex shrink-0 flex-col items-center py-5"
       style={{
-        background:  "var(--gl-surface)",
+        width:       "72px",
+        background:  "#ffffff",
         borderRight: "1px solid var(--gl-border)",
+        gap:         0,
       }}
     >
-      {/* Brand */}
-      <div className="px-3 mb-8">
-        <Image
-          src="/brand/logo-leyenda.png"
-          alt="Gestiones Laborales"
-          width={140}
-          height={48}
-          style={{ objectFit: "contain", objectPosition: "left" }}
-          priority
-        />
+      {/* Logo mark */}
+      <div className="mb-8 mt-1">
+        <div
+          className="h-9 w-9 rounded-xl grid place-items-center font-bold text-sm text-white"
+          style={{ background: "var(--gl-olive)", letterSpacing: "0.04em", fontSize: 13 }}
+        >
+          GL
+        </div>
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 space-y-0.5 px-1">
+      <nav className="flex-1 flex flex-col items-center gap-1 w-full px-2">
         {items.map((item) => {
           const isActive =
             item.href === "/" ? pathname === "/" : pathname.startsWith(item.href)
@@ -60,54 +55,59 @@ export function Sidebar({ userEmail }: SidebarProps) {
             <Link
               key={item.href}
               href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13.5px] font-medium transition-all duration-150"
+              title={item.label}
+              className="relative group flex items-center justify-center w-full rounded-xl transition-all duration-150"
               style={{
+                height:          44,
                 backgroundColor: isActive ? "var(--gl-olive-bg)" : "transparent",
-                color:           isActive ? "var(--gl-olive)" : "var(--gl-ink-2)",
-                fontWeight:      isActive ? 600 : 500,
               }}
             >
               <Icon
-                className="h-4 w-4 shrink-0"
+                className="h-[18px] w-[18px] shrink-0 transition-colors"
                 style={{ color: isActive ? "var(--gl-olive)" : "var(--gl-ink-3)" }}
               />
-              {item.label}
+
+              {/* Tooltip */}
+              <div
+                className="pointer-events-none absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150 z-50"
+                style={{
+                  background: "#0d1117",
+                  color:      "#fff",
+                  boxShadow:  "0 4px 12px rgba(13,17,23,0.18)",
+                }}
+              >
+                {item.label}
+              </div>
             </Link>
           )
         })}
       </nav>
 
-      {/* Footer: user + logout */}
-      <div className="px-1 mt-4">
-        <div className="h-px mb-4" style={{ background: "var(--gl-border)" }} />
-        <div className="flex items-center gap-3 px-3 py-2 rounded-xl">
-          <div
-            className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold shrink-0 text-white"
-            style={{ background: "var(--gl-olive)" }}
-          >
-            {getInitial(userEmail)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="text-[13px] font-semibold leading-tight truncate" style={{ color: "var(--gl-ink)" }}>
-              {getDisplayName(userEmail)}
-            </div>
-            <div className="text-[11px] truncate" style={{ color: "var(--gl-ink-3)" }}>
-              {userEmail ?? ""}
-            </div>
-          </div>
-          <form action={signOut}>
-            <button
-              type="submit"
-              title="Cerrar sesión"
-              className="h-7 w-7 rounded-lg grid place-items-center transition-colors"
-              style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--gl-ink-3)" }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "var(--gl-ink)")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "var(--gl-ink-3)")}
-            >
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
-          </form>
+      {/* Footer: avatar + logout */}
+      <div className="flex flex-col items-center gap-2 w-full px-2 mt-4">
+        <div className="h-px w-full" style={{ background: "var(--gl-border)" }} />
+
+        <div
+          className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold text-white mt-1"
+          style={{ background: "var(--gl-olive)" }}
+          title={userEmail ?? ""}
+        >
+          {getInitial(userEmail)}
         </div>
+
+        <form action={signOut} className="w-full flex justify-center">
+          <button
+            type="submit"
+            title="Cerrar sesión"
+            className="h-9 w-full rounded-xl grid place-items-center transition-colors group"
+            style={{ background: "transparent", border: "none", cursor: "pointer" }}
+          >
+            <LogOut
+              className="h-[16px] w-[16px] transition-colors"
+              style={{ color: "var(--gl-ink-3)" }}
+            />
+          </button>
+        </form>
       </div>
     </aside>
   )
