@@ -326,39 +326,27 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
         >
           <div
             style={{
-              background:   "#fff",
-              borderRadius: "1.25rem",
-              padding:      "2.5rem 2.25rem",
-              maxWidth:     440,
-              width:        "100%",
-              boxShadow:    "0 24px 64px rgba(13,17,23,0.22), 0 4px 16px rgba(13,17,23,0.12)",
-              display:      "flex",
-              flexDirection:"column",
-              gap:          "1.5rem",
+              background:    "#fff8e6",
+              border:        "1.5px solid #f5c842",
+              borderRadius:  "1.25rem",
+              padding:       "2.5rem 2.25rem",
+              maxWidth:      440,
+              width:         "100%",
+              boxShadow:     "0 24px 64px rgba(13,17,23,0.22), 0 4px 16px rgba(13,17,23,0.12)",
+              display:       "flex",
+              flexDirection: "column",
+              gap:           "1.5rem",
             }}
           >
             {/* Icono */}
-            <div
-              style={{
-                width:          48,
-                height:         48,
-                borderRadius:   "0.875rem",
-                background:     "#fff8e6",
-                display:        "flex",
-                alignItems:     "center",
-                justifyContent: "center",
-                fontSize:       22,
-              }}
-            >
-              ⚠️
-            </div>
+            <div style={{ fontSize: 28 }}>⚠️</div>
 
             {/* Texto */}
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#0d1117", letterSpacing: "-0.02em" }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "#7a5500", letterSpacing: "-0.02em" }}>
                 Cambios sin guardar
               </div>
-              <p style={{ fontSize: 14, color: "#6b7280", lineHeight: 1.6, margin: 0 }}>
+              <p style={{ fontSize: 14, color: "#92400e", lineHeight: 1.6, margin: 0 }}>
                 {pendingHref
                   ? "Si salís ahora perdés las ediciones que hiciste en el CV. ¿Salir igual?"
                   : "Si descartás los cambios no se van a guardar. ¿Estás seguro?"}
@@ -374,15 +362,15 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
                   padding:      "0.75rem 1rem",
                   fontSize:     14,
                   fontWeight:   600,
-                  color:        "#0d1117",
-                  background:   "#f6f8fa",
-                  border:       "1px solid #d4d8de",
+                  color:        "#7a5500",
+                  background:   "#fff",
+                  border:       "1.5px solid #f5c842",
                   borderRadius: "0.75rem",
                   cursor:       "pointer",
                   transition:   "background 0.15s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#eaecef")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#f6f8fa")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#fff3cd")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
               >
                 Seguir editando
               </button>
