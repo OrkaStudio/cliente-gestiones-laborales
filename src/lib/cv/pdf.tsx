@@ -54,15 +54,15 @@ const s = StyleSheet.create({
   },
   candidatoNombre: {
     fontFamily:    "Helvetica-Bold",
-    fontSize:      20,
+    fontSize:      22,
     color:         C.ink,
-    letterSpacing: -0.3,
+    letterSpacing: -0.5,
   },
   candidatoSub: {
-    fontSize:  9,
+    fontSize:  8,
     color:     C.ink3,
-    marginTop: 3,
-    letterSpacing: 0.5,
+    marginTop: 4,
+    letterSpacing: 2,
   },
 
   // ── SECTION ───────────────────────────────────────────────────────────────
@@ -71,12 +71,15 @@ const s = StyleSheet.create({
   },
 
   sectionTitle: {
-    fontFamily:      "Helvetica-BoldOblique",
-    fontSize:        10,
+    fontFamily:      "Helvetica-Bold",
+    fontSize:        11,
     color:           C.olive,
-    letterSpacing:   0.3,
-    textDecoration:  "underline",
-    marginBottom:    8,
+    letterSpacing:   1.2,
+    textTransform:   "uppercase",
+    borderBottomWidth: 1,
+    borderBottomColor: C.olive,
+    paddingBottom:   3,
+    marginBottom:    10,
   },
 
   // ── BULLETS (datos personales y formación) ────────────────────────────────
