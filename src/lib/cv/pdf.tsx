@@ -14,7 +14,6 @@ const C = {
 
 // ─── Assets ───────────────────────────────────────────────────────────────────
 const LOGO_LEYENDA = path.join(process.cwd(), "public", "brand", "logo-leyenda.png")
-const LOGO_ICON    = path.join(process.cwd(), "public", "brand", "logo.png")
 
 // ─── Márgenes ─────────────────────────────────────────────────────────────────
 const PL = 52
@@ -204,9 +203,11 @@ const s = StyleSheet.create({
     justifyContent:  "space-between",
     backgroundColor: C.white,
   },
-  footerLogo: {
-    width:  52,
-    height: "auto",
+  footerBrand: {
+    fontFamily:    "Helvetica-Bold",
+    fontSize:      7,
+    color:         C.olive,
+    letterSpacing: 1.5,
   },
   footerMid: {
     fontSize:      7,
@@ -380,7 +381,7 @@ export function CVDocument({
 
         {/* Footer — fijo en todas las páginas */}
         <View style={s.footer} fixed>
-          <Image src={LOGO_ICON} style={s.footerLogo} />
+          <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
           <Text style={s.footerMid}>Documento confidencial  ·  {fecha}</Text>
           <Text
             style={s.footerPage}

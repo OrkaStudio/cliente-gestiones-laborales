@@ -39,6 +39,7 @@ export function parseKV(content: string): KVPair[] {
       if (idx === -1) return { label: "", value: line.trim() }
       return { label: line.slice(0, idx).trim(), value: line.slice(idx + 1).trim() }
     })
+    .filter(p => p.value.length > 0) // omitir pares sin valor
 }
 
 export function parseJobs(content: string): JobBlock[] {
@@ -136,7 +137,12 @@ export function parseSections(text: string): CvSection[] {
 
 function clean(lines: string[]): string {
   return lines
-    .map((l) => /^[─\-═\*]{3,}$/.test(l.trim()) ? "" : l)
+    .map((l) => {
+      const t = l.trim()
+      if (/^[─\-═\*]{3,}$/.test(t)) return ""            // separadores
+      if (/^[\w\sáéíóúüñÁÉÍÓÚÜÑ\/]+:\s*$/.test(t)) return "" // "Label:" sin valor
+      return l
+    })
     .join("\n")
     .trim()
 }
