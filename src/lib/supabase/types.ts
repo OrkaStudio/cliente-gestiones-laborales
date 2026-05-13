@@ -22,6 +22,8 @@ export type Database = {
           embedding: string | null
           estado: Database["public"]["Enums"]["estado_busqueda"]
           fecha_apertura: string
+          fecha_cierre: string | null
+          notas_cierre: string | null
           hectareas_min: number | null
           id: string
           movilidad_requerida: boolean | null
@@ -40,6 +42,8 @@ export type Database = {
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_busqueda"]
           fecha_apertura?: string
+          fecha_cierre?: string | null
+          notas_cierre?: string | null
           hectareas_min?: number | null
           id?: string
           movilidad_requerida?: boolean | null
@@ -58,6 +62,8 @@ export type Database = {
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_busqueda"]
           fecha_apertura?: string
+          fecha_cierre?: string | null
+          notas_cierre?: string | null
           hectareas_min?: number | null
           id?: string
           movilidad_requerida?: boolean | null
@@ -321,6 +327,44 @@ export type Database = {
           },
         ]
       }
+      notificaciones: {
+        Row: {
+          id: string
+          tipo: "garantia" | "cv_error" | "cv_nuevo"
+          titulo: string
+          cuerpo: string
+          busqueda_id: string | null
+          leida: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          tipo: "garantia" | "cv_error" | "cv_nuevo"
+          titulo: string
+          cuerpo: string
+          busqueda_id?: string | null
+          leida?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          tipo?: "garantia" | "cv_error" | "cv_nuevo"
+          titulo?: string
+          cuerpo?: string
+          busqueda_id?: string | null
+          leida?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificaciones_busqueda_id_fkey"
+            columns: ["busqueda_id"]
+            isOneToOne: false
+            referencedRelation: "busquedas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       webhook_logs: {
         Row: {
           id: string
@@ -382,7 +426,7 @@ export type Database = {
       }
     }
     Enums: {
-      estado_busqueda: "activa" | "pausada" | "cerrada"
+      estado_busqueda: "activa" | "pausada" | "cerrada" | "archivada"
       estado_candidato: "activo" | "inactivo"
       estado_gestion:
         | "preseleccionado"
@@ -519,7 +563,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      estado_busqueda: ["activa", "pausada", "cerrada"],
+      estado_busqueda: ["activa", "pausada", "cerrada", "archivada"],
       estado_candidato: ["activo", "inactivo"],
       estado_gestion: [
         "preseleccionado",

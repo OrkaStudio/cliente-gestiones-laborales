@@ -14,6 +14,7 @@ const items = [
 
 interface SidebarProps {
   userEmail: string | null
+  notificacionesCount?: number
 }
 
 function getInitial(email: string | null): string {
@@ -26,7 +27,7 @@ function getDisplayName(email: string | null): string {
   return email.split("@")[0]
 }
 
-export function Sidebar({ userEmail }: SidebarProps) {
+export function Sidebar({ userEmail, notificacionesCount = 0 }: SidebarProps) {
   const pathname = usePathname()
 
   return (
@@ -96,6 +97,23 @@ export function Sidebar({ userEmail }: SidebarProps) {
                 />
               </div>
               {item.label}
+              {item.href === "/busquedas" && notificacionesCount > 0 && (
+                <span
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "1px 6px",
+                    borderRadius: "99px",
+                    background: "#ffebe9",
+                    color: "#cf222e",
+                    minWidth: "18px",
+                    textAlign: "center",
+                  }}
+                >
+                  {notificacionesCount}
+                </span>
+              )}
             </Link>
           )
         })}
