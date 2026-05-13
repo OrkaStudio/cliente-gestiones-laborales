@@ -321,6 +321,47 @@ export type Database = {
           },
         ]
       }
+      webhook_logs: {
+        Row: {
+          id: string
+          email_id: string
+          estado: "received" | "processing" | "complete" | "failed"
+          detalle: string | null
+          candidato_id: string | null
+          archivo_nombre: string | null
+          remitente_email: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          email_id: string
+          estado: "received" | "processing" | "complete" | "failed"
+          detalle?: string | null
+          candidato_id?: string | null
+          archivo_nombre?: string | null
+          remitente_email?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          email_id?: string
+          estado?: "received" | "processing" | "complete" | "failed"
+          detalle?: string | null
+          candidato_id?: string | null
+          archivo_nombre?: string | null
+          remitente_email?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "webhook_logs_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

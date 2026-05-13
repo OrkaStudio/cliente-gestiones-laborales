@@ -106,16 +106,34 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 8. Parsear CV con Claude + upsert en background para no exceder el timeout de Make (40s)
+  // 8. Registrar recepción y parsear en background (Make recibe 202 inmediatamente)
+  await supabase.from("webhook_logs").insert({
+    email_id: body.email_id,
+    estado: "received",
+    archivo_nombre: body.archivo_nombre,
+    remitente_email: body.remitente_email,
+  });
+
   after(async () => {
-    console.log("[webhook/cv] background_start email_id:", body.email_id);
+    await supabase.from("webhook_logs").insert({
+      email_id: body.email_id,
+      estado: "processing",
+      archivo_nombre: body.archivo_nombre,
+      remitente_email: body.remitente_email,
+    });
 
     let candidatoParseado;
     try {
       candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
-      console.error("[webhook/cv] parse_failed:", detail);
+      await supabase.from("webhook_logs").insert({
+        email_id: body.email_id,
+        estado: "failed",
+        detalle: `parse_failed: ${detail}`,
+        archivo_nombre: body.archivo_nombre,
+        remitente_email: body.remitente_email,
+      });
       return;
     }
 
@@ -123,7 +141,14 @@ export async function POST(req: NextRequest) {
     try {
       candidatoId = await upsertCandidato(candidatoParseado, storagePath);
     } catch (err) {
-      console.error("[webhook/cv] upsert_failed:", err instanceof Error ? err.message : String(err));
+      const detail = err instanceof Error ? err.message : String(err);
+      await supabase.from("webhook_logs").insert({
+        email_id: body.email_id,
+        estado: "failed",
+        detalle: `upsert_failed: ${detail}`,
+        archivo_nombre: body.archivo_nombre,
+        remitente_email: body.remitente_email,
+      });
       return;
     }
 
@@ -136,7 +161,16 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", candidatoId);
     } catch (err) {
-      console.warn("[webhook/cv] post_update_skip:", err instanceof Error ? err.message : String(err));
+      const detail = err instanceof Error ? err.message : String(err);
+      await supabase.from("webhook_logs").insert({
+        email_id: body.email_id,
+        estado: "failed",
+        detalle: `post_update_failed: ${detail}`,
+        candidato_id: candidatoId,
+        archivo_nombre: body.archivo_nombre,
+        remitente_email: body.remitente_email,
+      });
+      return;
     }
 
     await supabase.from("emails_procesados").insert({
@@ -144,7 +178,13 @@ export async function POST(req: NextRequest) {
       candidato_id: candidatoId,
     });
 
-    console.log("[webhook/cv] background_complete candidato_id:", candidatoId);
+    await supabase.from("webhook_logs").insert({
+      email_id: body.email_id,
+      estado: "complete",
+      candidato_id: candidatoId,
+      archivo_nombre: body.archivo_nombre,
+      remitente_email: body.remitente_email,
+    });
   });
 
   // Respondemos 202 inmediatamente — el procesamiento continúa en background
