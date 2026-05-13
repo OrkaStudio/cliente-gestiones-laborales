@@ -56,7 +56,16 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // 3. Deduplicación: si ya procesamos este email_id, responder 200
+  // 3. Loguear recepción — antes de cualquier chequeo
+  await supabase.from("webhook_logs").insert({
+    email_id: body.email_id,
+    estado: "received",
+    archivo_nombre: body.archivo_nombre,
+    remitente_email: body.remitente_email,
+    detalle: null,
+  });
+
+  // 4. Deduplicación: si ya procesamos este email_id, responder 200
   const { data: yaProcessado } = await supabase
     .from("emails_procesados")
     .select("id")
@@ -106,14 +115,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 8. Registrar recepción y parsear en background (Make recibe 202 inmediatamente)
-  await supabase.from("webhook_logs").insert({
-    email_id: body.email_id,
-    estado: "received",
-    archivo_nombre: body.archivo_nombre,
-    remitente_email: body.remitente_email,
-  });
-
+  // 8. Parsear en background (Make recibe 202 inmediatamente)
   after(async () => {
     await supabase.from("webhook_logs").insert({
       email_id: body.email_id,
