@@ -282,3 +282,20 @@ export async function updateCandidato(id: string, data: CandidatoData): Promise<
   revalidatePath("/")
   return { success: true, id }
 }
+
+export async function toggleEstadoCandidato(
+  id: string,
+  nuevoEstado: "activo" | "inactivo",
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase
+    .from("candidatos")
+    .update({ estado: nuevoEstado })
+    .eq("id", id)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/candidatos")
+  revalidatePath(`/candidatos/${id}`)
+  return { success: true, id }
+}

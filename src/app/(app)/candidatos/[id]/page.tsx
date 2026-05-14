@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
 import { CandidatoStickyBar } from "@/components/app/candidato-sticky-bar";
+import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle";
 import { waUrl } from "@/lib/cv/utils";
 
 const AVATAR_HEX = [
@@ -93,10 +94,6 @@ export default async function CandidatoDetailPage({
     (candidato.nombre.charCodeAt(0) + candidato.apellido.charCodeAt(0)) % AVATAR_HEX.length
   ];
 
-  const estadoBadge = candidato.estado === "activo"
-    ? { bg: "#dafbe1", color: "#1a7f37" }
-    : { bg: "#f6f8fa", color: "#57606a" };
-
   // Ficha: items que tienen valor
   type FichaItem = { label: string; value: string; positive?: boolean; negative?: boolean }
   const fichaItems: FichaItem[] = [
@@ -108,8 +105,6 @@ export default async function CandidatoDetailPage({
     candidato.movilidad !== null            ? { label: "Movilidad a campo", value: candidato.movilidad ? "Sí" : "No", positive: !!candidato.movilidad, negative: candidato.movilidad === false } : null,
     candidato.vehiculo_propio !== null      ? { label: "Vehículo propio",  value: candidato.vehiculo_propio ? "Sí" : "No", positive: !!candidato.vehiculo_propio, negative: candidato.vehiculo_propio === false } : null,
     candidato.licencia_conducir !== null    ? { label: "Licencia conducir", value: candidato.licencia_conducir ? "Sí" : "No", positive: !!candidato.licencia_conducir, negative: candidato.licencia_conducir === false } : null,
-    candidato.educacion                     ? { label: "Educación",        value: candidato.educacion }                                              : null,
-    (candidato.domicilio_completo ?? candidato.ubicacion) ? { label: "Domicilio", value: (candidato.domicilio_completo ?? candidato.ubicacion)! }   : null,
   ].filter(Boolean) as FichaItem[]
 
   // Stats que van en el header (sólo los que tienen valor)
@@ -180,12 +175,6 @@ export default async function CandidatoDetailPage({
                 )}
               </div>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <span
-                  className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                  style={{ background: estadoBadge.bg, color: estadoBadge.color }}
-                >
-                  {candidato.estado}
-                </span>
                 {candidato.fecha_consultado && (
                   <span
                     className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
@@ -209,6 +198,10 @@ export default async function CandidatoDetailPage({
 
           {/* Acciones */}
           <div className="flex gap-2 shrink-0 flex-wrap">
+            <CandidatoEstadoToggle
+              candidatoId={candidato.id}
+              estadoInicial={candidato.estado as "activo" | "inactivo"}
+            />
             <Link
               href={`/candidatos/${candidato.id}/cv`}
               style={{
@@ -516,7 +509,7 @@ export default async function CandidatoDetailPage({
         <div className="space-y-5">
 
           {/* Contacto */}
-          {(candidato.email || candidato.telefono) && (
+          {(candidato.email || candidato.telefono || candidato.domicilio_completo || candidato.ubicacion) && (
             <div className="rounded-2xl border p-6" style={CARD}>
               <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Contacto</h2>
               <div className="space-y-2">
@@ -544,7 +537,35 @@ export default async function CandidatoDetailPage({
                     </div>
                   </a>
                 )}
+                {(candidato.domicilio_completo ?? candidato.ubicacion) && (
+                  <div
+                    className="flex items-start gap-3 px-3 py-3 rounded-xl"
+                    style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}
+                  >
+                    <div className="h-8 w-8 rounded-lg grid place-items-center shrink-0" style={{ background: "var(--gl-olive-bg)" }}>
+                      <MapPin className="h-3.5 w-3.5" style={{ color: "var(--gl-olive)" }} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[10.5px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                        Domicilio
+                      </div>
+                      <div className="text-sm mt-0.5 leading-snug" style={{ color: "var(--gl-ink)" }}>
+                        {candidato.domicilio_completo ?? candidato.ubicacion}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
+            </div>
+          )}
+
+          {/* Formación */}
+          {candidato.educacion && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-3" style={{ color: "var(--gl-ink)" }}>Formación</h2>
+              <p className="text-sm leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
+                {candidato.educacion}
+              </p>
             </div>
           )}
 
