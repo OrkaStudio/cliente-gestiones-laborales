@@ -6,12 +6,13 @@ type Referencia  = { nombre: string; contacto: string; relacion: string }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatPeriodo(desde: string, hasta: string | null): string {
+function formatPeriodo(desde: string | null, hasta: string | null): string {
   const fmt = (d: string) => {
     const [y, m] = d.split("-")
     return m && m !== "01" ? `${m}/${y}` : y
   }
-  return `${fmt(desde)} — ${hasta ? fmt(hasta) : "Actualidad"}`
+  const desdeStr = desde ? fmt(desde) : "?"
+  return `${desdeStr} — ${hasta ? fmt(hasta) : "Actualidad"}`
 }
 
 function calcEdad(fechaNac: string): number | null {

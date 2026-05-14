@@ -107,7 +107,7 @@ export async function upsertCandidato(
           candidato_id: id,
           empresa: exp.empresa,
           rol: exp.rol,
-          desde: toISODate(exp.desde) ?? `${new Date().getFullYear()}-01-01`,
+          desde: toISODate(exp.desde),
           hasta: toISODate(exp.hasta),
           descripcion: exp.descripcion ?? null,
           orden: idx,

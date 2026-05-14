@@ -472,9 +472,11 @@ export default async function CandidatoDetailPage({
                         <span className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>
                           {exp.rol}
                         </span>
-                        <span className="text-xs font-mono tabular-nums shrink-0" style={{ color: "var(--gl-ink-3)" }}>
-                          {exp.desde} — {exp.hasta ?? "actual"}
-                        </span>
+                        {(exp.desde || exp.hasta) && (
+                          <span className="text-xs font-mono tabular-nums shrink-0" style={{ color: "var(--gl-ink-3)" }}>
+                            {exp.desde ?? "?"} — {exp.hasta ?? "actual"}
+                          </span>
+                        )}
                       </div>
                       <div className="text-sm mt-0.5 font-medium" style={{ color: "var(--gl-olive)" }}>
                         {exp.empresa}
