@@ -139,9 +139,9 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    let candidatoId: string;
+    let upsertResult: { id: string; wasExisting: boolean };
     try {
-      candidatoId = await upsertCandidato(candidatoParseado, storagePath);
+      upsertResult = await upsertCandidato(candidatoParseado, storagePath);
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       await supabase.from("webhook_logs").insert({
@@ -150,6 +150,32 @@ export async function POST(req: NextRequest) {
         detalle: `upsert_failed: ${detail}`,
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
+      });
+      return;
+    }
+
+    const { id: candidatoId, wasExisting } = upsertResult;
+
+    // Candidato duplicado → notificar, no actualizar
+    if (wasExisting) {
+      const nombre = `${candidatoParseado.nombre} ${candidatoParseado.apellido}`.trim();
+      await supabase.from("notificaciones").insert({
+        tipo: "cv_duplicado",
+        titulo: `${nombre} volvió a enviar su CV`,
+        cuerpo: `Se recibió un nuevo CV de ${nombre} (${body.archivo_nombre}). El perfil existente no fue modificado.`,
+        candidato_id: candidatoId,
+      });
+      await supabase.from("emails_procesados").insert({
+        email_id: body.email_id,
+        candidato_id: candidatoId,
+      });
+      await supabase.from("webhook_logs").insert({
+        email_id: body.email_id,
+        estado: "duplicate",
+        candidato_id: candidatoId,
+        archivo_nombre: body.archivo_nombre,
+        remitente_email: body.remitente_email,
+        detalle: `Candidato existente: ${candidatoId}`,
       });
       return;
     }

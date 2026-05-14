@@ -46,7 +46,8 @@ export async function guardarCandidatoProcesado(data: CVParseado): Promise<Actio
 
   let id: string
   try {
-    id = await upsertCandidato(data, null)
+    const result = await upsertCandidato(data, null)
+    id = result.id
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : "Error guardando candidato" }
   }

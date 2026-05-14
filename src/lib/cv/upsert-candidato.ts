@@ -13,10 +13,15 @@ function toISODate(str: string | null | undefined): string | null {
   return isNaN(parsed.getTime()) ? null : parsed.toISOString().split("T")[0];
 }
 
+export interface UpsertResult {
+  id: string
+  wasExisting: boolean
+}
+
 export async function upsertCandidato(
   data: CVParseado,
   cvCrudoPath: string | null,
-): Promise<string> {
+): Promise<UpsertResult> {
   const supabase = createServiceClient();
 
   // Buscar candidato existente: primero por email, luego por nombre+apellido
@@ -72,26 +77,18 @@ export async function upsertCandidato(
     ...(cvCrudoPath !== null && { cv_crudo_url: cvCrudoPath }),
   };
 
-  let id: string;
-
+  // Candidato existente → no actualizar, devolver flag para que el caller notifique
   if (candidatoId) {
-    const { data: updated, error } = await supabase
-      .from("candidatos")
-      .update(payload)
-      .eq("id", candidatoId)
-      .select("id")
-      .single();
-    if (error) throw new Error(`Error actualizando candidato: ${error.message}`);
-    id = updated.id;
-  } else {
-    const { data: created, error } = await supabase
-      .from("candidatos")
-      .insert(payload)
-      .select("id")
-      .single();
-    if (error) throw new Error(`Error creando candidato: ${error.message}`);
-    id = created.id;
+    return { id: candidatoId, wasExisting: true }
   }
+
+  const { data: created, error } = await supabase
+    .from("candidatos")
+    .insert(payload)
+    .select("id")
+    .single();
+  if (error) throw new Error(`Error creando candidato: ${error.message}`);
+  const id = created.id;
 
   // Reemplazar experiencia laboral (delete + insert)
   // Si el insert falla, Make reintenta y el candidato ya existe → se vuelve a intentar
@@ -128,5 +125,5 @@ export async function upsertCandidato(
       throw new Error(`Error insertando experiencias: ${insertError.message}`);
   }
 
-  return id;
+  return { id, wasExisting: false };
 }
