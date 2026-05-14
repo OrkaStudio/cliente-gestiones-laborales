@@ -375,7 +375,7 @@ export function CandidatoEditForm({
         position:       "sticky", top: 0, zIndex: 30,
         background:     SURFACE, borderBottom: `1px solid ${BORDER}`,
         boxShadow:      "0 2px 12px rgba(13,17,23,0.06)",
-        padding:        "0.875rem 2.5rem",
+        padding:        "0.875rem 3rem",
         display:        "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -418,7 +418,11 @@ export function CandidatoEditForm({
       </div>
 
       {/* Contenido */}
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "2rem 2rem 6rem", display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      <div style={{ maxWidth: 1360, margin: "0 auto", padding: "2rem 3rem 6rem" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", alignItems: "start" }}>
+
+        {/* ── Columna izquierda: datos personales ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
         {/* Identificación */}
         <SectionCard title="Identificación">
@@ -451,6 +455,11 @@ export function CandidatoEditForm({
             <Field label="Animales" value={c.animales ?? ""} onChange={(v) => setField("animales", v || null)} placeholder="Perro, gato..." />
           </Row>
         </SectionCard>
+
+        </div>{/* fin columna izquierda */}
+
+        {/* ── Columna derecha: perfil + experiencia + referencias + notas ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
 
         {/* Perfil profesional */}
         <SectionCard title="Perfil Profesional">
@@ -569,6 +578,8 @@ export function CandidatoEditForm({
           />
         </SectionCard>
 
+        </div>{/* fin columna derecha */}
+        </div>{/* fin grid */}
       </div>
     </div>
   )
