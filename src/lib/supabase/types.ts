@@ -432,7 +432,7 @@ export type Database = {
         Row: {
           id: string
           email_id: string
-          estado: "received" | "processing" | "complete" | "failed"
+          estado: "received" | "processing" | "complete" | "failed" | "duplicate"
           detalle: string | null
           candidato_id: string | null
           archivo_nombre: string | null
@@ -442,7 +442,7 @@ export type Database = {
         Insert: {
           id?: string
           email_id: string
-          estado: "received" | "processing" | "complete" | "failed"
+          estado: "received" | "processing" | "complete" | "failed" | "duplicate"
           detalle?: string | null
           candidato_id?: string | null
           archivo_nombre?: string | null
@@ -452,7 +452,7 @@ export type Database = {
         Update: {
           id?: string
           email_id?: string
-          estado?: "received" | "processing" | "complete" | "failed"
+          estado?: "received" | "processing" | "complete" | "failed" | "duplicate"
           detalle?: string | null
           candidato_id?: string | null
           archivo_nombre?: string | null
