@@ -43,7 +43,7 @@ function calcAge(fechaNac: string): number | null {
 
 function calcYearsExp(exp: Array<{ desde: string | null }>) {
   if (!exp?.length) return null;
-  const years = exp.map((e) => parseInt(e.desde?.substring(0, 4)) || new Date().getFullYear());
+  const years = exp.map((e) => parseInt(e.desde?.substring(0, 4) ?? "") || new Date().getFullYear());
   return new Date().getFullYear() - Math.min(...years);
 }
 
