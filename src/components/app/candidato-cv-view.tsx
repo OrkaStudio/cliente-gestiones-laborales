@@ -2,7 +2,7 @@ import type { Tables } from "@/lib/supabase/types"
 
 type Candidato   = Tables<"candidatos">
 type Experiencia = Tables<"experiencia_laboral">
-type Referencia  = { nombre: string; contacto: string; relacion: string }
+type Referencia  = { nombre: string; contacto: string; relacion: string; calificacion: "buena" | "mala" | null }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -173,13 +173,27 @@ function ReferenciasSection({ refs }: { refs: Referencia[] }) {
   if (!refs.length) return null
   return (
     <CVSection title="Referencias">
-      {refs.map((ref, i) => (
-        <div key={i} style={{ marginBottom: 12, paddingLeft: 10, borderLeft: `2px solid ${BORDER}` }}>
-          <div style={{ fontWeight: 700, fontSize: 13, color: INK, marginBottom: 2 }}>{ref.nombre}</div>
-          {ref.contacto && <div style={{ fontSize: 11.5, color: INK3 }}>{ref.contacto}</div>}
-          {ref.relacion && <div style={{ fontSize: 11.5, color: INK3 }}>{ref.relacion}</div>}
-        </div>
-      ))}
+      {refs.map((ref, i) => {
+        const borderColor = ref.calificacion === "buena" ? "#16a34a" : ref.calificacion === "mala" ? "#dc2626" : BORDER
+        return (
+          <div key={i} style={{ marginBottom: 12, paddingLeft: 10, borderLeft: `2px solid ${borderColor}` }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+              <span style={{ fontWeight: 700, fontSize: 13, color: INK }}>{ref.nombre}</span>
+              {ref.calificacion && (
+                <span style={{
+                  fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 99,
+                  background: ref.calificacion === "buena" ? "#dcfce7" : "#fee2e2",
+                  color: ref.calificacion === "buena" ? "#16a34a" : "#dc2626",
+                }}>
+                  {ref.calificacion === "buena" ? "Buena" : "Mala"}
+                </span>
+              )}
+            </div>
+            {ref.contacto && <div style={{ fontSize: 11.5, color: INK3 }}>{ref.contacto}</div>}
+            {ref.relacion && <div style={{ fontSize: 11.5, color: INK3 }}>{ref.relacion}</div>}
+          </div>
+        )
+      })}
     </CVSection>
   )
 }

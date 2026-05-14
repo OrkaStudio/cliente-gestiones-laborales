@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 
 type Candidato   = Tables<"candidatos">
 type Experiencia = Tables<"experiencia_laboral">
-type Referencia  = { nombre: string; contacto: string; relacion: string }
+type Referencia  = { nombre: string; contacto: string; relacion: string; calificacion: "buena" | "mala" | null }
 
 // ─── Estilos base ─────────────────────────────────────────────────────────────
 
@@ -254,14 +254,27 @@ function RefCard({ ref, onChange, onDelete }: { ref: Referencia; onChange: (r: R
   const [open, setOpen] = useState(!ref.nombre)
   const label = ref.nombre || "Nueva referencia"
 
+  const calBorderColor = ref.calificacion === "buena" ? "#16a34a" : ref.calificacion === "mala" ? "#dc2626" : BORDER_MD
+
   return (
-    <div style={{ border: `1px solid ${BORDER_MD}`, borderRadius: 10, overflow: "hidden", background: "#f9fafb" }}>
+    <div style={{ border: `1px solid ${calBorderColor}`, borderRadius: 10, overflow: "hidden", background: "#f9fafb", transition: "border-color 0.15s" }}>
       <div
         onClick={() => setOpen((v) => !v)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", cursor: "pointer", userSelect: "none", borderBottom: open ? `1px solid ${BORDER}` : "none" }}
       >
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+            {ref.calificacion && (
+              <span style={{
+                fontSize: 10, fontWeight: 700, padding: "1px 7px", borderRadius: 99,
+                background: ref.calificacion === "buena" ? "#dcfce7" : "#fee2e2",
+                color: ref.calificacion === "buena" ? "#16a34a" : "#dc2626",
+              }}>
+                {ref.calificacion === "buena" ? "Buena" : "Mala"}
+              </span>
+            )}
+          </div>
           {ref.relacion && !open && <div style={{ fontSize: 11, color: INK3, marginTop: 1 }}>{ref.relacion}</div>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8, flexShrink: 0 }}>
@@ -278,6 +291,32 @@ function RefCard({ ref, onChange, onDelete }: { ref: Referencia; onChange: (r: R
             <Field label="Contacto" value={ref.contacto} onChange={(v) => onChange({ ...ref, contacto: v })} placeholder="221 555-1234" />
           </Row>
           <Field label="Relación laboral" value={ref.relacion} onChange={(v) => onChange({ ...ref, relacion: v })} placeholder="Propietario, administrador..." />
+          {/* Calificación */}
+          <div>
+            <label style={labelStyle}>Calificación</label>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              {(["buena", "mala"] as const).map((cal) => {
+                const selected = ref.calificacion === cal
+                const isGood = cal === "buena"
+                return (
+                  <button
+                    key={cal}
+                    type="button"
+                    onClick={() => onChange({ ...ref, calificacion: selected ? null : cal })}
+                    style={{
+                      padding: "0.35rem 1rem", fontSize: 12.5, fontWeight: selected ? 600 : 400,
+                      borderRadius: 8, cursor: "pointer", transition: "all 0.12s",
+                      border: `1px solid ${selected ? (isGood ? "#16a34a" : "#dc2626") : BORDER_MD}`,
+                      background: selected ? (isGood ? "#dcfce7" : "#fee2e2") : SURFACE,
+                      color: selected ? (isGood ? "#16a34a" : "#dc2626") : INK3,
+                    }}
+                  >
+                    {isGood ? "✓ Buena" : "✗ Mala"}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -682,7 +721,7 @@ export function CandidatoEditForm({
           headerRight={
             <button
               type="button"
-              onClick={(e) => { e.stopPropagation(); setRefs([...refs, { nombre: "", contacto: "", relacion: "" }]) }}
+              onClick={(e) => { e.stopPropagation(); setRefs([...refs, { nombre: "", contacto: "", relacion: "", calificacion: null }]) }}
               style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: OLIVE, background: OLIVE_BG, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
             >
               <Plus style={{ width: 12, height: 12 }} /> Agregar
