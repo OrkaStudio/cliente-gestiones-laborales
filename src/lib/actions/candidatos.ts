@@ -300,3 +300,20 @@ export async function toggleEstadoCandidato(
   revalidatePath(`/candidatos/${id}`)
   return { success: true, id }
 }
+
+export async function eliminarCandidato(id: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+
+  // Eliminar en orden para respetar FKs (no todas tienen ON DELETE CASCADE)
+  await supabase.from("notificaciones").delete().eq("candidato_id", id)
+  await supabase.from("webhook_logs").delete().eq("candidato_id", id)
+  await supabase.from("gestiones").delete().eq("candidato_id", id)
+  await supabase.from("experiencia_laboral").delete().eq("candidato_id", id)
+
+  const { error } = await supabase.from("candidatos").delete().eq("id", id)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/candidatos")
+  revalidatePath("/")
+  return { success: true }
+}

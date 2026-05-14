@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft, Plus, Trash2, Loader2, Save, ChevronDown } from "lucide-react"
-import { updateCandidatoFields, updateExperienciaFields, addExperiencia, deleteExperiencia } from "@/lib/actions/candidatos"
+import { updateCandidatoFields, updateExperienciaFields, addExperiencia, deleteExperiencia, eliminarCandidato } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
@@ -409,6 +409,8 @@ export function CandidatoEditForm({
   const [newExps, setNewExps] = useState<Omit<Experiencia, "id" | "candidato_id" | "created_at">[]>([])
   const [dirty, setDirty] = useState(false)
   const [confirmState, setConfirmState] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, startDelete] = useTransition()
 
   function askConfirm(onConfirm: () => void) {
     setConfirmState({ open: true, onConfirm })
@@ -754,6 +756,33 @@ export function CandidatoEditForm({
 
       </div>
 
+      {/* Zona de peligro */}
+      <div style={{ marginTop: 32, padding: "20px 24px", borderRadius: 12, border: "1.5px solid #fecdd3", background: "#fff5f5" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", color: "#dc2626", marginBottom: 8 }}>
+          Zona de peligro
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 13.5, fontWeight: 600, color: INK }}>Eliminar candidato</div>
+            <div style={{ fontSize: 12, color: INK3, marginTop: 2 }}>
+              Se eliminan el perfil, la experiencia y todas las gestiones asociadas. Esta acción no se puede deshacer.
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDeleteOpen(true)}
+            style={{
+              padding: "0.5rem 1rem", fontSize: 13, fontWeight: 600,
+              color: "#dc2626", background: "transparent",
+              border: "1.5px solid #dc2626", borderRadius: 8, cursor: "pointer",
+              whiteSpace: "nowrap", flexShrink: 0,
+            }}
+          >
+            Eliminar
+          </button>
+        </div>
+      </div>
+
       {/* Confirmación al salir con cambios sin guardar */}
       <Dialog
         open={confirmState.open}
@@ -786,6 +815,54 @@ export function CandidatoEditForm({
               }}
             >
               Salir sin guardar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de borrado */}
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar candidato?</DialogTitle>
+            <DialogDescription>
+              Se va a eliminar el perfil de <strong>{initial.nombre} {initial.apellido}</strong> junto con toda su experiencia y gestiones. Esta acción no se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setDeleteOpen(false)}
+              disabled={deleting}
+              style={{
+                padding: "0.5rem 1rem", fontSize: 13.5, fontWeight: 500,
+                color: INK3, background: "transparent", border: `1px solid ${BORDER_MD}`,
+                borderRadius: 8, cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+            <button
+              disabled={deleting}
+              onClick={() => {
+                startDelete(async () => {
+                  const res = await eliminarCandidato(initial.id)
+                  if (res.success) {
+                    setDirty(false)
+                    router.push("/candidatos")
+                  } else {
+                    toast.error("No se pudo eliminar el candidato")
+                    setDeleteOpen(false)
+                  }
+                })
+              }}
+              style={{
+                padding: "0.5rem 1rem", fontSize: 13.5, fontWeight: 600,
+                color: "#fff", background: deleting ? "#ef4444" : "#dc2626",
+                border: "none", borderRadius: 8, cursor: deleting ? "not-allowed" : "pointer",
+                opacity: deleting ? 0.7 : 1,
+              }}
+            >
+              {deleting ? "Eliminando…" : "Sí, eliminar"}
             </button>
           </DialogFooter>
         </DialogContent>
