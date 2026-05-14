@@ -117,102 +117,124 @@ export async function POST(req: NextRequest) {
 
   // 8. Parsear en background (Make recibe 202 inmediatamente)
   after(async () => {
-    await supabase.from("webhook_logs").insert({
-      email_id: body.email_id,
-      estado: "processing",
-      archivo_nombre: body.archivo_nombre,
-      remitente_email: body.remitente_email,
-    });
-
-    let candidatoParseado;
     try {
-      candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre);
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
       await supabase.from("webhook_logs").insert({
         email_id: body.email_id,
-        estado: "failed",
-        detalle: `parse_failed: ${detail}`,
+        estado: "processing",
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
       });
-      return;
-    }
 
-    let upsertResult: { id: string; wasExisting: boolean };
-    try {
-      upsertResult = await upsertCandidato(candidatoParseado, storagePath);
-    } catch (err) {
-      const detail = err instanceof Error ? err.message : String(err);
-      await supabase.from("webhook_logs").insert({
-        email_id: body.email_id,
-        estado: "failed",
-        detalle: `upsert_failed: ${detail}`,
-        archivo_nombre: body.archivo_nombre,
-        remitente_email: body.remitente_email,
-      });
-      return;
-    }
+      let candidatoParseado;
+      try {
+        // 50s de timeout — deja margen para upsert+logs antes del maxDuration=60
+        const parseSignal = AbortSignal.timeout(50_000);
+        candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre, parseSignal);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        await supabase.from("webhook_logs").insert({
+          email_id: body.email_id,
+          estado: "failed",
+          detalle: `parse_failed: ${detail}`,
+          archivo_nombre: body.archivo_nombre,
+          remitente_email: body.remitente_email,
+        });
+        return;
+      }
 
-    const { id: candidatoId, wasExisting } = upsertResult;
+      let upsertResult: { id: string; wasExisting: boolean };
+      try {
+        upsertResult = await upsertCandidato(candidatoParseado, storagePath);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        await supabase.from("webhook_logs").insert({
+          email_id: body.email_id,
+          estado: "failed",
+          detalle: `upsert_failed: ${detail}`,
+          archivo_nombre: body.archivo_nombre,
+          remitente_email: body.remitente_email,
+        });
+        return;
+      }
 
-    // Candidato duplicado → notificar, no actualizar
-    if (wasExisting) {
-      const nombre = `${candidatoParseado.nombre} ${candidatoParseado.apellido}`.trim();
+      const { id: candidatoId, wasExisting } = upsertResult;
+
+      const nombreCompleto = `${candidatoParseado.nombre} ${candidatoParseado.apellido}`.trim() || "Sin nombre";
+
+      // Candidato duplicado → notificar, no actualizar
+      if (wasExisting) {
+        await supabase.from("notificaciones").insert({
+          tipo: "cv_duplicado",
+          titulo: `${nombreCompleto} volvió a enviar su CV`,
+          cuerpo: `Se recibió un nuevo CV de ${nombreCompleto} (${body.archivo_nombre}). El perfil existente no fue modificado.`,
+          candidato_id: candidatoId,
+        });
+        await supabase.from("emails_procesados").insert({
+          email_id: body.email_id,
+          candidato_id: candidatoId,
+        });
+        await supabase.from("webhook_logs").insert({
+          email_id: body.email_id,
+          estado: "duplicate",
+          candidato_id: candidatoId,
+          archivo_nombre: body.archivo_nombre,
+          remitente_email: body.remitente_email,
+          detalle: `Candidato existente: ${candidatoId}`,
+        });
+        return;
+      }
+
+      try {
+        await supabase
+          .from("candidatos")
+          .update({
+            cv_procesado_texto: candidatoParseado.cv_procesado_texto,
+            preguntas_sugeridas: candidatoParseado.preguntas_sugeridas,
+          })
+          .eq("id", candidatoId);
+      } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        await supabase.from("webhook_logs").insert({
+          email_id: body.email_id,
+          estado: "failed",
+          detalle: `post_update_failed: ${detail}`,
+          candidato_id: candidatoId,
+          archivo_nombre: body.archivo_nombre,
+          remitente_email: body.remitente_email,
+        });
+        return;
+      }
+
       await supabase.from("notificaciones").insert({
-        tipo: "cv_duplicado",
-        titulo: `${nombre} volvió a enviar su CV`,
-        cuerpo: `Se recibió un nuevo CV de ${nombre} (${body.archivo_nombre}). El perfil existente no fue modificado.`,
+        tipo: "cv_nuevo",
+        titulo: `Nuevo CV — ${nombreCompleto}`,
+        cuerpo: `Se procesó ${body.archivo_nombre} y se creó un perfil nuevo.`,
         candidato_id: candidatoId,
       });
+
       await supabase.from("emails_procesados").insert({
         email_id: body.email_id,
         candidato_id: candidatoId,
       });
+
       await supabase.from("webhook_logs").insert({
         email_id: body.email_id,
-        estado: "duplicate",
+        estado: "complete",
         candidato_id: candidatoId,
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
-        detalle: `Candidato existente: ${candidatoId}`,
       });
-      return;
-    }
-
-    try {
-      await supabase
-        .from("candidatos")
-        .update({
-          cv_procesado_texto: candidatoParseado.cv_procesado_texto,
-          preguntas_sugeridas: candidatoParseado.preguntas_sugeridas,
-        })
-        .eq("id", candidatoId);
     } catch (err) {
+      // Safety net: si after() muere inesperadamente, loguear el error
       const detail = err instanceof Error ? err.message : String(err);
       await supabase.from("webhook_logs").insert({
         email_id: body.email_id,
         estado: "failed",
-        detalle: `post_update_failed: ${detail}`,
-        candidato_id: candidatoId,
+        detalle: `after_unhandled: ${detail}`,
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
       });
-      return;
     }
-
-    await supabase.from("emails_procesados").insert({
-      email_id: body.email_id,
-      candidato_id: candidatoId,
-    });
-
-    await supabase.from("webhook_logs").insert({
-      email_id: body.email_id,
-      estado: "complete",
-      candidato_id: candidatoId,
-      archivo_nombre: body.archivo_nombre,
-      remitente_email: body.remitente_email,
-    });
   });
 
   // Respondemos 202 inmediatamente — el procesamiento continúa en background

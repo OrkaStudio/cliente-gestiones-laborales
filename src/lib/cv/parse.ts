@@ -189,6 +189,7 @@ export async function parsearCV(
   buffer: Buffer,
   mimeType: string,
   nombreArchivo: string,
+  signal?: AbortSignal,
 ): Promise<CVParseado> {
   type Parte =
     | { type: "text"; text: string }
@@ -217,6 +218,7 @@ export async function parsearCV(
   const { object } = await generateObject({
     model: anthropic("claude-sonnet-4-6"),
     schema: CVParseadoSchema,
+    abortSignal: signal,
     messages: [
       {
         role: "user" as const,

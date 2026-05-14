@@ -36,7 +36,7 @@ export async function upsertCandidato(
     if (existente) candidatoId = existente.id;
   }
 
-  if (!candidatoId) {
+  if (!candidatoId && data.nombre?.trim() && data.apellido?.trim()) {
     const { data: existente } = await supabase
       .from("candidatos")
       .select("id")
