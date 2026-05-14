@@ -3,7 +3,7 @@
 import { useState, useTransition, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Plus, Trash2, Loader2, Save } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, Loader2, Save, ChevronDown } from "lucide-react"
 import { updateCandidatoFields, updateExperienciaFields, addExperiencia, deleteExperiencia } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
 
@@ -115,79 +115,140 @@ function Row({ children }: { children: React.ReactNode }) {
   return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>{children}</div>
 }
 
-function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+function AccordionCard({
+  title, summary, defaultOpen = true, headerRight, children,
+}: {
+  title: string
+  summary?: string
+  defaultOpen?: boolean
+  headerRight?: React.ReactNode
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
   return (
-    <div style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: "1.5rem", boxShadow: "0 2px 8px rgba(13,17,23,0.05)" }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: INK3, borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.5rem", marginBottom: "1.25rem" }}>
-        {title}
+    <div style={{ background: SURFACE, border: `1px solid ${BORDER_MD}`, borderRadius: 14, boxShadow: "0 1px 4px rgba(13,17,23,0.04)", overflow: "hidden" }}>
+      {/* Header */}
+      <div
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0.875rem 1.25rem", cursor: "pointer", userSelect: "none",
+          background: open ? SURFACE : "#f9fafb",
+          borderBottom: open ? `1px solid ${BORDER}` : "none",
+          transition: "background 0.15s",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: open ? OLIVE : INK3, transition: "color 0.15s", whiteSpace: "nowrap" }}>
+            {title}
+          </span>
+          {!open && summary && (
+            <span style={{ fontSize: 12.5, color: INK3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {summary}
+            </span>
+          )}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: "0.75rem", flexShrink: 0 }}>
+          {headerRight}
+          <ChevronDown style={{ width: 15, height: 15, color: INK3, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+        </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-        {children}
-      </div>
+      {/* Body */}
+      {open && (
+        <div style={{ padding: "1.25rem 1.25rem 1.5rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          {children}
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Sección experiencia ──────────────────────────────────────────────────────
 
+function fmtDate(d: string | null): string {
+  if (!d) return "actual"
+  const [y, m] = d.split("-")
+  return m && m !== "01" ? `${m}/${y}` : y
+}
+
 function ExpCard({
   exp,
   onChange,
   onDelete,
+  defaultOpen = false,
 }: {
   exp: Experiencia
   onChange: (fields: Partial<Experiencia>) => void
   onDelete: () => void
+  defaultOpen?: boolean
 }) {
-  const f = (label: string, key: keyof Experiencia, opts?: { placeholder?: string; hint?: string; multiline?: boolean; type?: string }) => (
-    <Field
-      label={label}
-      value={(exp[key] as string | null) ?? ""}
-      onChange={(v) => onChange({ [key]: v || null })}
-      {...opts}
-    />
-  )
+  const [open, setOpen] = useState(defaultOpen)
+
+  const title  = exp.rol || exp.empresa ? `${exp.rol || "Sin cargo"} — ${exp.empresa || "Sin empresa"}` : "Nuevo empleo"
+  const period = `${fmtDate(exp.desde)} → ${fmtDate(exp.hasta)}`
 
   return (
-    <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, padding: "1.25rem", background: "#f9fafb", position: "relative" }}>
-      <button
-        type="button"
-        onClick={onDelete}
-        style={{ position: "absolute", top: 12, right: 12, padding: 6, color: "#cf222e", background: "transparent", border: "none", cursor: "pointer", borderRadius: 6 }}
-        title="Eliminar empleo"
+    <div style={{ border: `1px solid ${BORDER_MD}`, borderRadius: 10, overflow: "hidden", background: "#f9fafb" }}>
+      {/* Header */}
+      <div
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "0.75rem 1rem", cursor: "pointer", userSelect: "none",
+          borderBottom: open ? `1px solid ${BORDER}` : "none",
+        }}
       >
-        <Trash2 style={{ width: 14, height: 14 }} />
-      </button>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-        <Row>
-          <Field label="Cargo / Rol" value={exp.rol} onChange={(v) => onChange({ rol: v })} required placeholder="Capataz de campo" />
-          <Field label="Empresa / Establecimiento" value={exp.empresa} onChange={(v) => onChange({ empresa: v })} required placeholder="Estancia La Pampa" />
-        </Row>
-        <Row>
-          <Field label="Desde" value={exp.desde} onChange={(v) => onChange({ desde: v })} type="date" hint="Fecha de inicio" />
-          <Field label="Hasta" value={exp.hasta ?? ""} onChange={(v) => onChange({ hasta: v || null })} type="date" hint="Dejar vacío si es trabajo actual" />
-        </Row>
-        <Row>
-          <Field label="Propietario" value={exp.nombre_propietario ?? ""} onChange={(v) => onChange({ nombre_propietario: v || null })} placeholder="Juan Pérez" />
-          <Field label="Ubicación del establecimiento" value={exp.ubicacion ?? ""} onChange={(v) => onChange({ ubicacion: v || null })} placeholder="Trenque Lauquen, Bs As" />
-        </Row>
-        <Row>
-          <Field label="Dimensión" value={exp.dimension_establecimiento ?? ""} onChange={(v) => onChange({ dimension_establecimiento: v || null })} placeholder="1.200 ha, 400 cabezas" />
-          <Field label="Personal a cargo" value={exp.personal_a_cargo ?? ""} onChange={(v) => onChange({ personal_a_cargo: v || null })} placeholder="3 personas" />
-        </Row>
-        <Row>
-          <BoolField label="¿En blanco?" value={exp.en_blanco} onChange={(v) => onChange({ en_blanco: v })} />
-          <Field label="Motivo de cambio / salida" value={exp.motivo_cambio_o_salida ?? ""} onChange={(v) => onChange({ motivo_cambio_o_salida: v || null })} placeholder="Búsqueda de nuevas oportunidades" />
-        </Row>
-        {exp.hasta === null && (
-          <Row>
-            <Field label="Ingresos actuales" value={exp.ingresos_actuales ?? ""} onChange={(v) => onChange({ ingresos_actuales: v || null })} placeholder="$800.000" />
-            <Field label="Beneficios" value={exp.beneficios ?? ""} onChange={(v) => onChange({ beneficios: v || null })} placeholder="Carne, vivienda, combustible" />
-          </Row>
-        )}
-        <Field label="Descripción de tareas" value={exp.descripcion ?? ""} onChange={(v) => onChange({ descripcion: v || null })} multiline placeholder="Conducción general del establecimiento..." />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {title}
+          </div>
+          <div style={{ fontSize: 11, color: INK3, marginTop: 1 }}>{period}</div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8, flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onDelete() }}
+            style={{ padding: 5, color: "#cf222e", background: "transparent", border: "none", cursor: "pointer", borderRadius: 5, display: "flex" }}
+            title="Eliminar empleo"
+          >
+            <Trash2 style={{ width: 13, height: 13 }} />
+          </button>
+          <ChevronDown style={{ width: 14, height: 14, color: INK3, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+        </div>
       </div>
+
+      {/* Body */}
+      {open && (
+        <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+          <Row>
+            <Field label="Cargo / Rol" value={exp.rol} onChange={(v) => onChange({ rol: v })} required placeholder="Capataz de campo" />
+            <Field label="Empresa / Establecimiento" value={exp.empresa} onChange={(v) => onChange({ empresa: v })} required placeholder="Estancia La Pampa" />
+          </Row>
+          <Row>
+            <Field label="Desde" value={exp.desde} onChange={(v) => onChange({ desde: v })} type="date" hint="Fecha de inicio" />
+            <Field label="Hasta" value={exp.hasta ?? ""} onChange={(v) => onChange({ hasta: v || null })} type="date" hint="Dejar vacío si es trabajo actual" />
+          </Row>
+          <Row>
+            <Field label="Propietario" value={exp.nombre_propietario ?? ""} onChange={(v) => onChange({ nombre_propietario: v || null })} placeholder="Juan Pérez" />
+            <Field label="Ubicación del establecimiento" value={exp.ubicacion ?? ""} onChange={(v) => onChange({ ubicacion: v || null })} placeholder="Trenque Lauquen, Bs As" />
+          </Row>
+          <Row>
+            <Field label="Dimensión" value={exp.dimension_establecimiento ?? ""} onChange={(v) => onChange({ dimension_establecimiento: v || null })} placeholder="1.200 ha, 400 cabezas" />
+            <Field label="Personal a cargo" value={exp.personal_a_cargo ?? ""} onChange={(v) => onChange({ personal_a_cargo: v || null })} placeholder="3 personas" />
+          </Row>
+          <Row>
+            <BoolField label="¿En blanco?" value={exp.en_blanco} onChange={(v) => onChange({ en_blanco: v })} />
+            <Field label="Motivo de cambio / salida" value={exp.motivo_cambio_o_salida ?? ""} onChange={(v) => onChange({ motivo_cambio_o_salida: v || null })} placeholder="Búsqueda de nuevas oportunidades" />
+          </Row>
+          {exp.hasta === null && (
+            <Row>
+              <Field label="Ingresos actuales" value={exp.ingresos_actuales ?? ""} onChange={(v) => onChange({ ingresos_actuales: v || null })} placeholder="$800.000" />
+              <Field label="Beneficios" value={exp.beneficios ?? ""} onChange={(v) => onChange({ beneficios: v || null })} placeholder="Carne, vivienda, combustible" />
+            </Row>
+          )}
+          <Field label="Descripción de tareas" value={exp.descripcion ?? ""} onChange={(v) => onChange({ descripcion: v || null })} multiline placeholder="Conducción general del establecimiento..." />
+        </div>
+      )}
     </div>
   )
 }
@@ -195,18 +256,35 @@ function ExpCard({
 // ─── Sección referencias ──────────────────────────────────────────────────────
 
 function RefCard({ ref, onChange, onDelete }: { ref: Referencia; onChange: (r: Referencia) => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(!ref.nombre)
+  const label = ref.nombre || "Nueva referencia"
+
   return (
-    <div style={{ border: `1px solid ${BORDER}`, borderRadius: 12, padding: "1.25rem", background: "#f9fafb", position: "relative" }}>
-      <button type="button" onClick={onDelete} style={{ position: "absolute", top: 12, right: 12, padding: 6, color: "#cf222e", background: "transparent", border: "none", cursor: "pointer", borderRadius: 6 }}>
-        <Trash2 style={{ width: 14, height: 14 }} />
-      </button>
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        <Row>
-          <Field label="Nombre" value={ref.nombre} onChange={(v) => onChange({ ...ref, nombre: v })} placeholder="Juan García" />
-          <Field label="Contacto" value={ref.contacto} onChange={(v) => onChange({ ...ref, contacto: v })} placeholder="221 555-1234" />
-        </Row>
-        <Field label="Relación laboral" value={ref.relacion} onChange={(v) => onChange({ ...ref, relacion: v })} placeholder="Propietario, administrador..." />
+    <div style={{ border: `1px solid ${BORDER_MD}`, borderRadius: 10, overflow: "hidden", background: "#f9fafb" }}>
+      <div
+        onClick={() => setOpen((v) => !v)}
+        style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0.75rem 1rem", cursor: "pointer", userSelect: "none", borderBottom: open ? `1px solid ${BORDER}` : "none" }}
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</div>
+          {ref.relacion && !open && <div style={{ fontSize: 11, color: INK3, marginTop: 1 }}>{ref.relacion}</div>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 4, marginLeft: 8, flexShrink: 0 }}>
+          <button type="button" onClick={(e) => { e.stopPropagation(); onDelete() }} style={{ padding: 5, color: "#cf222e", background: "transparent", border: "none", cursor: "pointer", borderRadius: 5, display: "flex" }} title="Eliminar referencia">
+            <Trash2 style={{ width: 13, height: 13 }} />
+          </button>
+          <ChevronDown style={{ width: 14, height: 14, color: INK3, transform: open ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }} />
+        </div>
       </div>
+      {open && (
+        <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <Row>
+            <Field label="Nombre" value={ref.nombre} onChange={(v) => onChange({ ...ref, nombre: v })} placeholder="Juan García" />
+            <Field label="Contacto" value={ref.contacto} onChange={(v) => onChange({ ...ref, contacto: v })} placeholder="221 555-1234" />
+          </Row>
+          <Field label="Relación laboral" value={ref.relacion} onChange={(v) => onChange({ ...ref, relacion: v })} placeholder="Propietario, administrador..." />
+        </div>
+      )}
     </div>
   )
 }
@@ -418,14 +496,10 @@ export function CandidatoEditForm({
       </div>
 
       {/* Contenido */}
-      <div style={{ maxWidth: 1360, margin: "0 auto", padding: "2rem 3rem 6rem" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1.5rem", alignItems: "start" }}>
-
-        {/* ── Columna izquierda: datos personales ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 3rem 6rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
         {/* Identificación */}
-        <SectionCard title="Identificación">
+        <AccordionCard title="Identificación" summary={`${c.nombre} ${c.apellido}${c.telefono ? " · " + c.telefono : ""}`}>
           <Row>
             <Field label="Nombre" value={c.nombre} onChange={(v) => setField("nombre", v)} required />
             <Field label="Apellido" value={c.apellido} onChange={(v) => setField("apellido", v)} required />
@@ -454,15 +528,10 @@ export function CandidatoEditForm({
             <Field label="Muebles propios" value={c.muebles_propios ?? ""} onChange={(v) => setField("muebles_propios", v || null)} placeholder="Mesa, sillas, camas..." />
             <Field label="Animales" value={c.animales ?? ""} onChange={(v) => setField("animales", v || null)} placeholder="Perro, gato..." />
           </Row>
-        </SectionCard>
-
-        </div>{/* fin columna izquierda */}
-
-        {/* ── Columna derecha: perfil + experiencia + referencias + notas ── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+        </AccordionCard>
 
         {/* Perfil profesional */}
-        <SectionCard title="Perfil Profesional">
+        <AccordionCard title="Perfil Profesional" summary={`${c.ultimo_puesto ?? ""}${c.estado ? " · " + c.estado : ""}`}>
           <Row>
             <Field label="Último puesto" value={c.ultimo_puesto ?? ""} onChange={(v) => setField("ultimo_puesto", v || null)} placeholder="Capataz de campo" />
             <div>
@@ -506,10 +575,25 @@ export function CandidatoEditForm({
             onChange={(v) => setField("tipos_ganaderia", v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [])}
             placeholder="Bovina, tambo, mixto..."
           />
-        </SectionCard>
+        </AccordionCard>
 
         {/* Experiencia laboral */}
-        <SectionCard title="Experiencia Laboral">
+        <AccordionCard
+          title="Experiencia Laboral"
+          summary={`${exps.length + newExps.length} empleo${exps.length + newExps.length !== 1 ? "s" : ""}`}
+          headerRight={
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); addNewExp() }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: OLIVE, background: OLIVE_BG, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
+            >
+              <Plus style={{ width: 12, height: 12 }} /> Agregar
+            </button>
+          }
+        >
+          {exps.length === 0 && newExps.length === 0 && (
+            <p style={{ fontSize: 12.5, color: INK3, fontStyle: "italic", margin: 0 }}>Sin experiencia cargada.</p>
+          )}
           {exps.map((exp) => (
             <ExpCard
               key={exp.id}
@@ -524,24 +608,29 @@ export function CandidatoEditForm({
               exp={{ ...exp, id: `new-${idx}`, candidato_id: c.id, created_at: "" } as Experiencia}
               onChange={(fields) => updateNewExp(idx, fields)}
               onDelete={() => removeNewExp(idx)}
+              defaultOpen
             />
           ))}
-          <button
-            type="button"
-            onClick={addNewExp}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              fontSize: 12.5, color: OLIVE, background: "transparent",
-              border: `1.5px dashed ${OLIVE}`, borderRadius: 8,
-              padding: "8px 14px", cursor: "pointer", alignSelf: "flex-start",
-            }}
-          >
-            <Plus style={{ width: 13, height: 13 }} /> Agregar empleo
-          </button>
-        </SectionCard>
+        </AccordionCard>
 
         {/* Referencias */}
-        <SectionCard title="Referencias">
+        <AccordionCard
+          title="Referencias"
+          summary={refs.length > 0 ? `${refs.length} referencia${refs.length !== 1 ? "s" : ""}` : "Sin referencias"}
+          defaultOpen={refs.length > 0}
+          headerRight={
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setRefs([...refs, { nombre: "", contacto: "", relacion: "" }]) }}
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: OLIVE, background: OLIVE_BG, border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
+            >
+              <Plus style={{ width: 12, height: 12 }} /> Agregar
+            </button>
+          }
+        >
+          {refs.length === 0 && (
+            <p style={{ fontSize: 12.5, color: INK3, fontStyle: "italic", margin: 0 }}>Sin referencias cargadas.</p>
+          )}
           {refs.map((ref, i) => (
             <RefCard
               key={i}
@@ -550,25 +639,10 @@ export function CandidatoEditForm({
               onDelete={() => setRefs(refs.filter((_, j) => j !== i))}
             />
           ))}
-          {refs.length === 0 && (
-            <p style={{ fontSize: 12.5, color: INK3, fontStyle: "italic", margin: 0 }}>Sin referencias cargadas.</p>
-          )}
-          <button
-            type="button"
-            onClick={() => setRefs([...refs, { nombre: "", contacto: "", relacion: "" }])}
-            style={{
-              display: "inline-flex", alignItems: "center", gap: 6,
-              fontSize: 12.5, color: OLIVE, background: "transparent",
-              border: `1.5px dashed ${OLIVE}`, borderRadius: 8,
-              padding: "8px 14px", cursor: "pointer", alignSelf: "flex-start",
-            }}
-          >
-            <Plus style={{ width: 13, height: 13 }} /> Agregar referencia
-          </button>
-        </SectionCard>
+        </AccordionCard>
 
         {/* Notas del recruiter */}
-        <SectionCard title="Notas Internas">
+        <AccordionCard title="Notas Internas" summary={c.notas_recruiter ? c.notas_recruiter.slice(0, 60) + "…" : "Sin notas"} defaultOpen={false}>
           <Field
             label="Notas del recruiter"
             value={c.notas_recruiter ?? ""}
@@ -576,10 +650,8 @@ export function CandidatoEditForm({
             multiline
             placeholder="Observaciones del proceso de selección..."
           />
-        </SectionCard>
+        </AccordionCard>
 
-        </div>{/* fin columna derecha */}
-        </div>{/* fin grid */}
       </div>
     </div>
   )
