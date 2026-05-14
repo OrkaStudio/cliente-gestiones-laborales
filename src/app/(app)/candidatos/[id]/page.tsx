@@ -573,6 +573,40 @@ export default async function CandidatoDetailPage({
             </div>
           )}
 
+          {/* Referencias */}
+          {Array.isArray(candidato.referencias) && (candidato.referencias as unknown[]).length > 0 && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Referencias</h2>
+              <div className="space-y-3">
+                {(candidato.referencias as { nombre: string; contacto: string; relacion: string; calificacion: "buena" | "mala" | null }[]).map((ref, i) => {
+                  const borderColor = ref.calificacion === "buena" ? "#16a34a" : ref.calificacion === "mala" ? "#dc2626" : "var(--gl-border)"
+                  return (
+                    <div key={i} style={{ paddingLeft: 12, borderLeft: `2px solid ${borderColor}` }}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>
+                          {ref.nombre}
+                        </span>
+                        {ref.calificacion && (
+                          <span
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: ref.calificacion === "buena" ? "#dcfce7" : "#fee2e2",
+                              color:      ref.calificacion === "buena" ? "#16a34a" : "#dc2626",
+                            }}
+                          >
+                            {ref.calificacion === "buena" ? "Buena" : "Mala"}
+                          </span>
+                        )}
+                      </div>
+                      {ref.contacto && <div className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>{ref.contacto}</div>}
+                      {ref.relacion && <div className="text-xs" style={{ color: "var(--gl-ink-3)" }}>{ref.relacion}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
