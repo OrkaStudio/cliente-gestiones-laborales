@@ -10,12 +10,12 @@ import type { Tables } from "@/lib/supabase/types"
 
 type Busqueda = Tables<"busquedas">
 
-const INK    = "#0d1117"
-const INK3   = "#8b949e"
-const SURFACE = "#ffffff"
-const BORDER  = "#eaecef"
+const INK      = "#0d1117"
+const INK3     = "#8b949e"
+const SURFACE  = "#ffffff"
+const BORDER   = "#eaecef"
 const BORDER_MD = "#d4d8de"
-const OLIVE   = "#2a4a18"
+const OLIVE    = "#2a4a18"
 const OLIVE_BG = "#eef5e8"
 
 const inputStyle: React.CSSProperties = {
@@ -24,8 +24,8 @@ const inputStyle: React.CSSProperties = {
   background: SURFACE,
   color: INK,
   borderRadius: "0.5rem",
-  padding: "0.5rem 0.75rem",
-  fontSize: "13.5px",
+  padding: "0.625rem 0.875rem",
+  fontSize: "14px",
   fontFamily: "inherit",
   outline: "none",
   transition: "border-color 0.15s, box-shadow 0.15s",
@@ -64,16 +64,18 @@ function Field({
 }
 
 function TextArea({
-  label, name, defaultValue, rows = 3, placeholder,
+  label, name, defaultValue, rows = 4, placeholder, hint,
 }: {
-  label: string; name: string; defaultValue?: string; rows?: number; placeholder?: string
+  label: string; name: string; defaultValue?: string
+  rows?: number; placeholder?: string; hint?: string
 }) {
   return (
-    <div>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
       <label style={labelStyle}>{label}</label>
+      {hint && <p style={{ fontSize: "12px", color: INK3, marginBottom: "0.5rem", marginTop: "-0.125rem" }}>{hint}</p>}
       <textarea
         name={name} defaultValue={defaultValue ?? ""} rows={rows} placeholder={placeholder}
-        style={{ ...inputStyle, resize: "none" }}
+        style={{ ...inputStyle, resize: "none", flex: 1 }}
         onFocus={(e) => { e.currentTarget.style.borderColor = OLIVE; e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}` }}
         onBlur={(e)  => { e.currentTarget.style.borderColor = BORDER_MD; e.currentTarget.style.boxShadow = "none" }}
       />
@@ -81,22 +83,30 @@ function TextArea({
   )
 }
 
-function Section({ label, children }: { label: string; children: React.ReactNode }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div>
-      <div style={{
-        fontSize: "10px", fontWeight: 600, letterSpacing: "0.2em", textTransform: "uppercase",
-        color: INK3, borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.5rem", marginBottom: "1.25rem",
-      }}>
-        {label}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>{children}</div>
+    <div style={{
+      fontSize: "10px", fontWeight: 700, letterSpacing: "0.18em",
+      textTransform: "uppercase", color: INK3,
+      borderBottom: `1px solid ${BORDER}`,
+      paddingBottom: "0.625rem", marginBottom: "1.25rem",
+    }}>
+      {children}
     </div>
   )
 }
 
-function Row({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>{children}</div>
+function Card({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div style={{
+      background: SURFACE, border: `1px solid ${BORDER}`,
+      borderRadius: "1rem", padding: "1.75rem",
+      boxShadow: "0 2px 8px rgba(13,17,23,0.05)",
+      ...style,
+    }}>
+      {children}
+    </div>
+  )
 }
 
 export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
@@ -132,18 +142,20 @@ export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
     })
   }
 
+  const backHref = isEdit ? `/busquedas/${busqueda.id}` : "/busquedas"
+
   return (
     <div style={{ minHeight: "100vh", background: "#f6f8fa", display: "flex", flexDirection: "column" }}>
 
-      {/* Top bar */}
+      {/* ── Top bar ──────────────────────────────────────────────────── */}
       <div style={{
         background: SURFACE, borderBottom: `1px solid ${BORDER}`,
         padding: "0 2.5rem", height: "3.5rem",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        flexShrink: 0,
+        flexShrink: 0, position: "sticky", top: 0, zIndex: 10,
       }}>
         <Link
-          href={isEdit ? `/busquedas/${busqueda.id}` : "/busquedas"}
+          href={backHref}
           style={{
             display: "inline-flex", alignItems: "center", gap: "0.375rem",
             fontSize: "13px", fontWeight: 500, color: INK3, textDecoration: "none",
@@ -158,13 +170,15 @@ export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
           <Link
-            href={isEdit ? `/busquedas/${busqueda.id}` : "/busquedas"}
+            href={backHref}
             style={{
               padding: "0.4rem 1rem", fontSize: "13.5px",
               color: INK3, background: "transparent", border: "none",
               cursor: "pointer", textDecoration: "none", borderRadius: "0.375rem",
               transition: "color 0.15s",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = INK)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = INK3)}
           >
             Cancelar
           </Link>
@@ -185,100 +199,112 @@ export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
         </div>
       </div>
 
-      {/* Content */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "3rem 2.5rem" }}>
-        <div style={{ maxWidth: "720px", margin: "0 auto" }}>
+      {/* ── Content ──────────────────────────────────────────────────── */}
+      <div style={{ flex: 1, overflowY: "auto", padding: "2.5rem 2.5rem 4rem" }}>
 
-          {/* Page title */}
-          <div style={{ marginBottom: "2.5rem" }}>
-            <p style={{
-              fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.15em",
-              textTransform: "uppercase", color: INK3, marginBottom: "0.5rem",
-            }}>
-              {isEdit ? "Editar búsqueda" : "Nueva búsqueda"}
-            </p>
-            <h1 style={{
-              fontFamily: "var(--font-fraunces), serif",
-              fontSize: "2rem", fontWeight: 400,
-              fontVariationSettings: '"opsz" 144, "SOFT" 100',
-              letterSpacing: "-0.02em", color: INK, lineHeight: 1.1,
-            }}>
-              {isEdit ? busqueda.puesto : "Crear posición"}
-            </h1>
-            {isEdit && (
-              <p style={{ fontSize: "13px", color: INK3, marginTop: "0.375rem" }}>{busqueda.cliente}</p>
-            )}
-          </div>
-
-          {/* Form */}
-          <form
-            id="busqueda-form"
-            onSubmit={handleSubmit}
-            style={{ display: "flex", flexDirection: "column", gap: "2.5rem" }}
-          >
-            <div style={{
-              background: SURFACE, border: `1px solid ${BORDER}`,
-              borderRadius: "1rem", padding: "2rem",
-              display: "flex", flexDirection: "column", gap: "2rem",
-              boxShadow: "0 2px 8px rgba(13,17,23,0.05)",
-            }}>
-              <Section label="Identificación">
-                <Field label="Puesto" name="puesto" defaultValue={busqueda?.puesto} required placeholder="Capataz de campo" />
-                <Field label="Cliente / Empleador" name="cliente" defaultValue={busqueda?.cliente} required placeholder="Estancia La Esperanza" />
-                <div>
-                  <label style={labelStyle}>Estado</label>
-                  <select
-                    name="estado"
-                    defaultValue={busqueda?.estado ?? "activa"}
-                    style={inputStyle}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = OLIVE; e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}` }}
-                    onBlur={(e)  => { e.currentTarget.style.borderColor = BORDER_MD; e.currentTarget.style.boxShadow = "none" }}
-                  >
-                    <option value="activa">Activa</option>
-                    <option value="pausada">Pausada</option>
-                  </select>
-                </div>
-              </Section>
-
-              <Section label="Detalles">
-                <Row>
-                  <Field label="Ubicación" name="ubicacion" defaultValue={busqueda?.ubicacion ?? ""} placeholder="Santa Rosa, LP" />
-                  <Field label="Rango salarial" name="rango_salarial" defaultValue={busqueda?.rango_salarial ?? ""} placeholder="$300.000 – $500.000" />
-                </Row>
-                <Field
-                  label="Fecha de apertura" name="fecha_apertura" type="date"
-                  defaultValue={busqueda?.fecha_apertura ?? new Date().toISOString().split("T")[0]}
-                />
-              </Section>
-
-              <Section label="Brief">
-                <TextArea
-                  label="Descripción del puesto" name="descripcion"
-                  defaultValue={busqueda?.descripcion ?? ""} rows={4}
-                  placeholder="Descripción de la posición, perfil buscado..."
-                />
-              </Section>
-
-              <Section label="Requisitos">
-                <TextArea
-                  label="Un requisito por línea" name="requisitos"
-                  defaultValue={busqueda?.requisitos?.join("\n") ?? ""} rows={6}
-                  placeholder={"Manejo de hacienda\nLicencia de conducir\nDisponibilidad para residir en campo"}
-                />
-              </Section>
-            </div>
-
-            {error && (
-              <div style={{
-                fontSize: "13px", color: "#cf222e",
-                background: "#ffebe9", border: "1px solid #f1aeb5",
-                borderRadius: "0.5rem", padding: "0.625rem 0.875rem",
-              }}>
-                {error}
-              </div>
-            )}
-          </form>
+        {/* Page title */}
+        <div style={{ marginBottom: "2rem" }}>
+          <p style={{
+            fontSize: "10.5px", fontWeight: 600, letterSpacing: "0.15em",
+            textTransform: "uppercase", color: INK3, marginBottom: "0.375rem",
+          }}>
+            {isEdit ? "Editar búsqueda" : "Nueva búsqueda"}
+          </p>
+          <h1 style={{
+            fontFamily: "var(--font-fraunces), serif",
+            fontSize: "clamp(1.75rem, 3vw, 2.25rem)", fontWeight: 400,
+            fontVariationSettings: '"opsz" 144, "SOFT" 100',
+            letterSpacing: "-0.02em", color: INK, lineHeight: 1.1,
+          }}>
+            {isEdit ? busqueda.puesto : "Crear posición"}
+          </h1>
+          {isEdit && (
+            <p style={{ fontSize: "13px", color: INK3, marginTop: "0.375rem" }}>{busqueda.cliente}</p>
+          )}
         </div>
+
+        {/* ── Form — two-column grid ────────────────────────────────── */}
+        <form
+          id="busqueda-form"
+          onSubmit={handleSubmit}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gridTemplateRows: "auto auto 1fr",
+            gap: "1.25rem",
+            alignItems: "start",
+          }}
+        >
+          {/* Col 1, Row 1 — Identificación */}
+          <Card>
+            <SectionLabel>Identificación</SectionLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <Field label="Puesto" name="puesto" defaultValue={busqueda?.puesto} required placeholder="Capataz de campo" />
+              <Field label="Cliente / Empleador" name="cliente" defaultValue={busqueda?.cliente} required placeholder="Estancia La Esperanza" />
+              <div>
+                <label style={labelStyle}>Estado</label>
+                <select
+                  name="estado"
+                  defaultValue={busqueda?.estado ?? "activa"}
+                  style={inputStyle}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = OLIVE; e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}` }}
+                  onBlur={(e)  => { e.currentTarget.style.borderColor = BORDER_MD; e.currentTarget.style.boxShadow = "none" }}
+                >
+                  <option value="activa">Activa</option>
+                  <option value="pausada">Pausada</option>
+                </select>
+              </div>
+            </div>
+          </Card>
+
+          {/* Col 2, Row 1 — Descripción */}
+          <Card style={{ display: "flex", flexDirection: "column" }}>
+            <SectionLabel>Brief</SectionLabel>
+            <TextArea
+              label="Descripción del puesto" name="descripcion"
+              defaultValue={busqueda?.descripcion ?? ""} rows={7}
+              placeholder="Descripción de la posición, perfil buscado, contexto del establecimiento..."
+            />
+          </Card>
+
+          {/* Col 1, Row 2 — Detalles */}
+          <Card>
+            <SectionLabel>Detalles</SectionLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
+                <Field label="Ubicación" name="ubicacion" defaultValue={busqueda?.ubicacion ?? ""} placeholder="Santa Rosa, LP" />
+                <Field label="Rango salarial" name="rango_salarial" defaultValue={busqueda?.rango_salarial ?? ""} placeholder="$300k – $500k" />
+              </div>
+              <Field
+                label="Fecha de apertura" name="fecha_apertura" type="date"
+                defaultValue={busqueda?.fecha_apertura ?? new Date().toISOString().split("T")[0]}
+              />
+            </div>
+          </Card>
+
+          {/* Col 2, Row 2 — Requisitos */}
+          <Card style={{ display: "flex", flexDirection: "column" }}>
+            <SectionLabel>Requisitos</SectionLabel>
+            <TextArea
+              label="Un requisito por línea" name="requisitos"
+              defaultValue={busqueda?.requisitos?.join("\n") ?? ""} rows={6}
+              placeholder={"Manejo de hacienda\nLicencia de conducir\nDisponibilidad para residir en campo"}
+              hint="Cada línea se guarda como un requisito separado"
+            />
+          </Card>
+
+          {/* Error — full width */}
+          {error && (
+            <div style={{
+              gridColumn: "1 / -1",
+              fontSize: "13px", color: "#cf222e",
+              background: "#ffebe9", border: "1px solid #f1aeb5",
+              borderRadius: "0.5rem", padding: "0.625rem 0.875rem",
+            }}>
+              {error}
+            </div>
+          )}
+        </form>
       </div>
     </div>
   )
