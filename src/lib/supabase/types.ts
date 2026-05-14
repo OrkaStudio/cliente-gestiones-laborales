@@ -108,6 +108,18 @@ export type Database = {
           ubicacion: string | null
           ultimo_puesto: string | null
           updated_at: string
+          dni: string | null
+          lugar_nacimiento: string | null
+          estado_civil: string | null
+          hijos: string | null
+          domicilio_completo: string | null
+          vehiculo_propio: boolean | null
+          licencia_conducir: boolean | null
+          muebles_propios: string | null
+          animales: string | null
+          perfil_laboral: string | null
+          referencias: Json | null
+          campos_faltantes: string[] | null
         }
         Insert: {
           apellido: string
@@ -139,6 +151,18 @@ export type Database = {
           ubicacion?: string | null
           ultimo_puesto?: string | null
           updated_at?: string
+          dni?: string | null
+          lugar_nacimiento?: string | null
+          estado_civil?: string | null
+          hijos?: string | null
+          domicilio_completo?: string | null
+          vehiculo_propio?: boolean | null
+          licencia_conducir?: boolean | null
+          muebles_propios?: string | null
+          animales?: string | null
+          perfil_laboral?: string | null
+          referencias?: Json | null
+          campos_faltantes?: string[] | null
         }
         Update: {
           apellido?: string
@@ -170,6 +194,18 @@ export type Database = {
           ubicacion?: string | null
           ultimo_puesto?: string | null
           updated_at?: string
+          dni?: string | null
+          lugar_nacimiento?: string | null
+          estado_civil?: string | null
+          hijos?: string | null
+          domicilio_completo?: string | null
+          vehiculo_propio?: boolean | null
+          licencia_conducir?: boolean | null
+          muebles_propios?: string | null
+          animales?: string | null
+          perfil_laboral?: string | null
+          referencias?: Json | null
+          campos_faltantes?: string[] | null
         }
         Relationships: []
       }
@@ -243,6 +279,14 @@ export type Database = {
           id: string
           orden: number
           rol: string
+          nombre_propietario: string | null
+          ubicacion: string | null
+          dimension_establecimiento: string | null
+          personal_a_cargo: string | null
+          en_blanco: boolean | null
+          ingresos_actuales: string | null
+          beneficios: string | null
+          motivo_cambio_o_salida: string | null
         }
         Insert: {
           candidato_id: string
@@ -254,6 +298,14 @@ export type Database = {
           id?: string
           orden?: number
           rol: string
+          nombre_propietario?: string | null
+          ubicacion?: string | null
+          dimension_establecimiento?: string | null
+          personal_a_cargo?: string | null
+          en_blanco?: boolean | null
+          ingresos_actuales?: string | null
+          beneficios?: string | null
+          motivo_cambio_o_salida?: string | null
         }
         Update: {
           candidato_id?: string
@@ -265,6 +317,14 @@ export type Database = {
           id?: string
           orden?: number
           rol?: string
+          nombre_propietario?: string | null
+          ubicacion?: string | null
+          dimension_establecimiento?: string | null
+          personal_a_cargo?: string | null
+          en_blanco?: boolean | null
+          ingresos_actuales?: string | null
+          beneficios?: string | null
+          motivo_cambio_o_salida?: string | null
         }
         Relationships: [
           {

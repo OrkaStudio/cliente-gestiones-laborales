@@ -48,7 +48,17 @@ export async function upsertCandidato(
     telefono: data.telefono ?? null,
     fecha_nacimiento: toISODate(data.fecha_nacimiento),
     ubicacion: data.ubicacion ?? null,
+    domicilio_completo: data.domicilio_completo ?? null,
+    lugar_nacimiento: data.lugar_nacimiento ?? null,
+    dni: data.dni ?? null,
+    estado_civil: data.estado_civil ?? null,
+    hijos: data.hijos ?? null,
+    vehiculo_propio: data.vehiculo_propio ?? null,
+    licencia_conducir: data.licencia_conducir ?? null,
+    muebles_propios: data.muebles_propios ?? null,
+    animales: data.animales ?? null,
     educacion: data.educacion ?? null,
+    perfil_laboral: null, // lo genera Claude en cv_procesado_texto — se extrae después
     pretension_salarial: data.pretension_salarial ?? null,
     disponibilidad: data.disponibilidad ?? null,
     movilidad: data.movilidad ?? null,
@@ -57,11 +67,9 @@ export async function upsertCandidato(
     personal_a_cargo_max: data.personal_a_cargo_max ?? null,
     ultimo_puesto: data.ultimo_puesto ?? null,
     idiomas: data.idiomas,
+    referencias: data.referencias.length > 0 ? data.referencias : null,
+    campos_faltantes: data.campos_faltantes.length > 0 ? data.campos_faltantes : null,
     ...(cvCrudoPath !== null && { cv_crudo_url: cvCrudoPath }),
-    notas_recruiter:
-      data.campos_faltantes.length > 0
-        ? `Campos no encontrados en el CV: ${data.campos_faltantes.join(", ")}`
-        : null,
   };
 
   let id: string;
@@ -106,6 +114,14 @@ export async function upsertCandidato(
           hasta: toISODate(exp.hasta),
           descripcion: exp.descripcion ?? null,
           orden: idx,
+          nombre_propietario: exp.nombre_propietario ?? null,
+          ubicacion: exp.ubicacion ?? null,
+          dimension_establecimiento: exp.dimension_establecimiento ?? null,
+          personal_a_cargo: exp.personal_a_cargo ?? null,
+          en_blanco: exp.en_blanco ?? null,
+          ingresos_actuales: exp.ingresos_actuales ?? null,
+          beneficios: exp.beneficios ?? null,
+          motivo_cambio_o_salida: exp.motivo_cambio_o_salida ?? null,
         })),
       );
     if (insertError)
