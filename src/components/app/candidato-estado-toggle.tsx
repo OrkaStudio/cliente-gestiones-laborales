@@ -28,27 +28,28 @@ export function CandidatoEstadoToggle({
     <button
       onClick={handleToggle}
       disabled={isPending}
+      title={`Marcar como ${isActivo ? "inactivo" : "activo"}`}
       style={{
         display:      "inline-flex",
         alignItems:   "center",
-        gap:          "0.375rem",
-        padding:      "0.5rem 1rem",
-        fontSize:     "13.5px",
+        gap:          "0.3rem",
+        padding:      "2px 10px",
+        fontSize:     "11px",
         fontWeight:   600,
-        color:        isActivo ? "#1a7f37" : "var(--gl-ink-3)",
+        color:        isActivo ? "#1a7f37" : "#57606a",
         background:   isActivo ? "#dafbe1" : "#f6f8fa",
-        border:       `1px solid ${isActivo ? "rgba(26,127,55,0.25)" : "var(--gl-border)"}`,
-        borderRadius: "0.75rem",
+        border:       "none",
+        borderRadius: "9999px",
         cursor:       isPending ? "wait" : "pointer",
         whiteSpace:   "nowrap",
         transition:   "all 0.15s",
-        opacity:      isPending ? 0.6 : 1,
+        opacity:      isPending ? 0.5 : 1,
       }}
     >
       <span
         style={{
-          width:        7,
-          height:       7,
+          width:        6,
+          height:       6,
           borderRadius: "50%",
           background:   isActivo ? "#1a7f37" : "#8b949e",
           flexShrink:   0,

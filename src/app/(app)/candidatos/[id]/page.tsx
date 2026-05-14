@@ -175,6 +175,10 @@ export default async function CandidatoDetailPage({
                 )}
               </div>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <CandidatoEstadoToggle
+                  candidatoId={candidato.id}
+                  estadoInicial={candidato.estado as "activo" | "inactivo"}
+                />
                 {candidato.fecha_consultado && (
                   <span
                     className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
@@ -197,10 +201,14 @@ export default async function CandidatoDetailPage({
           </div>
 
           {/* Acciones */}
-          <div className="flex gap-2 shrink-0 flex-wrap">
-            <CandidatoEstadoToggle
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <AsignarBusquedaDialog
               candidatoId={candidato.id}
-              estadoInicial={candidato.estado as "activo" | "inactivo"}
+              candidatoNombre={`${candidato.nombre} ${candidato.apellido}`}
+              busquedas={busquedasActivas ?? []}
+              gestionesExistentes={(gestionesData ?? [])
+                .map((g) => (g.busquedas as { id: string } | null)?.id ?? "")
+                .filter(Boolean)}
             />
             <Link
               href={`/candidatos/${candidato.id}/cv`}
@@ -212,8 +220,8 @@ export default async function CandidatoDetailPage({
                 fontSize:       "13.5px",
                 fontWeight:     600,
                 color:          "var(--gl-olive)",
-                background:     "var(--gl-olive-bg)",
-                border:         "1px solid rgba(42,74,24,0.25)",
+                background:     "transparent",
+                border:         "1.5px solid rgba(42,74,24,0.4)",
                 borderRadius:   "0.75rem",
                 textDecoration: "none",
                 whiteSpace:     "nowrap",
@@ -229,12 +237,12 @@ export default async function CandidatoDetailPage({
                 display:        "inline-flex",
                 alignItems:     "center",
                 gap:            "0.375rem",
-                padding:        "0.5rem 1rem",
+                padding:        "0.5rem 1.125rem",
                 fontSize:       "13.5px",
-                fontWeight:     600,
-                color:          "var(--gl-olive)",
-                background:     "var(--gl-olive-bg)",
-                border:         "1px solid rgba(42,74,24,0.25)",
+                fontWeight:     700,
+                color:          "#ffffff",
+                background:     "#2a4a18",
+                border:         "1.5px solid #2a4a18",
                 borderRadius:   "0.75rem",
                 textDecoration: "none",
                 whiteSpace:     "nowrap",
@@ -243,14 +251,6 @@ export default async function CandidatoDetailPage({
             >
               Editar perfil
             </Link>
-            <AsignarBusquedaDialog
-              candidatoId={candidato.id}
-              candidatoNombre={`${candidato.nombre} ${candidato.apellido}`}
-              busquedas={busquedasActivas ?? []}
-              gestionesExistentes={(gestionesData ?? [])
-                .map((g) => (g.busquedas as { id: string } | null)?.id ?? "")
-                .filter(Boolean)}
-            />
           </div>
         </div>
 
