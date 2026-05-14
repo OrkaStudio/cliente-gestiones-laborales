@@ -6,6 +6,40 @@ import type { CVParseado } from "@/lib/cv/parse"
 import { upsertCandidato } from "@/lib/cv/upsert-candidato"
 import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
+import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
+
+// Labels del CV que corresponden a campos del perfil
+const PROFILE_TO_CV_LABEL: Record<string, string> = {
+  telefono:         "Teléfono",
+  email:            "Email",
+  fecha_nacimiento: "Fecha de nacimiento",
+  ubicacion:        "Ubicación",
+}
+
+function syncDatosPersonales(cvTexto: string, data: CandidatoData): string {
+  const sections = parseSections(cvTexto)
+  const dpIdx    = sections.findIndex((s) => s.title === "DATOS PERSONALES")
+  if (dpIdx === -1) return cvTexto
+
+  const managed  = new Set(Object.values(PROFILE_TO_CV_LABEL).map((l) => l.toLowerCase()))
+  const existing = parseKV(sections[dpIdx].content)
+
+  // Pares que no manejamos (DNI, Nacionalidad, etc.) → los conservamos
+  const extra = existing.filter((p) => !managed.has(p.label.toLowerCase()))
+
+  // Pares que sí manejamos, con los valores nuevos
+  const updated: KVPair[] = Object.entries(PROFILE_TO_CV_LABEL).flatMap(([field, label]) => {
+    const val = (data as Record<string, string | undefined>)[field]?.trim()
+    return val ? [{ label, value: val }] : []
+  })
+
+  const content = [...updated, ...extra]
+    .map((p) => (p.label ? `${p.label}: ${p.value}` : p.value))
+    .join("\n")
+
+  sections[dpIdx] = { ...sections[dpIdx], content }
+  return assembleSections(sections)
+}
 
 export async function guardarCandidatoProcesado(data: CVParseado): Promise<ActionResult> {
   const supabase = createServiceClient()
@@ -175,8 +209,26 @@ export async function updateCandidato(id: string, data: CandidatoData): Promise<
 
   if (error) return { success: false, error: error.message }
 
+  // Sincronizar DATOS PERSONALES del CV con los valores del perfil
+  const { data: row } = await supabase
+    .from("candidatos")
+    .select("cv_procesado_texto")
+    .eq("id", id)
+    .single()
+
+  if (row?.cv_procesado_texto) {
+    const synced = syncDatosPersonales(row.cv_procesado_texto, data)
+    if (synced !== row.cv_procesado_texto) {
+      await supabase
+        .from("candidatos")
+        .update({ cv_procesado_texto: synced })
+        .eq("id", id)
+    }
+  }
+
   revalidatePath("/candidatos")
   revalidatePath(`/candidatos/${id}`)
+  revalidatePath(`/candidatos/${id}/cv`)
   revalidatePath("/")
   return { success: true, id }
 }

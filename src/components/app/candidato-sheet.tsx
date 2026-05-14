@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, type FormEvent } from "react"
+import { useState, useTransition, useEffect, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Plus, Loader2, X } from "lucide-react"
@@ -128,6 +128,18 @@ export function CandidatoSheet({ candidato }: { candidato?: Candidato }) {
   const [showConfirm, setShowConfirm] = useState(false)
   const router = useRouter()
   const isEdit = !!candidato
+
+  // Intercept browser back button when the sheet is open with unsaved changes
+  useEffect(() => {
+    if (!open || !dirty) return
+    window.history.pushState(null, "", window.location.href)
+    function handlePopState() {
+      window.history.pushState(null, "", window.location.href)
+      setShowConfirm(true)
+    }
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [open, dirty])
 
   function tryClose() {
     if (dirty) { setShowConfirm(true) } else { doClose() }
