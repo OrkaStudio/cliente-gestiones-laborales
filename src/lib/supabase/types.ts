@@ -390,7 +390,7 @@ export type Database = {
       notificaciones: {
         Row: {
           id: string
-          tipo: "garantia" | "cv_error" | "cv_nuevo"
+          tipo: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
           titulo: string
           cuerpo: string
           busqueda_id: string | null
@@ -399,7 +399,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          tipo: "garantia" | "cv_error" | "cv_nuevo"
+          tipo: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
           titulo: string
           cuerpo: string
           busqueda_id?: string | null
@@ -408,7 +408,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          tipo?: "garantia" | "cv_error" | "cv_nuevo"
+          tipo?: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
           titulo?: string
           cuerpo?: string
           busqueda_id?: string | null
