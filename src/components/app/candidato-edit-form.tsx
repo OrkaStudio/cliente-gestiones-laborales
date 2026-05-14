@@ -111,8 +111,8 @@ function BoolField({ label, value, onChange }: { label: string; value: boolean |
   )
 }
 
-function Row({ children }: { children: React.ReactNode }) {
-  return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>{children}</div>
+function Row({ children, cols = 2 }: { children: React.ReactNode; cols?: number }) {
+  return <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: "0.75rem" }}>{children}</div>
 }
 
 function AccordionCard({
@@ -220,32 +220,26 @@ function ExpCard({
       {/* Body */}
       {open && (
         <div style={{ padding: "1rem", display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-          <Row>
+          <Row cols={4}>
             <Field label="Cargo / Rol" value={exp.rol} onChange={(v) => onChange({ rol: v })} required placeholder="Capataz de campo" />
             <Field label="Empresa / Establecimiento" value={exp.empresa} onChange={(v) => onChange({ empresa: v })} required placeholder="Estancia La Pampa" />
+            <Field label="Desde" value={exp.desde} onChange={(v) => onChange({ desde: v })} type="date" />
+            <Field label="Hasta" value={exp.hasta ?? ""} onChange={(v) => onChange({ hasta: v || null })} type="date" hint="Vacío = trabajo actual" />
           </Row>
-          <Row>
-            <Field label="Desde" value={exp.desde} onChange={(v) => onChange({ desde: v })} type="date" hint="Fecha de inicio" />
-            <Field label="Hasta" value={exp.hasta ?? ""} onChange={(v) => onChange({ hasta: v || null })} type="date" hint="Dejar vacío si es trabajo actual" />
-          </Row>
-          <Row>
+          <Row cols={4}>
             <Field label="Propietario" value={exp.nombre_propietario ?? ""} onChange={(v) => onChange({ nombre_propietario: v || null })} placeholder="Juan Pérez" />
-            <Field label="Ubicación del establecimiento" value={exp.ubicacion ?? ""} onChange={(v) => onChange({ ubicacion: v || null })} placeholder="Trenque Lauquen, Bs As" />
-          </Row>
-          <Row>
+            <Field label="Ubicación" value={exp.ubicacion ?? ""} onChange={(v) => onChange({ ubicacion: v || null })} placeholder="Trenque Lauquen, Bs As" />
             <Field label="Dimensión" value={exp.dimension_establecimiento ?? ""} onChange={(v) => onChange({ dimension_establecimiento: v || null })} placeholder="1.200 ha, 400 cabezas" />
             <Field label="Personal a cargo" value={exp.personal_a_cargo ?? ""} onChange={(v) => onChange({ personal_a_cargo: v || null })} placeholder="3 personas" />
           </Row>
-          <Row>
+          <Row cols={4}>
             <BoolField label="¿En blanco?" value={exp.en_blanco} onChange={(v) => onChange({ en_blanco: v })} />
             <Field label="Motivo de cambio / salida" value={exp.motivo_cambio_o_salida ?? ""} onChange={(v) => onChange({ motivo_cambio_o_salida: v || null })} placeholder="Búsqueda de nuevas oportunidades" />
-          </Row>
-          {exp.hasta === null && (
-            <Row>
+            {exp.hasta === null && <>
               <Field label="Ingresos actuales" value={exp.ingresos_actuales ?? ""} onChange={(v) => onChange({ ingresos_actuales: v || null })} placeholder="$800.000" />
               <Field label="Beneficios" value={exp.beneficios ?? ""} onChange={(v) => onChange({ beneficios: v || null })} placeholder="Carne, vivienda, combustible" />
-            </Row>
-          )}
+            </>}
+          </Row>
           <Field label="Descripción de tareas" value={exp.descripcion ?? ""} onChange={(v) => onChange({ descripcion: v || null })} multiline placeholder="Conducción general del establecimiento..." />
         </div>
       )}
@@ -453,7 +447,7 @@ export function CandidatoEditForm({
         position:       "sticky", top: 0, zIndex: 30,
         background:     SURFACE, borderBottom: `1px solid ${BORDER}`,
         boxShadow:      "0 2px 12px rgba(13,17,23,0.06)",
-        padding:        "0.875rem 3rem",
+        padding:        "0.875rem 2rem",
         display:        "flex", alignItems: "center", justifyContent: "space-between",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
@@ -496,31 +490,25 @@ export function CandidatoEditForm({
       </div>
 
       {/* Contenido */}
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "2rem 3rem 6rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
+      <div style={{ padding: "1.75rem 2rem 6rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
 
         {/* Identificación */}
         <AccordionCard title="Identificación" summary={`${c.nombre} ${c.apellido}${c.telefono ? " · " + c.telefono : ""}`}>
-          <Row>
+          <Row cols={4}>
             <Field label="Nombre" value={c.nombre} onChange={(v) => setField("nombre", v)} required />
             <Field label="Apellido" value={c.apellido} onChange={(v) => setField("apellido", v)} required />
-          </Row>
-          <Row>
             <Field label="Fecha de nacimiento" value={c.fecha_nacimiento ?? ""} onChange={(v) => setField("fecha_nacimiento", v || null)} type="date" />
             <Field label="DNI" value={c.dni ?? ""} onChange={(v) => setField("dni", v || null)} placeholder="Sin puntos" />
           </Row>
-          <Row>
+          <Row cols={4}>
             <Field label="Estado civil" value={c.estado_civil ?? ""} onChange={(v) => setField("estado_civil", v || null)} placeholder="Soltero, casado..." />
             <Field label="Hijos" value={c.hijos ?? ""} onChange={(v) => setField("hijos", v || null)} placeholder="2 hijos, 5 y 8 años" />
-          </Row>
-          <Row>
             <Field label="Lugar de nacimiento" value={c.lugar_nacimiento ?? ""} onChange={(v) => setField("lugar_nacimiento", v || null)} placeholder="Ciudad y provincia" />
             <Field label="Domicilio completo" value={c.domicilio_completo ?? ""} onChange={(v) => setField("domicilio_completo", v || null)} placeholder="Calle, número, localidad" />
           </Row>
-          <Row>
+          <Row cols={4}>
             <Field label="Teléfono" value={c.telefono ?? ""} onChange={(v) => setField("telefono", v || null)} placeholder="221 555-1234" />
             <Field label="Email" value={c.email ?? ""} onChange={(v) => setField("email", v || null)} type="email" placeholder="juan@mail.com" />
-          </Row>
-          <Row>
             <BoolField label="Vehículo propio" value={c.vehiculo_propio} onChange={(v) => setField("vehiculo_propio", v)} />
             <BoolField label="Licencia de conducir" value={c.licencia_conducir} onChange={(v) => setField("licencia_conducir", v)} />
           </Row>
@@ -532,7 +520,7 @@ export function CandidatoEditForm({
 
         {/* Perfil profesional */}
         <AccordionCard title="Perfil Profesional" summary={`${c.ultimo_puesto ?? ""}${c.estado ? " · " + c.estado : ""}`}>
-          <Row>
+          <Row cols={4}>
             <Field label="Último puesto" value={c.ultimo_puesto ?? ""} onChange={(v) => setField("ultimo_puesto", v || null)} placeholder="Capataz de campo" />
             <div>
               <label style={labelStyle}>Estado</label>
@@ -547,8 +535,6 @@ export function CandidatoEditForm({
                 <option value="inactivo">Inactivo</option>
               </select>
             </div>
-          </Row>
-          <Row>
             <Field label="Disponibilidad" value={c.disponibilidad ?? ""} onChange={(v) => setField("disponibilidad", v || null)} placeholder="Inmediata" />
             <Field label="Pretensión salarial" value={c.pretension_salarial ?? ""} onChange={(v) => setField("pretension_salarial", v || null)} placeholder="$800.000" />
           </Row>
