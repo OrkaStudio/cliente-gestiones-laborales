@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MessageCircle, BookOpen, MapPin, TrendingUp, FileText, ArrowLeft } from "lucide-react";
+import { MessageCircle, MapPin, TrendingUp, FileText, ArrowLeft } from "lucide-react";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
@@ -96,6 +96,21 @@ export default async function CandidatoDetailPage({
   const estadoBadge = candidato.estado === "activo"
     ? { bg: "#dafbe1", color: "#1a7f37" }
     : { bg: "#f6f8fa", color: "#57606a" };
+
+  // Ficha: items que tienen valor
+  type FichaItem = { label: string; value: string; positive?: boolean; negative?: boolean }
+  const fichaItems: FichaItem[] = [
+    edad != null                            ? { label: "Edad",             value: `${edad} años` }                                                   : null,
+    candidato.estado_civil                  ? { label: "Estado civil",     value: candidato.estado_civil }                                           : null,
+    candidato.hijos                         ? { label: "Hijos",            value: candidato.hijos }                                                  : null,
+    candidato.pretension_salarial           ? { label: "Pretensión",       value: candidato.pretension_salarial }                                    : null,
+    candidato.disponibilidad                ? { label: "Disponibilidad",   value: candidato.disponibilidad }                                         : null,
+    candidato.movilidad !== null            ? { label: "Movilidad a campo", value: candidato.movilidad ? "Sí" : "No", positive: !!candidato.movilidad, negative: candidato.movilidad === false } : null,
+    candidato.vehiculo_propio !== null      ? { label: "Vehículo propio",  value: candidato.vehiculo_propio ? "Sí" : "No", positive: !!candidato.vehiculo_propio, negative: candidato.vehiculo_propio === false } : null,
+    candidato.licencia_conducir !== null    ? { label: "Licencia conducir", value: candidato.licencia_conducir ? "Sí" : "No", positive: !!candidato.licencia_conducir, negative: candidato.licencia_conducir === false } : null,
+    candidato.educacion                     ? { label: "Educación",        value: candidato.educacion }                                              : null,
+    (candidato.domicilio_completo ?? candidato.ubicacion) ? { label: "Domicilio", value: (candidato.domicilio_completo ?? candidato.ubicacion)! }   : null,
+  ].filter(Boolean) as FichaItem[]
 
   // Stats que van en el header (sólo los que tienen valor)
   const headerStats = [
@@ -283,6 +298,48 @@ export default async function CandidatoDetailPage({
           </div>
         </div>
       </div>
+
+      {/* ── Ficha rápida ──────────────────────────────────────────── */}
+      {fichaItems.length > 0 && (
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div
+            className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4"
+            style={{ color: "var(--gl-ink-3)" }}
+          >
+            Datos del candidato
+          </div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+              gap: "1rem 2.5rem",
+            }}
+          >
+            {fichaItems.map((item) => (
+              <div key={item.label}>
+                <div
+                  className="text-[10px] font-semibold uppercase tracking-wide mb-0.5"
+                  style={{ color: "var(--gl-ink-3)" }}
+                >
+                  {item.label}
+                </div>
+                <div
+                  className="text-[13.5px] font-semibold"
+                  style={{
+                    color: item.positive
+                      ? "var(--gl-olive)"
+                      : item.negative
+                        ? "#cf222e"
+                        : "var(--gl-ink)",
+                  }}
+                >
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -482,58 +539,6 @@ export default async function CandidatoDetailPage({
                       </div>
                     </div>
                   </a>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Perfil */}
-          {(candidato.pretension_salarial || candidato.disponibilidad || candidato.educacion || candidato.fecha_nacimiento) && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>Perfil</h2>
-              <div className="space-y-0.5">
-                {candidato.pretension_salarial && (
-                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                      Pretensión
-                    </span>
-                    <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>
-                      {candidato.pretension_salarial}
-                    </span>
-                  </div>
-                )}
-                {candidato.disponibilidad && (
-                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                      Disponib.
-                    </span>
-                    <span className="text-sm text-right" style={{ color: "var(--gl-ink)" }}>
-                      {candidato.disponibilidad}
-                    </span>
-                  </div>
-                )}
-                {candidato.fecha_nacimiento && edad != null && (
-                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
-                    <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                      Edad
-                    </span>
-                    <span className="text-sm font-semibold" style={{ color: "var(--gl-ink)" }}>
-                      {edad} años
-                    </span>
-                  </div>
-                )}
-                {candidato.educacion && (
-                  <div className="py-3">
-                    <div className="flex items-center gap-1.5 mb-1.5">
-                      <BookOpen className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)" }} />
-                      <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                        Educación
-                      </span>
-                    </div>
-                    <p className="text-sm leading-snug" style={{ color: "var(--gl-ink)" }}>
-                      {candidato.educacion}
-                    </p>
-                  </div>
                 )}
               </div>
             </div>
