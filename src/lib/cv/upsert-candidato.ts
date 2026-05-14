@@ -27,7 +27,7 @@ export async function upsertCandidato(
   // Buscar candidato existente: primero por email, luego por nombre+apellido
   let candidatoId: string | null = null;
 
-  if (data.email) {
+  if (data.email?.trim()) {
     const { data: existente } = await supabase
       .from("candidatos")
       .select("id")
@@ -49,7 +49,7 @@ export async function upsertCandidato(
   const payload = {
     nombre: data.nombre,
     apellido: data.apellido,
-    email: data.email ?? null,
+    email: data.email || null,
     telefono: data.telefono ?? null,
     fecha_nacimiento: toISODate(data.fecha_nacimiento),
     ubicacion: data.ubicacion ?? null,
