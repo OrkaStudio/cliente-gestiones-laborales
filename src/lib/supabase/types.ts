@@ -273,7 +273,7 @@ export type Database = {
           candidato_id: string
           created_at: string
           descripcion: string | null
-          desde: string
+          desde: string | null
           empresa: string
           hasta: string | null
           id: string
@@ -292,7 +292,7 @@ export type Database = {
           candidato_id: string
           created_at?: string
           descripcion?: string | null
-          desde: string
+          desde?: string | null
           empresa: string
           hasta?: string | null
           id?: string
@@ -311,7 +311,7 @@ export type Database = {
           candidato_id?: string
           created_at?: string
           descripcion?: string | null
-          desde?: string
+          desde?: string | null
           empresa?: string
           hasta?: string | null
           id?: string
