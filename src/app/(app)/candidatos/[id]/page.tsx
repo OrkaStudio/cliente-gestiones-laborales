@@ -202,14 +202,6 @@ export default async function CandidatoDetailPage({
 
           {/* Acciones */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <AsignarBusquedaDialog
-              candidatoId={candidato.id}
-              candidatoNombre={`${candidato.nombre} ${candidato.apellido}`}
-              busquedas={busquedasActivas ?? []}
-              gestionesExistentes={(gestionesData ?? [])
-                .map((g) => (g.busquedas as { id: string } | null)?.id ?? "")
-                .filter(Boolean)}
-            />
             <Link
               href={`/candidatos/${candidato.id}/cv`}
               style={{
@@ -353,14 +345,24 @@ export default async function CandidatoDetailPage({
                   Búsquedas en las que participa
                 </p>
               </div>
-              {(gestionesData?.length ?? 0) > 0 && (
-                <span
-                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                  style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
-                >
-                  {gestionesData!.length} total
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {(gestionesData?.length ?? 0) > 0 && (
+                  <span
+                    className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                    style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
+                  >
+                    {gestionesData!.length} total
+                  </span>
+                )}
+                <AsignarBusquedaDialog
+                  candidatoId={candidato.id}
+                  candidatoNombre={`${candidato.nombre} ${candidato.apellido}`}
+                  busquedas={busquedasActivas ?? []}
+                  gestionesExistentes={(gestionesData ?? [])
+                    .map((g) => (g.busquedas as { id: string } | null)?.id ?? "")
+                    .filter(Boolean)}
+                />
+              </div>
             </div>
 
             {!gestionesData?.length ? (
