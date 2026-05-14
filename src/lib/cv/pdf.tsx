@@ -1,6 +1,10 @@
 import path from "path"
 import { Document, Page, Text, View, Image, StyleSheet } from "@react-pdf/renderer"
-import { parseSections, parseKV, parseJobs, parseBullets, parseRefs } from "./utils"
+import type { Tables } from "@/lib/supabase/types"
+
+type Candidato   = Tables<"candidatos">
+type Experiencia = Tables<"experiencia_laboral">
+type Referencia  = { nombre: string; contacto: string; relacion: string }
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const C = {
@@ -15,387 +19,231 @@ const C = {
 // ─── Assets ───────────────────────────────────────────────────────────────────
 const LOGO_LEYENDA = path.join(process.cwd(), "public", "brand", "logo-leyenda.png")
 
-// ─── Márgenes ─────────────────────────────────────────────────────────────────
 const PL = 52
 const PR = 48
-const PT = 52   // top padding (espacio para la marca fija)
+const PT = 52
 
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-
-  page: {
-    backgroundColor: C.white,
-    fontFamily:      "Helvetica",
-    paddingBottom:   48,
+  page:          { backgroundColor: C.white, fontFamily: "Helvetica", paddingBottom: 48 },
+  brandFixed:    { position: "absolute", top: 24, right: PR, width: 90, height: "auto" },
+  body:          { paddingLeft: PL, paddingRight: PR, paddingTop: PT },
+  candidatoHeader: { marginBottom: 22, borderBottomWidth: 1.5, borderBottomColor: C.olive, paddingBottom: 10 },
+  candidatoNombre: { fontFamily: "Helvetica-Bold", fontSize: 22, color: C.ink, letterSpacing: -0.5 },
+  candidatoSub:  { fontSize: 8, color: C.ink3, marginTop: 4, letterSpacing: 2 },
+  section:       { marginBottom: 16 },
+  sectionTitle:  {
+    fontFamily: "Helvetica-Bold", fontSize: 11, color: C.olive, letterSpacing: 1.2,
+    textTransform: "uppercase", borderBottomWidth: 1, borderBottomColor: C.olive,
+    paddingBottom: 3, marginBottom: 10,
   },
-
-  // ── MARCA FIJA (top-right en todas las páginas) ───────────────────────────
-  brandFixed: {
-    position:  "absolute",
-    top:       24,
-    right:     PR,
-    width:     90,
-    height:    "auto",
-  },
-
-  // ── BODY ──────────────────────────────────────────────────────────────────
-  body: {
-    paddingLeft:  PL,
-    paddingRight: PR,
-    paddingTop:   PT,
-  },
-
-  // ── NOMBRE DEL CANDIDATO (primera página) ─────────────────────────────────
-  candidatoHeader: {
-    marginBottom: 22,
-    borderBottomWidth: 1.5,
-    borderBottomColor: C.olive,
-    paddingBottom: 10,
-  },
-  candidatoNombre: {
-    fontFamily:    "Helvetica-Bold",
-    fontSize:      22,
-    color:         C.ink,
-    letterSpacing: -0.5,
-  },
-  candidatoSub: {
-    fontSize:  8,
-    color:     C.ink3,
-    marginTop: 4,
-    letterSpacing: 2,
-  },
-
-  // ── SECTION ───────────────────────────────────────────────────────────────
-  section: {
-    marginBottom: 16,
-  },
-
-  sectionTitle: {
-    fontFamily:      "Helvetica-Bold",
-    fontSize:        11,
-    color:           C.olive,
-    letterSpacing:   1.2,
-    textTransform:   "uppercase",
-    borderBottomWidth: 1,
-    borderBottomColor: C.olive,
-    paddingBottom:   3,
-    marginBottom:    10,
-  },
-
-  // ── BULLETS (datos personales y formación) ────────────────────────────────
-  bulletRow: {
-    flexDirection: "row",
-    marginBottom:  4,
-    paddingLeft:   4,
-  },
-  bulletDot: {
-    color:     C.olive,
-    fontSize:  9,
-    width:     12,
-    marginTop: 0.5,
-  },
-  bulletLabel: {
-    fontFamily:  "Helvetica-Bold",
-    fontSize:    9.5,
-    color:       C.ink3,
-    marginRight: 3,
-  },
-  bulletValue: {
-    flex:       1,
-    fontSize:   9.5,
-    color:      C.ink2,
-    lineHeight: 1.5,
-  },
-
-  // ── EXPERIENCIA ───────────────────────────────────────────────────────────
-  jobBlock: {
-    marginBottom: 12,
-  },
-  jobPeriod: {
-    fontFamily:    "Helvetica-Bold",
-    fontSize:      8,
-    color:         C.olive,
-    letterSpacing: 0.5,
-    marginBottom:  2,
-  },
-  jobTitle: {
-    fontFamily:   "Helvetica-Bold",
-    fontSize:     11,
-    color:        C.ink,
-    marginBottom: 1,
-  },
-  jobCompany: {
-    fontFamily:   "Helvetica-BoldOblique",
-    fontSize:     9.5,
-    color:        C.ink2,
-    marginBottom: 5,
-  },
-  jobBulletRow: {
-    flexDirection: "row",
-    marginBottom:  3,
-    paddingLeft:   4,
-  },
-  jobBulletDot: {
-    color:    C.ink3,
-    fontSize: 9,
-    width:    12,
-  },
-  jobBulletText: {
-    flex:       1,
-    fontSize:   9.5,
-    color:      C.ink2,
-    lineHeight: 1.6,
-  },
-  jobDesc: {
-    fontSize:   9.5,
-    color:      C.ink2,
-    lineHeight: 1.7,
-    textAlign:  "justify",
-  },
-
-  // ── BULLETS GRID (conocimientos) ──────────────────────────────────────────
-  bulletGrid: {
-    flexDirection: "row",
-    flexWrap:      "wrap",
-  },
-  bulletGridItem: {
-    width:         "50%",
-    flexDirection: "row",
-    marginBottom:  4,
-    paddingRight:  8,
-  },
-
-  // ── REFERENCIAS ───────────────────────────────────────────────────────────
-  refBlock: {
-    marginBottom:    8,
-    paddingLeft:     10,
-    borderLeftWidth: 2,
-    borderLeftColor: C.border,
-  },
-  refName: {
-    fontFamily:   "Helvetica-Bold",
-    fontSize:     9.5,
-    color:        C.ink,
-    marginBottom: 2,
-  },
-  refDetail: {
-    fontSize: 9,
-    color:    C.ink3,
-  },
-
-  // ── PÁRRAFO GENÉRICO ──────────────────────────────────────────────────────
-  para: {
-    fontSize:   9.5,
-    color:      C.ink2,
-    lineHeight: 1.72,
-    textAlign:  "justify",
-  },
-
-  // ── FOOTER ────────────────────────────────────────────────────────────────
-  footer: {
-    position:        "absolute",
-    bottom:          0,
-    left:            0,
-    right:           0,
-    height:          36,
-    paddingLeft:     PL,
-    paddingRight:    PR,
-    borderTopWidth:  1,
-    borderTopColor:  C.border,
-    flexDirection:   "row",
-    alignItems:      "center",
-    justifyContent:  "space-between",
+  kvRow:         { flexDirection: "row", marginBottom: 4, paddingLeft: 4 },
+  kvLabel:       { fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink3, width: 130 },
+  kvValue:       { flex: 1, fontSize: 9.5, color: C.ink2, lineHeight: 1.5 },
+  jobBlock:      { marginBottom: 12 },
+  jobPeriod:     { fontFamily: "Helvetica-Bold", fontSize: 8, color: C.olive, letterSpacing: 0.5, marginBottom: 2 },
+  jobTitle:      { fontFamily: "Helvetica-Bold", fontSize: 11, color: C.ink, marginBottom: 1 },
+  jobCompany:    { fontFamily: "Helvetica-BoldOblique", fontSize: 9.5, color: C.ink2, marginBottom: 5 },
+  jobMeta:       { flexDirection: "row", flexWrap: "wrap", gap: 12, marginBottom: 4 },
+  jobMetaItem:   { flexDirection: "row", fontSize: 9 },
+  jobMetaLabel:  { fontFamily: "Helvetica-Bold", color: C.ink3 },
+  jobMetaValue:  { color: C.ink2 },
+  jobDesc:       { fontSize: 9.5, color: C.ink2, lineHeight: 1.7, textAlign: "justify" },
+  refBlock:      { marginBottom: 8, paddingLeft: 10, borderLeftWidth: 2, borderLeftColor: C.border },
+  refName:       { fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink, marginBottom: 2 },
+  refDetail:     { fontSize: 9, color: C.ink3 },
+  para:          { fontSize: 9.5, color: C.ink2, lineHeight: 1.72, textAlign: "justify" },
+  tag:           { fontSize: 9, color: C.ink2, marginBottom: 3, marginRight: 12 },
+  footer:        {
+    position: "absolute", bottom: 0, left: 0, right: 0, height: 36,
+    paddingLeft: PL, paddingRight: PR, borderTopWidth: 1, borderTopColor: C.border,
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     backgroundColor: C.white,
   },
-  footerBrand: {
-    fontFamily:    "Helvetica-Bold",
-    fontSize:      7,
-    color:         C.olive,
-    letterSpacing: 1.5,
-  },
-  footerMid: {
-    fontSize:      7,
-    color:         C.ink3,
-    letterSpacing: 0.3,
-  },
-  footerPage: {
-    fontFamily:    "Helvetica-Bold",
-    fontSize:      7,
-    color:         C.olive,
-    letterSpacing: 0.5,
-  },
+  footerBrand:   { fontFamily: "Helvetica-Bold", fontSize: 7, color: C.olive, letterSpacing: 1.5 },
+  footerMid:     { fontSize: 7, color: C.ink3, letterSpacing: 0.3 },
+  footerPage:    { fontFamily: "Helvetica-Bold", fontSize: 7, color: C.olive, letterSpacing: 0.5 },
 })
 
-// ─── Renderers ────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function DatosPersonales({ content }: { content: string }) {
-  const pairs = parseKV(content)
+function formatFecha(d: string | null): string {
+  if (!d) return "Actualidad"
+  const [y, m] = d.split("-")
+  return m && m !== "01" ? `${m}/${y}` : y
+}
+
+function calcEdad(fechaNac: string): number | null {
+  const b = new Date(fechaNac)
+  if (isNaN(b.getTime())) return null
+  const today = new Date()
+  let age = today.getFullYear() - b.getFullYear()
+  if (today.getMonth() - b.getMonth() < 0 || (today.getMonth() - b.getMonth() === 0 && today.getDate() < b.getDate())) age--
+  return age
+}
+
+// ─── Secciones PDF ────────────────────────────────────────────────────────────
+
+function KVRow({ label, value }: { label: string; value: string | null | undefined }) {
+  if (!value?.trim()) return null
   return (
-    <View>
-      {pairs.map((p, i) => (
-        <View key={i} style={s.bulletRow}>
-          <Text style={s.bulletDot}>•</Text>
-          {p.label
-            ? (
-              <>
-                <Text style={s.bulletLabel}>{p.label}:</Text>
-                <Text style={s.bulletValue}>{p.value}</Text>
-              </>
-            )
-            : <Text style={s.bulletValue}>{p.value}</Text>
-          }
-        </View>
-      ))}
+    <View style={s.kvRow}>
+      <Text style={s.kvLabel}>{label}:</Text>
+      <Text style={s.kvValue}>{value}</Text>
     </View>
   )
 }
 
-function Parrafo({ content }: { content: string }) {
-  return <Text style={s.para}>{content}</Text>
+function DatosPersonalesPDF({ c }: { c: Candidato }) {
+  const edad = c.fecha_nacimiento ? calcEdad(c.fecha_nacimiento) : null
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>Datos Personales</Text>
+      <KVRow label="Nombre y Apellido" value={`${c.nombre} ${c.apellido}`} />
+      {c.fecha_nacimiento && (
+        <KVRow label="Fecha de nacimiento" value={edad != null ? `${c.fecha_nacimiento} (${edad} años)` : c.fecha_nacimiento} />
+      )}
+      <KVRow label="DNI"            value={c.dni} />
+      <KVRow label="Domicilio"      value={c.domicilio_completo ?? c.ubicacion} />
+      <KVRow label="Teléfono"       value={c.telefono} />
+      <KVRow label="Email"          value={c.email} />
+      <KVRow label="Estado civil"   value={c.estado_civil} />
+      <KVRow label="Hijos"          value={c.hijos} />
+      <KVRow label="Estudios"       value={c.educacion} />
+      {c.vehiculo_propio !== null && <KVRow label="Vehículo propio"  value={c.vehiculo_propio ? "Sí" : "No"} />}
+      {c.licencia_conducir !== null && <KVRow label="Licencia conducir" value={c.licencia_conducir ? "Sí" : "No"} />}
+      <KVRow label="Muebles propios" value={c.muebles_propios} />
+      <KVRow label="Animales"       value={c.animales} />
+    </View>
+  )
 }
 
-function Experiencia({ content }: { content: string }) {
-  const jobs = parseJobs(content)
-  if (!jobs.length) return <Parrafo content={content} />
-
+function ExperienciaPDF({ experiencia }: { experiencia: Experiencia[] }) {
+  if (!experiencia.length) return null
   return (
-    <View>
-      {jobs.map((job, i) => {
-        const lines = job.desc
-          ? job.desc.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean)
-          : []
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>Experiencia Laboral</Text>
+      {experiencia.map((exp) => (
+        <View key={exp.id} style={s.jobBlock} wrap={false}>
+          <Text style={s.jobPeriod}>{formatFecha(exp.desde)} — {formatFecha(exp.hasta)}</Text>
+          <Text style={s.jobTitle}>{exp.rol} — {exp.empresa}</Text>
 
-        return (
-          <View key={i} style={s.jobBlock} wrap={false}>
-            {!!job.periodo && <Text style={s.jobPeriod}>{job.periodo}</Text>}
-            {!!job.titulo  && <Text style={s.jobTitle}>{job.titulo}</Text>}
-            {!!job.empresa && <Text style={s.jobCompany}>{job.empresa}</Text>}
-            {lines.length > 1
-              ? lines.map((line, j) => (
-                  <View key={j} style={s.jobBulletRow}>
-                    <Text style={s.jobBulletDot}>•</Text>
-                    <Text style={s.jobBulletText}>{line}</Text>
-                  </View>
-                ))
-              : !!job.desc && <Text style={s.jobDesc}>{job.desc}</Text>
-            }
+          {/* Meta info */}
+          <View style={s.jobMeta}>
+            {exp.nombre_propietario  && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Propietario: </Text><Text style={s.jobMetaValue}>{exp.nombre_propietario}</Text></View>}
+            {exp.ubicacion           && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Ubicación: </Text><Text style={s.jobMetaValue}>{exp.ubicacion}</Text></View>}
+            {exp.dimension_establecimiento && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Establecimiento: </Text><Text style={s.jobMetaValue}>{exp.dimension_establecimiento}</Text></View>}
+            {exp.personal_a_cargo    && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Personal a cargo: </Text><Text style={s.jobMetaValue}>{exp.personal_a_cargo}</Text></View>}
+            {exp.en_blanco !== null  && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>En blanco: </Text><Text style={s.jobMetaValue}>{exp.en_blanco ? "Sí" : "No"}</Text></View>}
           </View>
-        )
-      })}
-    </View>
-  )
-}
 
-function Formacion({ content }: { content: string }) {
-  const items = content.split("\n").map(l => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean)
-  return (
-    <View>
-      {items.map((item, i) => (
-        <View key={i} style={s.bulletRow}>
-          <Text style={s.bulletDot}>•</Text>
-          <Text style={s.bulletValue}>{item}</Text>
+          {exp.descripcion && <Text style={s.jobDesc}>{exp.descripcion}</Text>}
+
+          {exp.hasta === null && exp.ingresos_actuales && (
+            <View style={s.jobMetaItem}>
+              <Text style={s.jobMetaLabel}>Ingresos actuales: </Text>
+              <Text style={s.jobMetaValue}>{exp.ingresos_actuales}</Text>
+            </View>
+          )}
+          {exp.hasta === null && exp.beneficios && (
+            <View style={s.jobMetaItem}>
+              <Text style={s.jobMetaLabel}>Beneficios: </Text>
+              <Text style={s.jobMetaValue}>{exp.beneficios}</Text>
+            </View>
+          )}
+          {exp.motivo_cambio_o_salida && (
+            <View style={s.jobMetaItem}>
+              <Text style={s.jobMetaLabel}>Motivo de {exp.hasta === null ? "cambio" : "salida"}: </Text>
+              <Text style={s.jobMetaValue}>{exp.motivo_cambio_o_salida}</Text>
+            </View>
+          )}
         </View>
       ))}
     </View>
   )
-}
-
-function Conocimientos({ content }: { content: string }) {
-  const items = parseBullets(content)
-  return (
-    <View style={s.bulletGrid}>
-      {items.map((item, i) => (
-        <View key={i} style={s.bulletGridItem}>
-          <Text style={s.bulletDot}>•</Text>
-          <Text style={[s.bulletValue, { fontSize: 9 }]}>{item}</Text>
-        </View>
-      ))}
-    </View>
-  )
-}
-
-function Referencias({ content }: { content: string }) {
-  const blocks = parseRefs(content)
-  return (
-    <View>
-      {blocks.map((block, i) => (
-        <View key={i} style={s.refBlock}>
-          <Text style={s.refName}>{block[0]}</Text>
-          {block.slice(1).map((line, j) => (
-            <Text key={j} style={s.refDetail}>{line}</Text>
-          ))}
-        </View>
-      ))}
-    </View>
-  )
-}
-
-function SectionContent({ title, content }: { title: string; content: string }) {
-  if (title === "DATOS PERSONALES")                   return <DatosPersonales content={content} />
-  if (title === "EXPERIENCIA LABORAL")                return <Experiencia     content={content} />
-  if (title.startsWith("CONOCIMIENTOS"))              return <Conocimientos   content={content} />
-  if (title === "FORMACIÓN" || title === "FORMACION") return <Formacion       content={content} />
-  if (title === "REFERENCIAS")                        return <Referencias     content={content} />
-  return <Parrafo content={content} />
 }
 
 // ─── Documento ────────────────────────────────────────────────────────────────
+
 export function CVDocument({
-  nombre,
-  apellido,
-  cvTexto,
+  candidato,
+  experiencia,
   fecha,
 }: {
-  nombre:   string
-  apellido: string
-  cvTexto:  string
-  fecha:    string
+  candidato:   Candidato
+  experiencia: Experiencia[]
+  fecha:       string
 }) {
-  const sections = parseSections(cvTexto)
+  const refs: Referencia[] = (candidato.referencias as Referencia[] | null) ?? []
+  const conocimientos = [...(candidato.idiomas ?? []), ...(candidato.tipos_ganaderia ?? [])]
 
   return (
     <Document>
       <Page size="A4" style={s.page}>
-
-        {/* Marca GL — fija en todas las páginas, esquina superior derecha */}
         <Image src={LOGO_LEYENDA} style={s.brandFixed} fixed />
-
-        {/* Espaciador para páginas 2+ — deja aire bajo la marca fija */}
         <View fixed render={({ pageNumber }) => pageNumber > 1 ? <View style={{ height: 64 }} /> : null} />
 
-        {/* Cuerpo */}
         <View style={s.body}>
-
-          {/* Nombre del candidato — solo página 1 */}
+          {/* Nombre */}
           <View style={s.candidatoHeader}>
-            <Text style={s.candidatoNombre}>{nombre} {apellido}</Text>
+            <Text style={s.candidatoNombre}>{candidato.nombre} {candidato.apellido}</Text>
             <Text style={s.candidatoSub}>CURRÍCULUM VITAE</Text>
           </View>
 
-          {/* Secciones */}
-          {sections.length > 0
-            ? sections.map((sec, i) => (
-                <View key={i} style={s.section}>
-                  <View wrap={false}>
-                    <Text style={s.sectionTitle}>{sec.title}</Text>
-                  </View>
-                  <SectionContent title={sec.title} content={sec.content} />
+          <DatosPersonalesPDF c={candidato} />
+
+          {candidato.perfil_laboral && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Perfil Laboral</Text>
+              <Text style={s.para}>{candidato.perfil_laboral}</Text>
+            </View>
+          )}
+
+          <ExperienciaPDF experiencia={experiencia} />
+
+          {candidato.educacion && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Formación</Text>
+              <Text style={s.para}>{candidato.educacion}</Text>
+            </View>
+          )}
+
+          {conocimientos.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Conocimientos</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {conocimientos.map((k, i) => <Text key={i} style={s.tag}>▪ {k}</Text>)}
+              </View>
+            </View>
+          )}
+
+          {refs.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Referencias</Text>
+              {refs.map((ref, i) => (
+                <View key={i} style={s.refBlock}>
+                  <Text style={s.refName}>{ref.nombre}</Text>
+                  {ref.contacto && <Text style={s.refDetail}>{ref.contacto}</Text>}
+                  {ref.relacion && <Text style={s.refDetail}>{ref.relacion}</Text>}
                 </View>
-              ))
-            : <Text style={s.para}>{cvTexto}</Text>
-          }
+              ))}
+            </View>
+          )}
+
+          {(candidato.pretension_salarial || candidato.disponibilidad) && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Condiciones</Text>
+              <KVRow label="Pretensión salarial" value={candidato.pretension_salarial} />
+              <KVRow label="Disponibilidad"      value={candidato.disponibilidad} />
+            </View>
+          )}
         </View>
 
-        {/* Footer — fijo en todas las páginas */}
         <View style={s.footer} fixed>
           <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
           <Text style={s.footerMid}>{fecha}</Text>
-          <Text
-            style={s.footerPage}
-            render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`}
-          />
+          <Text style={s.footerPage} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
         </View>
-
       </Page>
     </Document>
   )

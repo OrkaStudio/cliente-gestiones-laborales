@@ -8,29 +8,25 @@ export async function GET(
   { params }: { params: Promise<{ candidatoId: string }> },
 ) {
   const { candidatoId } = await params
-
   const supabase = createServiceClient()
-  const { data } = await supabase
-    .from("candidatos")
-    .select("nombre, apellido, cv_procesado_texto")
-    .eq("id", candidatoId)
-    .single()
 
-  if (!data?.cv_procesado_texto) {
-    return new Response("CV no disponible", { status: 404 })
+  const [{ data: candidato }, { data: experiencia }] = await Promise.all([
+    supabase.from("candidatos").select("*").eq("id", candidatoId).single(),
+    supabase.from("experiencia_laboral").select("*").eq("candidato_id", candidatoId).order("orden"),
+  ])
+
+  if (!candidato) {
+    return new Response("Candidato no encontrado", { status: 404 })
   }
 
   const fecha = new Date().toLocaleDateString("es-AR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
+    day: "2-digit", month: "2-digit", year: "numeric",
   })
 
   const buffer = await renderToBuffer(
     createElement(CVDocument, {
-      nombre:   data.nombre,
-      apellido: data.apellido,
-      cvTexto:  data.cv_procesado_texto,
+      candidato,
+      experiencia: experiencia ?? [],
       fecha,
     }) as ReactElement<DocumentProps>,
   )
@@ -38,7 +34,7 @@ export async function GET(
   const safe = (s: string) =>
     s.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, "_")
 
-  const filename = `GL_CV_${safe(data.apellido)}_${safe(data.nombre)}.pdf`
+  const filename = `GL_CV_${safe(candidato.apellido)}_${safe(candidato.nombre)}.pdf`
 
   return new Response(new Uint8Array(buffer), {
     headers: {

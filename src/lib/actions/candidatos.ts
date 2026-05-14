@@ -146,6 +146,56 @@ export async function actualizarCVConRespuestas(candidatoId: string): Promise<Ac
 
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
 
+export async function updateCandidatoFields(
+  id: string,
+  fields: import("@/lib/supabase/types").TablesUpdate<"candidatos">,
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase.from("candidatos").update(fields).eq("id", id)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/candidatos/${id}`)
+  revalidatePath(`/candidatos/${id}/cv`)
+  return { success: true, id }
+}
+
+export async function updateExperienciaFields(
+  expId: string,
+  candidatoId: string,
+  fields: import("@/lib/supabase/types").TablesUpdate<"experiencia_laboral">,
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase.from("experiencia_laboral").update(fields).eq("id", expId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
+  return { success: true, id: expId }
+}
+
+export async function addExperiencia(
+  candidatoId: string,
+  fields: Omit<import("@/lib/supabase/types").TablesInsert<"experiencia_laboral">, "candidato_id">,
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from("experiencia_laboral")
+    .insert({ ...fields, candidato_id: candidatoId })
+    .select("id")
+    .single()
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
+  return { success: true, id: data.id }
+}
+
+export async function deleteExperiencia(expId: string, candidatoId: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase.from("experiencia_laboral").delete().eq("id", expId)
+  if (error) return { success: false, error: error.message }
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
+  return { success: true, id: expId }
+}
+
 type CandidatoData = {
   nombre: string
   apellido: string
