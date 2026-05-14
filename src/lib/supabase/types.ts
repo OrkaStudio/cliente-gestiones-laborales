@@ -394,6 +394,7 @@ export type Database = {
           titulo: string
           cuerpo: string
           busqueda_id: string | null
+          candidato_id: string | null
           leida: boolean
           created_at: string
         }
@@ -403,6 +404,7 @@ export type Database = {
           titulo: string
           cuerpo: string
           busqueda_id?: string | null
+          candidato_id?: string | null
           leida?: boolean
           created_at?: string
         }
@@ -412,6 +414,7 @@ export type Database = {
           titulo?: string
           cuerpo?: string
           busqueda_id?: string | null
+          candidato_id?: string | null
           leida?: boolean
           created_at?: string
         }
