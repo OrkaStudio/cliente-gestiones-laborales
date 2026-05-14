@@ -331,7 +331,11 @@ export default async function CandidatoDetailPage({
                       : item.negative
                         ? "#cf222e"
                         : "var(--gl-ink)",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                   }}
+                  title={item.value}
                 >
                   {item.value}
                 </div>
