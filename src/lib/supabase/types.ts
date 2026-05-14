@@ -120,6 +120,7 @@ export type Database = {
           perfil_laboral: string | null
           referencias: Json | null
           campos_faltantes: string[] | null
+          categorias: string[]
         }
         Insert: {
           apellido: string
@@ -163,6 +164,7 @@ export type Database = {
           perfil_laboral?: string | null
           referencias?: Json | null
           campos_faltantes?: string[] | null
+          categorias?: string[]
         }
         Update: {
           apellido?: string
@@ -206,6 +208,7 @@ export type Database = {
           perfil_laboral?: string | null
           referencias?: Json | null
           campos_faltantes?: string[] | null
+          categorias?: string[]
         }
         Relationships: []
       }

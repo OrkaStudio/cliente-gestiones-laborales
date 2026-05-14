@@ -6,6 +6,7 @@ import { toast } from "sonner"
 import { ArrowLeft, Plus, Trash2, Loader2, Save, ChevronDown } from "lucide-react"
 import { updateCandidatoFields, updateExperienciaFields, addExperiencia, deleteExperiencia } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 
 type Candidato   = Tables<"candidatos">
 type Experiencia = Tables<"experiencia_laboral">
@@ -283,6 +284,73 @@ function RefCard({ ref, onChange, onDelete }: { ref: Referencia; onChange: (r: R
   )
 }
 
+// ─── Categorías rurales ───────────────────────────────────────────────────────
+
+const CATEGORIAS_GL = [
+  // Gestión / Dirección
+  "Administrador Rural", "Ingeniero Agrónomo", "Veterinario",
+  "Contador/a Público/a Agro", "Asistente Administrativo/Contable Agro",
+  // Encargados
+  "Encargado General", "Encargado de Ganadería", "Encargado de Agricultura",
+  "Encargado de Maquinarias", "Encargado Agrícola-Ganadero", "Encargado de Tambo",
+  // Capataces
+  "Capataz de Ganadería", "Capataz de Agricultura", "Capataz de Maquinarias",
+  // Operarios
+  "Tambero", "Inseminador", "Cabañero", "Tractorista",
+  "Mecánico Tractorista", "Mixero", "Criancero o Guachero",
+  // General
+  "Peón General", "Puestero", "Caseros",
+]
+
+function ChipsField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string[]
+  onChange: (v: string[]) => void
+}) {
+  function toggle(cat: string) {
+    onChange(value.includes(cat) ? value.filter((c) => c !== cat) : [...value, cat])
+  }
+
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "0.375rem", marginTop: "0.25rem" }}>
+        {CATEGORIAS_GL.map((cat) => {
+          const selected = value.includes(cat)
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => toggle(cat)}
+              style={{
+                padding: "0.3rem 0.65rem",
+                fontSize: "12px",
+                fontWeight: selected ? 600 : 400,
+                borderRadius: "99px",
+                border: `1px solid ${selected ? OLIVE : BORDER_MD}`,
+                background: selected ? OLIVE_BG : SURFACE,
+                color: selected ? OLIVE : INK3,
+                cursor: "pointer",
+                transition: "all 0.12s",
+                userSelect: "none",
+              }}
+            >
+              {cat}
+            </button>
+          )
+        })}
+      </div>
+      {value.length === 0 && (
+        <p style={{ fontSize: 11, color: INK3, marginTop: 4 }}>Seleccioná las categorías que puede aplicar este candidato.</p>
+      )}
+    </div>
+  )
+}
+
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CandidatoEditForm({
@@ -301,6 +369,11 @@ export function CandidatoEditForm({
   const [deletedExpIds, setDeletedExpIds] = useState<string[]>([])
   const [newExps, setNewExps] = useState<Omit<Experiencia, "id" | "candidato_id" | "created_at">[]>([])
   const [dirty, setDirty] = useState(false)
+  const [confirmState, setConfirmState] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
+
+  function askConfirm(onConfirm: () => void) {
+    setConfirmState({ open: true, onConfirm })
+  }
 
   const setField = useCallback(<K extends keyof Candidato>(key: K, val: Candidato[K]) => {
     setC((prev) => ({ ...prev, [key]: val }))
@@ -320,10 +393,7 @@ export function CandidatoEditForm({
     window.history.pushState(null, "", window.location.href)
     function handlePopState() {
       window.history.pushState(null, "", window.location.href)
-      if (confirm("Tenés cambios sin guardar. ¿Salir igual?")) {
-        setDirty(false)
-        router.back()
-      }
+      askConfirm(() => { setDirty(false); router.back() })
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
@@ -386,7 +456,7 @@ export function CandidatoEditForm({
         movilidad: c.movilidad, tipos_ganaderia: c.tipos_ganaderia,
         idiomas: c.idiomas, ultimo_puesto: c.ultimo_puesto,
         referencias: c.referencias, notas_recruiter: c.notas_recruiter,
-        estado: c.estado,
+        estado: c.estado, categorias: c.categorias ?? [],
       })
       if (!result.success) errors.push(result.error)
 
@@ -433,7 +503,7 @@ export function CandidatoEditForm({
   }
 
   function handleCancel() {
-    if (dirty && !confirm("Tenés cambios sin guardar. ¿Salir igual?")) return
+    if (dirty) { askConfirm(() => router.push(`/candidatos/${c.id}`)); return }
     router.push(`/candidatos/${c.id}`)
   }
 
@@ -561,6 +631,11 @@ export function CandidatoEditForm({
             onChange={(v) => setField("tipos_ganaderia", v ? v.split(",").map((s) => s.trim()).filter(Boolean) : [])}
             placeholder="Bovina, tambo, mixto..."
           />
+          <ChipsField
+            label="Categorías que puede aplicar"
+            value={c.categorias ?? []}
+            onChange={(v) => setField("categorias", v)}
+          />
         </AccordionCard>
 
         {/* Experiencia laboral */}
@@ -639,6 +714,44 @@ export function CandidatoEditForm({
         </AccordionCard>
 
       </div>
+
+      {/* Confirmación al salir con cambios sin guardar */}
+      <Dialog
+        open={confirmState.open}
+        onOpenChange={(open) => { if (!open) setConfirmState((s) => ({ ...s, open: false })) }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Cambios sin guardar</DialogTitle>
+            <DialogDescription>
+              Tenés cambios sin guardar en el perfil. Si salís ahora, se van a perder.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <button
+              onClick={() => setConfirmState((s) => ({ ...s, open: false }))}
+              style={{
+                padding: "0.5rem 1rem", fontSize: 13.5, fontWeight: 500,
+                color: INK3, background: "transparent", border: `1px solid ${BORDER_MD}`,
+                borderRadius: 8, cursor: "pointer",
+              }}
+            >
+              Seguir editando
+            </button>
+            <button
+              onClick={() => { setConfirmState((s) => ({ ...s, open: false })); confirmState.onConfirm() }}
+              style={{
+                padding: "0.5rem 1rem", fontSize: 13.5, fontWeight: 600,
+                color: "#fff", background: "#cf222e",
+                border: "none", borderRadius: 8, cursor: "pointer",
+              }}
+            >
+              Salir sin guardar
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   )
 }
