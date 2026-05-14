@@ -223,7 +223,7 @@ function ExpCard({
           <Row cols={4}>
             <Field label="Cargo / Rol" value={exp.rol} onChange={(v) => onChange({ rol: v })} required placeholder="Capataz de campo" />
             <Field label="Empresa / Establecimiento" value={exp.empresa} onChange={(v) => onChange({ empresa: v })} required placeholder="Estancia La Pampa" />
-            <Field label="Desde" value={exp.desde} onChange={(v) => onChange({ desde: v })} type="date" />
+            <Field label="Desde" value={exp.desde ?? ""} onChange={(v) => onChange({ desde: v || null })} type="date" />
             <Field label="Hasta" value={exp.hasta ?? ""} onChange={(v) => onChange({ hasta: v || null })} type="date" hint="Vacío = trabajo actual" />
           </Row>
           <Row cols={4}>
