@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { Users, Inbox, MapPin, Shield, Archive } from "lucide-react";
+import { Users, Inbox, MapPin, Shield, Archive, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { BusquedaSheet } from "@/components/app/busqueda-sheet";
 import { BusquedasTabs } from "@/components/app/busquedas-tabs";
 
 const AVATAR_HEX = [
@@ -90,7 +89,13 @@ export default async function BusquedasPage() {
           >
             {activas.length} activa{activas.length !== 1 ? "s" : ""}
           </h1>
-          <BusquedaSheet />
+          <Link
+            href="/busquedas/nueva"
+            className="gl-btn-primary"
+          >
+            <Plus style={{ width: 14, height: 14 }} />
+            Nueva búsqueda
+          </Link>
         </div>
       </header>
 

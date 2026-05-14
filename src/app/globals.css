@@ -183,6 +183,45 @@
 /* ─ Divider */
 .gl-divider { height: 1px; background-color: var(--gl-border); }
 
+/* ─ Buttons */
+.gl-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--gl-olive);
+  border: none;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.gl-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(42, 74, 24, 0.3);
+}
+.gl-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 14px;
+  color: var(--gl-ink-3);
+  background: transparent;
+  border: 1px solid var(--gl-border-md);
+  border-radius: 0.375rem;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.gl-btn-secondary:hover {
+  color: var(--gl-ink);
+  border-color: var(--gl-ink);
+}
+
 /* ─ Eyebrow */
 .gl-eyebrow {
   font-size: 11px;

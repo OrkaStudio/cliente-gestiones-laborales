@@ -26,11 +26,13 @@ export function GestionEstadoSelect({
   candidatoId,
   busquedaId,
   estado,
+  locked = false,
 }: {
   gestionId: string
   candidatoId: string
   busquedaId: string
   estado: string
+  locked?: boolean
 }) {
   const [open, setOpen]       = useState(false)
   const [current, setCurrent] = useState(estado)
@@ -53,6 +55,20 @@ export function GestionEstadoSelect({
     start(async () => {
       await updateGestionEstado(gestionId, next, { busquedaId, candidatoId })
     })
+  }
+
+  if (locked) {
+    return (
+      <span
+        className="inline-flex items-center rounded-md text-[10.5px] font-semibold whitespace-nowrap"
+        style={{
+          background: badge.bg, color: badge.color,
+          padding: "3px 8px", textDecoration: current === "descartado" ? "line-through" : "none",
+        }}
+      >
+        {stageStyle(current).label}
+      </span>
+    )
   }
 
   return (

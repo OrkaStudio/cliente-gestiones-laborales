@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, MapPin, Calendar, Users, Target } from "lucide-react";
+import { ArrowLeft, MapPin, Calendar, Users, Target, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { BusquedaSheet } from "@/components/app/busqueda-sheet";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 
@@ -77,9 +76,8 @@ export default async function BusquedaDetailPage({
   const puestoChar = busqueda.puesto.charCodeAt(0);
   const headerPal  = AVATAR_HEX[puestoChar % AVATAR_HEX.length];
 
-  const estadoBadge = busqueda.estado === "activa"
-    ? "gl-badge-green"
-    : "gl-badge-gray";
+  const estadoBadge  = busqueda.estado === "activa" ? "gl-badge-green" : "gl-badge-gray"
+  const editable     = busqueda.estado === "activa" || busqueda.estado === "pausada"
 
   const headerStats = [
     { label: "Días abierta", value: `${daysOpen}`,                        accent: daysOpen > 30 },
@@ -154,16 +152,30 @@ export default async function BusquedaDetailPage({
           </div>
 
           {/* Acciones */}
-          <div className="flex gap-2 shrink-0">
-            <BusquedaSheet busqueda={busqueda} />
-            <SumarCandidatoDialog
-              busquedaId={busqueda.id}
-              busquedaPuesto={busqueda.puesto}
-              candidatos={candidatosActivos ?? []}
-              gestionesExistentes={(gestionesData ?? [])
-                .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
-                .filter(Boolean)}
-            />
+          <div className="flex gap-2 shrink-0 items-center">
+            {editable ? (
+              <>
+                <Link href={`/busquedas/${busqueda.id}/editar`} className="gl-btn-secondary">
+                  Editar
+                </Link>
+                <SumarCandidatoDialog
+                  busquedaId={busqueda.id}
+                  busquedaPuesto={busqueda.puesto}
+                  candidatos={candidatosActivos ?? []}
+                  gestionesExistentes={(gestionesData ?? [])
+                    .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
+                    .filter(Boolean)}
+                />
+              </>
+            ) : (
+              <div
+                className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg"
+                style={{ background: "var(--gl-gray-bg)", color: "var(--gl-ink-3)" }}
+              >
+                <Lock style={{ width: 11, height: 11 }} />
+                Búsqueda {busqueda.estado}
+              </div>
+            )}
           </div>
         </div>
 
@@ -390,6 +402,7 @@ export default async function BusquedaDetailPage({
                             candidatoId={c.id}
                             busquedaId={id}
                             estado={estado}
+                            locked={!editable}
                           />
                         ) : (
                           <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap ${stageBadgeCls}`}>
