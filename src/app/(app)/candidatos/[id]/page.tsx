@@ -4,7 +4,6 @@ import { MessageCircle, BookOpen, MapPin, TrendingUp, FileText, ArrowLeft } from
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
-import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
 import { CandidatoStickyBar } from "@/components/app/candidato-sticky-bar";
 import { waUrl } from "@/lib/cv/utils";
@@ -115,7 +114,7 @@ export default async function CandidatoDetailPage({
       avatarColor={avatarPal.color}
       ultimoPuesto={candidato.ultimo_puesto ?? null}
       candidatoId={candidato.id}
-      hasCv={!!(candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto}
+      hasCv={true}
     />
     <div className="px-10 py-10 space-y-5">
 
@@ -204,15 +203,9 @@ export default async function CandidatoDetailPage({
                 padding:        "0.5rem 1rem",
                 fontSize:       "13.5px",
                 fontWeight:     600,
-                color:          (candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto
-                  ? "var(--gl-olive)"
-                  : "var(--gl-ink-3)",
-                background:     (candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto
-                  ? "var(--gl-olive-bg)"
-                  : "transparent",
-                border:         (candidato as { cv_procesado_texto?: string | null }).cv_procesado_texto
-                  ? "1px solid rgba(42,74,24,0.25)"
-                  : "1px solid var(--gl-border-md)",
+                color:          "var(--gl-olive)",
+                background:     "var(--gl-olive-bg)",
+                border:         "1px solid rgba(42,74,24,0.25)",
                 borderRadius:   "0.75rem",
                 textDecoration: "none",
                 whiteSpace:     "nowrap",
@@ -222,7 +215,26 @@ export default async function CandidatoDetailPage({
               <FileText style={{ width: 14, height: 14 }} />
               Ver CV
             </Link>
-            <CandidatoSheet candidato={candidato} />
+            <Link
+              href={`/candidatos/${candidato.id}/editar`}
+              style={{
+                display:        "inline-flex",
+                alignItems:     "center",
+                gap:            "0.375rem",
+                padding:        "0.5rem 1rem",
+                fontSize:       "13.5px",
+                fontWeight:     600,
+                color:          "var(--gl-olive)",
+                background:     "var(--gl-olive-bg)",
+                border:         "1px solid rgba(42,74,24,0.25)",
+                borderRadius:   "0.75rem",
+                textDecoration: "none",
+                whiteSpace:     "nowrap",
+                transition:     "all 0.15s",
+              }}
+            >
+              Editar perfil
+            </Link>
             <AsignarBusquedaDialog
               candidatoId={candidato.id}
               candidatoNombre={`${candidato.nombre} ${candidato.apellido}`}
