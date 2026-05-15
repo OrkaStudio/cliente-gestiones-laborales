@@ -409,24 +409,22 @@ export default async function CandidatoDetailPage({
                     <div
                       key={g.id}
                       className="gl-row flex items-center justify-between gap-4 px-3 py-4"
-                      style={{ position: "relative", opacity: isDescartado ? 0.5 : 1 }}
+                      style={{ opacity: isDescartado ? 0.5 : 1 }}
                     >
-                      {/* Cover link — lleva al detalle de la búsqueda */}
-                      {busq && (
-                        <Link
-                          href={`/busquedas/${busq.id}`}
-                          style={{ position: "absolute", inset: 0, zIndex: 1 }}
-                          aria-label={`Ver búsqueda ${busq.puesto}`}
-                        />
-                      )}
-
                       <div className="flex-1 min-w-0">
-                        <div className="text-[13.5px] font-semibold truncate" style={{ color: "var(--gl-ink)" }}>
-                          {busq?.puesto ?? "—"}
-                        </div>
-                        <div className="text-xs mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
-                          {busq?.cliente}
-                        </div>
+                        {busq ? (
+                          <Link href={`/busquedas/${busq.id}`} style={{ textDecoration: "none" }}>
+                            <div className="text-[13.5px] font-semibold truncate hover:underline" style={{ color: "var(--gl-ink)" }}>
+                              {busq.puesto}
+                            </div>
+                            <div className="text-xs mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
+                              {busq.cliente}
+                            </div>
+                          </Link>
+                        ) : (
+                          <div className="text-[13.5px] font-semibold truncate" style={{ color: "var(--gl-ink)" }}>—</div>
+                        )}
+
 
                         {/* Stage track */}
                         {!isDescartado && stageIdx >= 0 && (
@@ -455,7 +453,7 @@ export default async function CandidatoDetailPage({
                         )}
                       </div>
 
-                      <div className="text-right shrink-0 space-y-1.5" style={{ position: "relative", zIndex: 2 }}>
+                      <div className="text-right shrink-0 space-y-1.5">
                         <GestionEstadoSelect
                           gestionId={g.id}
                           candidatoId={candidato.id}
