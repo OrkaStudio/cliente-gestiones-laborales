@@ -88,6 +88,54 @@ export async function updateBusqueda(id: string, data: BusquedaData): Promise<Ac
   return { success: true, id }
 }
 
+export async function cerrarBusqueda(
+  busquedaId: string,
+  gestionIdContratado?: string,
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+
+  const { data: busqueda } = await supabase
+    .from("busquedas")
+    .select("puesto, cliente")
+    .eq("id", busquedaId)
+    .single()
+
+  // Si se indicó un candidato, marcarlo contratado + inactivarlo
+  if (gestionIdContratado) {
+    const { data: gestion } = await supabase
+      .from("gestiones")
+      .select("candidato_id")
+      .eq("id", gestionIdContratado)
+      .single()
+
+    await supabase.from("gestiones").update({ estado: "contratado" }).eq("id", gestionIdContratado)
+
+    if (gestion?.candidato_id) {
+      await supabase.from("candidatos").update({ estado: "inactivo" }).eq("id", gestion.candidato_id)
+    }
+  }
+
+  const { error } = await supabase
+    .from("busquedas")
+    .update({ estado: "cerrada", fecha_cierre: new Date().toISOString() })
+    .eq("id", busquedaId)
+
+  if (error) return { success: false, error: error.message }
+
+  await supabase.from("notificaciones").insert({
+    tipo: "garantia" as const,
+    titulo: `Garantía iniciada — ${busqueda?.puesto ?? ""}`,
+    cuerpo: `${busqueda?.cliente ?? ""} · Vence en 90 días`,
+    busqueda_id: busquedaId,
+  })
+
+  revalidatePath("/busquedas")
+  revalidatePath(`/busquedas/${busquedaId}`)
+  revalidatePath("/candidatos")
+  revalidatePath("/")
+  return { success: true, id: busquedaId }
+}
+
 export async function cerrarGarantia(
   id: string,
   decision: "exitosa" | "reabrir" | "pausar",

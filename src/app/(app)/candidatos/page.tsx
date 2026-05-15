@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Search, Users, MessageCircle, ThumbsUp, ThumbsDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
+import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle";
 import { waUrl } from "@/lib/cv/utils";
 
 const STAGE_ORDER = [
@@ -37,8 +38,8 @@ function calcEdad(fechaNac: string | null): number | null {
   return age;
 }
 
-// Columnas: nombre | último puesto | edad | localidad | WA | categorías | gestión | estado+refs
-const COLS = "minmax(180px,2fr) minmax(140px,1.5fr) 52px minmax(120px,1.2fr) 48px minmax(160px,1.8fr) minmax(110px,1fr) 110px"
+// Columnas: nombre | último puesto | edad | localidad | WA | categorías | gestión | estado
+const COLS = "minmax(180px,2fr) minmax(140px,1.5fr) 52px minmax(120px,1.2fr) 48px minmax(160px,1.8fr) minmax(110px,1fr) 140px"
 
 export default async function CandidatosPage({
   searchParams,
@@ -183,13 +184,14 @@ export default async function CandidatosPage({
 
           {/* Filas */}
           {candidatos?.map((c) => {
-            const edad    = calcEdad(c.fecha_nacimiento ?? null)
-            const gestion = mejorGestion((c.gestiones as GestionRaw[]) ?? [])
-            const cats    = (c.categorias as string[] | null) ?? []
-            const refs    = (c.referencias as { calificacion: "buena" | "mala" | null }[] | null) ?? []
-            const buenas  = refs.filter(r => r?.calificacion === "buena").length
-            const malas   = refs.filter(r => r?.calificacion === "mala").length
-            const isActivo = c.estado === "activo"
+            const edad           = calcEdad(c.fecha_nacimiento ?? null)
+            const gestionesRaw   = (c.gestiones as GestionRaw[]) ?? []
+            const gestion        = mejorGestion(gestionesRaw)
+            const countActivas   = gestionesRaw.filter(g => g.estado !== "descartado" && g.estado !== "contratado").length
+            const cats           = (c.categorias as string[] | null) ?? []
+            const refs           = (c.referencias as { calificacion: "buena" | "mala" | null }[] | null) ?? []
+            const buenas         = refs.filter(r => r?.calificacion === "buena").length
+            const malas          = refs.filter(r => r?.calificacion === "mala").length
 
             return (
               <div
@@ -336,57 +338,45 @@ export default async function CandidatosPage({
                 </div>
 
                 {/* Gestión activa */}
-                <div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
                   {gestion ? (
-                    <span
-                      style={{
-                        display:      "inline-block",
-                        fontSize:     10.5,
-                        fontWeight:   600,
-                        padding:      "2px 8px",
-                        borderRadius: 5,
-                        background:   "var(--gl-olive-bg)",
-                        color:        "var(--gl-olive)",
-                        whiteSpace:   "nowrap",
-                        maxWidth:     "100%",
-                        overflow:     "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                      title={gestion.busquedas?.puesto ?? ""}
-                    >
-                      {STAGE_LABEL[gestion.estado] ?? gestion.estado}
-                    </span>
+                    <>
+                      <span
+                        style={{
+                          display:      "inline-block",
+                          fontSize:     10.5,
+                          fontWeight:   600,
+                          padding:      "2px 8px",
+                          borderRadius: 5,
+                          background:   "var(--gl-olive-bg)",
+                          color:        "var(--gl-olive)",
+                          whiteSpace:   "nowrap",
+                          maxWidth:     "100%",
+                          overflow:     "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                        title={gestion.busquedas?.puesto ?? ""}
+                      >
+                        {STAGE_LABEL[gestion.estado] ?? gestion.estado}
+                      </span>
+                      {countActivas > 1 && (
+                        <span style={{ fontSize: 10, color: "var(--gl-ink-3)" }}>
+                          +{countActivas - 1} proceso{countActivas - 1 > 1 ? "s" : ""} más
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span style={{ fontSize: 12, color: "var(--gl-border)" }}>—</span>
                   )}
                 </div>
 
-                {/* Estado */}
-                <span
-                  style={{
-                    display:      "inline-flex",
-                    alignItems:   "center",
-                    gap:          5,
-                    fontSize:     11,
-                    fontWeight:   600,
-                    padding:      "3px 9px",
-                    borderRadius: 99,
-                    background:   isActivo ? "#dafbe1" : "#f6f8fa",
-                    color:        isActivo ? "#1a7f37" : "#57606a",
-                    whiteSpace:   "nowrap",
-                  }}
-                >
-                  <span
-                    style={{
-                      width:        5,
-                      height:       5,
-                      borderRadius: "50%",
-                      background:   isActivo ? "#1a7f37" : "#8b949e",
-                      flexShrink:   0,
-                    }}
+                {/* Estado — toggle interactivo con z-index 2 */}
+                <div style={{ position: "relative", zIndex: 2 }}>
+                  <CandidatoEstadoToggle
+                    candidatoId={c.id}
+                    estadoInicial={c.estado as "activo" | "inactivo"}
                   />
-                  {isActivo ? "Activo" : "Inactivo"}
-                </span>
+                </div>
               </div>
             );
           })}

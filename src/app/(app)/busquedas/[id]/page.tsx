@@ -4,6 +4,7 @@ import { ArrowLeft, MapPin, Calendar, Users, Target, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
+import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -165,6 +166,18 @@ export default async function BusquedaDetailPage({
                   gestionesExistentes={(gestionesData ?? [])
                     .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
                     .filter(Boolean)}
+                />
+                <CerrarBusquedaButton
+                  busquedaId={busqueda.id}
+                  puesto={busqueda.puesto}
+                  cliente={busqueda.cliente}
+                  hayContratado={contratados > 0}
+                  gestiones={(gestionesData ?? [])
+                    .filter((g) => g.estado !== "descartado" && g.estado !== "contratado")
+                    .map((g) => ({
+                      id: g.id,
+                      candidatos: g.candidatos as { id: string; nombre: string; apellido: string; ultimo_puesto: string | null } | null,
+                    }))}
                 />
               </>
             ) : (
