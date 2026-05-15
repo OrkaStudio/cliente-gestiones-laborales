@@ -7,6 +7,7 @@ import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
 import { CandidatoStickyBar } from "@/components/app/candidato-sticky-bar";
 import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle";
+import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 import { waUrl } from "@/lib/cv/utils";
 
 const AVATAR_HEX = [
@@ -405,12 +406,20 @@ export default async function CandidatoDetailPage({
                   const busq         = g.busquedas as { id: string; puesto: string; cliente: string } | null;
 
                   return (
-                    <Link
+                    <div
                       key={g.id}
-                      href={busq ? `/busquedas/${busq.id}` : "#"}
                       className="gl-row flex items-center justify-between gap-4 px-3 py-4"
-                      style={{ opacity: isDescartado ? 0.4 : 1 }}
+                      style={{ position: "relative", opacity: isDescartado ? 0.5 : 1 }}
                     >
+                      {/* Cover link — lleva al detalle de la búsqueda */}
+                      {busq && (
+                        <Link
+                          href={`/busquedas/${busq.id}`}
+                          style={{ position: "absolute", inset: 0, zIndex: 1 }}
+                          aria-label={`Ver búsqueda ${busq.puesto}`}
+                        />
+                      )}
+
                       <div className="flex-1 min-w-0">
                         <div className="text-[13.5px] font-semibold truncate" style={{ color: "var(--gl-ink)" }}>
                           {busq?.puesto ?? "—"}
@@ -446,22 +455,18 @@ export default async function CandidatoDetailPage({
                         )}
                       </div>
 
-                      <div className="text-right shrink-0 space-y-1.5">
-                        <span
-                          className="text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap"
-                          style={{
-                            background: isDescartado ? "#f6f8fa" : "var(--gl-olive-bg)",
-                            color:      isDescartado ? "var(--gl-ink-3)" : "var(--gl-olive)",
-                            textDecoration: isDescartado ? "line-through" : "none",
-                          }}
-                        >
-                          {STAGES.find((s) => s.key === g.estado)?.label ?? g.estado}
-                        </span>
+                      <div className="text-right shrink-0 space-y-1.5" style={{ position: "relative", zIndex: 2 }}>
+                        <GestionEstadoSelect
+                          gestionId={g.id}
+                          candidatoId={candidato.id}
+                          busquedaId={busq?.id ?? ""}
+                          estado={g.estado}
+                        />
                         <div className="text-[11px] tabular-nums font-mono" style={{ color: "var(--gl-ink-3)" }}>
                           {dias}d sin cambio
                         </div>
                       </div>
-                    </Link>
+                    </div>
                   );
                 })}
               </div>

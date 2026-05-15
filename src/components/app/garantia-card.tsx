@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Users, MapPin, Shield, AlertTriangle } from "lucide-react"
 import { GarantiaDialog } from "@/components/app/garantia-dialog"
 
+
 type Pal = { bg: string; color: string }
 
 export function GarantiaCard({
@@ -38,12 +39,20 @@ export function GarantiaCard({
       <div
         className="gl-card flex flex-col p-5"
         style={{
+          position: "relative",
           border: vencida ? "1.5px solid #f1aeb5" : "1px solid var(--gl-border)",
           background: "#ffffff",
           borderRadius: "0.875rem",
           boxShadow: vencida ? "0 0 0 3px #ffebe920" : "0 2px 8px rgba(13,17,23,0.05)",
         }}
       >
+        {/* Cover link — hace toda la card clickeable */}
+        <Link
+          href={`/busquedas/${busqueda.id}`}
+          style={{ position: "absolute", inset: 0, zIndex: 1, borderRadius: "0.875rem" }}
+          aria-label={`Ver búsqueda ${busqueda.puesto}`}
+        />
+
         {/* Top */}
         <div className="flex items-start gap-3.5 mb-4">
           <div
@@ -53,13 +62,12 @@ export function GarantiaCard({
             {busqueda.puesto[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <Link
-              href={`/busquedas/${busqueda.id}`}
-              className="text-[14px] font-bold leading-tight hover:underline"
+            <div
+              className="text-[14px] font-bold leading-tight"
               style={{ color: "var(--gl-ink)" }}
             >
               {busqueda.puesto}
-            </Link>
+            </div>
             <div className="text-[12.5px] mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
               {busqueda.cliente}
             </div>
@@ -105,6 +113,8 @@ export function GarantiaCard({
           <button
             onClick={() => setDialogOpen(true)}
             style={{
+              position:     "relative",
+              zIndex:       2,
               fontSize:     "12px",
               fontWeight:   600,
               padding:      "0.375rem 0.75rem",
