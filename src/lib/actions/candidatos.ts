@@ -301,7 +301,7 @@ export async function toggleEstadoCandidato(
   return { success: true, id }
 }
 
-export async function eliminarCandidato(id: string): Promise<ActionResult> {
+export async function eliminarCandidato(id: string): Promise<{ success: boolean; error?: string }> {
   const supabase = createServiceClient()
 
   // Eliminar en orden para respetar FKs (no todas tienen ON DELETE CASCADE)
