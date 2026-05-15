@@ -8,3 +8,9 @@ export async function marcarTodasLeidas() {
   await supabase.from("notificaciones").update({ leida: true }).eq("leida", false)
   revalidatePath("/", "layout")
 }
+
+export async function marcarLeida(id: string) {
+  const supabase = createServiceClient()
+  await supabase.from("notificaciones").update({ leida: true }).eq("id", id)
+  revalidatePath("/", "layout")
+}

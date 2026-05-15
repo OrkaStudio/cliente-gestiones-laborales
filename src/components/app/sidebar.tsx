@@ -2,9 +2,9 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Users, Search, FileText, LogOut, Bell, UserPlus, Copy, ShieldCheck, AlertCircle, X } from "lucide-react"
+import { Home, Users, Search, FileText, LogOut, Bell, UserPlus, Copy, ShieldCheck, AlertCircle, X, ArrowRight, Trash2 } from "lucide-react"
 import { signOut } from "@/lib/actions/auth"
-import { marcarTodasLeidas } from "@/lib/actions/notificaciones"
+import { marcarTodasLeidas, marcarLeida } from "@/lib/actions/notificaciones"
 import { useState, useTransition } from "react"
 
 const items = [
@@ -48,21 +48,40 @@ function tiempoAtras(isoDate: string): string {
   return `${Math.floor(hrs / 24)}d`
 }
 
-const TIPO_CONFIG = {
-  cv_nuevo:     { icon: UserPlus,    color: "#2563eb", bg: "#eff6ff", label: "CV nuevo" },
-  cv_duplicado: { icon: Copy,        color: "#d97706", bg: "#fffbeb", label: "CV duplicado" },
-  garantia:     { icon: ShieldCheck, color: "#16a34a", bg: "#f0fdf4", label: "Garantía" },
-  cv_error:     { icon: AlertCircle, color: "#dc2626", bg: "#fef2f2", label: "Error" },
+const TIPO_CONFIG: Record<
+  Notificacion["tipo"],
+  {
+    icon: React.ComponentType<{ className?: string }>
+    label: string
+    chipBg: string
+    chipColor: string
+    actionLabel?: string
+    actionType: "navigate" | "dismiss" | "navigate+dismiss"
+  }
+> = {
+  cv_nuevo:     { icon: UserPlus,    label: "CV nuevo",    chipBg: "#1a7f37", chipColor: "#fff", actionLabel: "Ver perfil",      actionType: "navigate" },
+  cv_duplicado: { icon: Copy,        label: "Duplicado",   chipBg: "#7d4e00", chipColor: "#fff", actionLabel: "Ver existente",   actionType: "navigate+dismiss" },
+  garantia:     { icon: ShieldCheck, label: "Garantía",    chipBg: "#0550ae", chipColor: "#fff", actionLabel: "Ver búsqueda",    actionType: "navigate" },
+  cv_error:     { icon: AlertCircle, label: "Error",       chipBg: "#cf222e", chipColor: "#fff", actionLabel: "Descartar",       actionType: "dismiss" },
 }
 
-export function Sidebar({ userEmail, notificaciones }: SidebarProps) {
+export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, startTransition] = useTransition()
-  const count = notificaciones.length
+  const [notifs, setNotifs] = useState(initialNotificaciones)
+  const count = notifs.length
+
+  function dismiss(id: string) {
+    setNotifs((prev) => prev.filter((n) => n.id !== id))
+    startTransition(async () => {
+      await marcarLeida(id)
+    })
+  }
 
   function handleMarcarLeidas() {
+    setNotifs([])
     startTransition(async () => {
       await marcarTodasLeidas()
       setOpen(false)
@@ -259,56 +278,107 @@ export function Sidebar({ userEmail, notificaciones }: SidebarProps) {
 
             {/* Lista */}
             <div className="flex-1 overflow-y-auto">
-              {notificaciones.length === 0 ? (
+              {notifs.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full gap-2" style={{ color: "var(--gl-ink-3)" }}>
                   <Bell className="h-8 w-8 opacity-30" />
                   <span className="text-[13px]">Sin notificaciones</span>
                 </div>
               ) : (
-                notificaciones.map((n) => {
-                  const cfg = TIPO_CONFIG[n.tipo]
-                  const Icon = cfg.icon
-                  const href = n.candidato_id
-                    ? `/candidatos/${n.candidato_id}`
-                    : n.busqueda_id
-                    ? `/busquedas/${n.busqueda_id}`
-                    : null
+                <div className="p-3 flex flex-col gap-2">
+                  {notifs.map((n) => {
+                    const cfg = TIPO_CONFIG[n.tipo]
+                    const Icon = cfg.icon
+                    const href = n.candidato_id
+                      ? `/candidatos/${n.candidato_id}`
+                      : n.busqueda_id
+                      ? `/busquedas/${n.busqueda_id}`
+                      : null
 
-                  const content = (
-                    <div
-                      className="flex gap-3 px-4 py-3 transition-colors"
-                      style={{ borderBottom: "1px solid var(--gl-border)", cursor: href ? "pointer" : "default" }}
-                    >
+                    return (
                       <div
-                        className="h-8 w-8 rounded-lg grid place-items-center shrink-0 mt-0.5"
-                        style={{ background: cfg.bg }}
+                        key={n.id}
+                        className="rounded-xl p-3 flex flex-col gap-2"
+                        style={{
+                          background: "#fff",
+                          border: "1px solid var(--gl-border)",
+                          boxShadow: "0 1px 3px rgba(13,17,23,0.04)",
+                        }}
                       >
-                        <Icon className="h-4 w-4" style={{ color: cfg.color }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-[12.5px] font-semibold leading-snug" style={{ color: "var(--gl-ink)" }}>
-                            {n.titulo}
+                        {/* Fila superior: chip + tiempo + dismiss */}
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[10.5px] font-semibold shrink-0"
+                            style={{ background: cfg.chipBg, color: cfg.chipColor }}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {cfg.label}
                           </span>
-                          <span className="text-[10px] shrink-0 mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                          <span className="flex-1 text-[10px]" style={{ color: "var(--gl-ink-3)" }}>
                             {tiempoAtras(n.created_at)}
                           </span>
+                          <button
+                            onClick={() => dismiss(n.id)}
+                            className="h-5 w-5 rounded-md grid place-items-center transition-colors shrink-0"
+                            style={{ background: "transparent", border: "none", cursor: "pointer", color: "var(--gl-ink-3)" }}
+                            title="Descartar"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
                         </div>
-                        <p className="text-[11.5px] mt-0.5 leading-snug" style={{ color: "var(--gl-ink-3)" }}>
+
+                        {/* Título */}
+                        <p className="text-[12.5px] font-semibold leading-snug" style={{ color: "var(--gl-ink)" }}>
+                          {n.titulo}
+                        </p>
+
+                        {/* Cuerpo */}
+                        <p className="text-[11.5px] leading-snug" style={{ color: "var(--gl-ink-3)" }}>
                           {n.cuerpo}
                         </p>
-                      </div>
-                    </div>
-                  )
 
-                  return href ? (
-                    <Link key={n.id} href={href} onClick={() => setOpen(false)}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <div key={n.id}>{content}</div>
-                  )
-                })
+                        {/* Acciones */}
+                        <div
+                          className="flex items-center gap-2 pt-2"
+                          style={{ borderTop: "1px solid var(--gl-border)" }}
+                        >
+                          {cfg.actionType === "dismiss" ? (
+                            <button
+                              onClick={() => dismiss(n.id)}
+                              className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-2.5 py-1.5 transition-colors"
+                              style={{ background: "var(--gl-surface)", color: "var(--gl-ink-3)", border: "1px solid var(--gl-border)", cursor: "pointer" }}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                              {cfg.actionLabel}
+                            </button>
+                          ) : (
+                            <>
+                              {href && (
+                                <Link
+                                  href={href}
+                                  onClick={() => { dismiss(n.id); setOpen(false) }}
+                                  className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-2.5 py-1.5 transition-colors"
+                                  style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none" }}
+                                >
+                                  {cfg.actionLabel}
+                                  <ArrowRight className="h-3 w-3" />
+                                </Link>
+                              )}
+                              {cfg.actionType === "navigate+dismiss" && (
+                                <button
+                                  onClick={() => dismiss(n.id)}
+                                  className="inline-flex items-center gap-1.5 text-[11.5px] font-medium rounded-lg px-2.5 py-1.5 transition-colors"
+                                  style={{ background: "transparent", color: "var(--gl-ink-3)", border: "1px solid var(--gl-border)", cursor: "pointer" }}
+                                >
+                                  Ignorar
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               )}
             </div>
 
