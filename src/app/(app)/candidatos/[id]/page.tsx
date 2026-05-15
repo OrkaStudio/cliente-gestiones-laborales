@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MessageCircle, MapPin, TrendingUp, FileText, ArrowLeft } from "lucide-react";
+import { MessageCircle, MapPin, TrendingUp, FileText, ArrowLeft, ThumbsUp, ThumbsDown } from "lucide-react";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
@@ -175,10 +175,6 @@ export default async function CandidatoDetailPage({
                 )}
               </div>
               <div className="flex items-center gap-2 mt-3 flex-wrap">
-                <CandidatoEstadoToggle
-                  candidatoId={candidato.id}
-                  estadoInicial={candidato.estado as "activo" | "inactivo"}
-                />
                 {candidato.fecha_consultado && (
                   <span
                     className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
@@ -196,12 +192,39 @@ export default async function CandidatoDetailPage({
                     {lang}
                   </span>
                 ))}
+                {/* Indicador de referencias */}
+                {(() => {
+                  const refs = (candidato.referencias as { calificacion: "buena" | "mala" | null }[] | null) ?? []
+                  const buenas = refs.filter(r => r?.calificacion === "buena").length
+                  const malas  = refs.filter(r => r?.calificacion === "mala").length
+                  if (!buenas && !malas) return null
+                  return (
+                    <span className="flex items-center gap-2">
+                      {buenas > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#16a34a" }}>
+                          <ThumbsUp className="h-3 w-3" />
+                          {buenas}
+                        </span>
+                      )}
+                      {malas > 0 && (
+                        <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "#dc2626" }}>
+                          <ThumbsDown className="h-3 w-3" />
+                          {malas}
+                        </span>
+                      )}
+                    </span>
+                  )
+                })()}
               </div>
             </div>
           </div>
 
           {/* Acciones */}
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <CandidatoEstadoToggle
+              candidatoId={candidato.id}
+              estadoInicial={candidato.estado as "activo" | "inactivo"}
+            />
             <Link
               href={`/candidatos/${candidato.id}/cv`}
               style={{

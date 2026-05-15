@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, Users, MapPin, Phone } from "lucide-react";
+import { Search, Users, MapPin, Phone, ThumbsUp, ThumbsDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 
@@ -160,6 +160,9 @@ export default async function CandidatosPage({
           const badge = estadoBadge(c.estado);
           const mes = c.fecha_ingreso?.substring(0, 7) ?? "";
           const gestion = mejorGestion((c.gestiones as GestionRaw[]) ?? []);
+          const refs = (c.referencias as { calificacion: "buena" | "mala" | null }[] | null) ?? []
+          const refsBuenas = refs.filter(r => r?.calificacion === "buena").length
+          const refsMalas  = refs.filter(r => r?.calificacion === "mala").length
 
           return (
             <Link
@@ -239,8 +242,8 @@ export default async function CandidatosPage({
                 className="flex items-center justify-between gap-3 pt-3 border-t mt-auto"
                 style={{ borderColor: "var(--gl-border)" }}
               >
-                {/* Izquierda: idiomas */}
-                <div className="flex items-center gap-1 flex-wrap min-w-0">
+                {/* Izquierda: idiomas + refs */}
+                <div className="flex items-center gap-1.5 flex-wrap min-w-0">
                   {c.idiomas?.slice(0, 2).map((lang: string) => (
                     <span
                       key={lang}
@@ -255,6 +258,18 @@ export default async function CandidatosPage({
                       {lang}
                     </span>
                   ))}
+                  {refsBuenas > 0 && (
+                    <span className="flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: "#16a34a" }}>
+                      <ThumbsUp className="h-3 w-3" />
+                      {refsBuenas}
+                    </span>
+                  )}
+                  {refsMalas > 0 && (
+                    <span className="flex items-center gap-0.5 text-[11px] font-semibold" style={{ color: "#dc2626" }}>
+                      <ThumbsDown className="h-3 w-3" />
+                      {refsMalas}
+                    </span>
+                  )}
                 </div>
 
                 {/* Derecha: consultado + teléfono o fecha */}
