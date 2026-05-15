@@ -192,21 +192,25 @@ export default async function CandidatosPage({
             const isActivo = c.estado === "activo"
 
             return (
-              <Link
+              <div
                 key={c.id}
-                href={`/candidatos/${c.id}`}
                 style={{
+                  position:            "relative",
                   display:             "grid",
                   gridTemplateColumns: COLS,
                   gap:                 "0 12px",
                   padding:             "11px 16px",
                   borderBottom:        "1px solid var(--gl-border)",
                   alignItems:          "center",
-                  textDecoration:      "none",
-                  transition:          "background 0.1s",
                 }}
                 className="hover:bg-[var(--gl-surface)]"
               >
+                {/* Cubre toda la fila para que sea clickeable */}
+                <Link
+                  href={`/candidatos/${c.id}`}
+                  style={{ position: "absolute", inset: 0, zIndex: 1 }}
+                  aria-label={`Ver perfil de ${c.nombre} ${c.apellido}`}
+                />
                 {/* Nombre */}
                 <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
@@ -279,14 +283,13 @@ export default async function CandidatosPage({
                   {c.ubicacion ?? "—"}
                 </span>
 
-                {/* WhatsApp */}
-                <div style={{ display: "flex", justifyContent: "center" }}>
+                {/* WhatsApp — z-index 2 para quedar encima del Link de fila */}
+                <div style={{ display: "flex", justifyContent: "center", position: "relative", zIndex: 2 }}>
                   {c.telefono ? (
                     <a
                       href={waUrl(c.telefono)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
                       title={c.telefono}
                       style={{
                         display:        "grid",
@@ -384,7 +387,7 @@ export default async function CandidatosPage({
                   />
                   {isActivo ? "Activo" : "Inactivo"}
                 </span>
-              </Link>
+              </div>
             );
           })}
         </div>
