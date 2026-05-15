@@ -92,7 +92,7 @@ export default async function CandidatoDetailPage({
   ).length ?? 0;
 
   const avatarPal = AVATAR_HEX[
-    (candidato.nombre.charCodeAt(0) + candidato.apellido.charCodeAt(0)) % AVATAR_HEX.length
+    ((candidato.nombre.charCodeAt(0) || 0) + (candidato.apellido.charCodeAt(0) || 0)) % AVATAR_HEX.length
   ];
 
   // Ficha: items que tienen valor
