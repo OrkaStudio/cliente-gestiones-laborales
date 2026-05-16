@@ -67,7 +67,7 @@ function tiempoAtras(isoDate: string) {
 const TIPO: Record<
   Notificacion["tipo"],
   {
-    icon: React.ComponentType<{ className?: string }>
+    icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>
     label: string
     cardBg: string
     cardBorder: string
