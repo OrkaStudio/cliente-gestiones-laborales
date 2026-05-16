@@ -97,14 +97,24 @@ export function WhatsappMessagePanel({
     setModalOpen(true)
   }
 
-  function handleEnviar() {
+  function abrirWA() {
+    const url = `${waUrl(telefono!)}?text=${encodeURIComponent(mensajeEnModal)}`
+    window.open(url, "_blank")
+  }
+
+  function handleEnviarYMarcar() {
     if (sinTelefono) return
     startTransition(async () => {
       await registrarEnvioWhatsapp(candidatoId, mensajeEnModal)
-      const url = `${waUrl(telefono!)}?text=${encodeURIComponent(mensajeEnModal)}`
-      window.open(url, "_blank")
+      abrirWA()
       setModalOpen(false)
     })
+  }
+
+  function handleSoloAbrir() {
+    if (sinTelefono) return
+    abrirWA()
+    setModalOpen(false)
   }
 
   return (
@@ -380,22 +390,15 @@ export function WhatsappMessagePanel({
               }}
             />
 
-            {/* Botón enviar */}
-            <div className="flex items-center justify-end gap-3">
+            {/* Botones */}
+            <div className="flex flex-col gap-2">
+              {/* Acción principal: abrir + marcar */}
               <button
                 type="button"
-                onClick={() => setModalOpen(false)}
-                className="px-4 py-2.5 rounded-xl text-sm font-medium"
-                style={{ color: "var(--gl-ink-3)" }}
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={handleEnviar}
+                onClick={handleEnviarYMarcar}
                 disabled={sinTelefono || isPending}
-                title={sinTelefono ? "El candidato no tiene telefono registrado" : undefined}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold"
+                title={sinTelefono ? "El candidato no tiene teléfono registrado" : undefined}
+                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold"
                 style={{
                   background: sinTelefono ? "var(--gl-surface)" : "#25D366",
                   color: sinTelefono ? "var(--gl-ink-3)" : "#fff",
@@ -405,7 +408,32 @@ export function WhatsappMessagePanel({
                 }}
               >
                 <MessageCircle className="h-4 w-4" />
-                {isPending ? "Abriendo..." : "Abrir en WhatsApp"}
+                {isPending ? "Abriendo..." : "Abrir en WhatsApp y marcar como enviado"}
+              </button>
+
+              {/* Secundario: solo abrir */}
+              <button
+                type="button"
+                onClick={handleSoloAbrir}
+                disabled={sinTelefono || isPending}
+                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-[12.5px] font-medium"
+                style={{
+                  background: "transparent",
+                  color: "var(--gl-ink-3)",
+                  border: "1px solid var(--gl-border)",
+                  cursor: sinTelefono ? "not-allowed" : "pointer",
+                }}
+              >
+                Solo abrir (sin marcar como enviado)
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="text-[12px] text-center py-1"
+                style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer" }}
+              >
+                Cancelar
               </button>
             </div>
           </div>
