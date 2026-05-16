@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, AlertCircle, Sparkles, TrendingUp, UserCheck, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
+import { unstable_cache } from "next/cache";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -29,29 +31,44 @@ function displayName(email: string | null | undefined): string {
   return local.charAt(0).toUpperCase() + local.slice(1).replace(/[._]/g, " ")
 }
 
-export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+const getDashboardData = unstable_cache(
+  async () => {
+    const supabase = createServiceClient()
+    const [
+      { count: candidatosActivos },
+      { count: busquedasActivas },
+      { count: gestionesEnCurso },
+      { data: busquedasRaw },
+      { data: candidatosRaw },
+      { data: gestionesAtencion },
+    ] = await Promise.all([
+      supabase.from("candidatos").select("*", { count: "exact", head: true }).eq("estado", "activo"),
+      supabase.from("busquedas").select("*", { count: "exact", head: true }).eq("estado", "activa"),
+      supabase.from("gestiones").select("*", { count: "exact", head: true }).neq("estado", "contratado").neq("estado", "descartado"),
+      supabase.from("busquedas").select("id, puesto, cliente, gestiones(estado)").eq("estado", "activa"),
+      supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, gestiones(estado)").eq("estado", "activo").order("fecha_ingreso", { ascending: false }).limit(200),
+      supabase.from("gestiones")
+        .select("id, estado, updated_at, candidatos(id, nombre, apellido), busquedas(id, puesto)")
+        .not("estado", "in", "(contratado,descartado)")
+        .order("updated_at", { ascending: true })
+        .limit(8),
+    ])
+    return { candidatosActivos, busquedasActivas, gestionesEnCurso, busquedasRaw, candidatosRaw, gestionesAtencion }
+  },
+  ["dashboard"],
+  { revalidate: 30, tags: ["dashboard"] }
+)
 
-  const [
-    { count: candidatosActivos },
-    { count: busquedasActivas },
-    { count: gestionesEnCurso },
-    { data: busquedasRaw },
-    { data: candidatosRaw },
-    { data: gestionesAtencion },
-  ] = await Promise.all([
-    supabase.from("candidatos").select("*", { count: "exact", head: true }).eq("estado", "activo"),
-    supabase.from("busquedas").select("*", { count: "exact", head: true }).eq("estado", "activa"),
-    supabase.from("gestiones").select("*", { count: "exact", head: true }).neq("estado", "contratado").neq("estado", "descartado"),
-    supabase.from("busquedas").select("id, puesto, cliente, gestiones(estado)").eq("estado", "activa"),
-    supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, gestiones(estado)").eq("estado", "activo").order("fecha_ingreso", { ascending: false }).limit(200),
-    supabase.from("gestiones")
-      .select("id, estado, updated_at, candidatos(id, nombre, apellido), busquedas(id, puesto)")
-      .not("estado", "in", "(contratado,descartado)")
-      .order("updated_at", { ascending: true })
-      .limit(8),
-  ]);
+export default async function Home() {
+  const supabase = await createClient()
+
+  // getSession lee de cookie, sin llamada a red
+  const [{ data: { session } }, dashboardData] = await Promise.all([
+    supabase.auth.getSession().catch(() => ({ data: { session: null } })),
+    getDashboardData(),
+  ])
+
+  const { candidatosActivos, busquedasActivas, gestionesEnCurso, busquedasRaw, candidatosRaw, gestionesAtencion } = dashboardData
 
   type GEst = { estado: string };
 
@@ -85,7 +102,7 @@ export default async function Home() {
             style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--gl-ink)" }}
           >
             Buen día,{" "}
-            <span style={{ color: "var(--gl-olive-light)" }}>{displayName(user?.email)}</span>
+            <span style={{ color: "var(--gl-olive-light)" }}>{displayName(session?.user?.email)}</span>
           </h1>
         </div>
 
