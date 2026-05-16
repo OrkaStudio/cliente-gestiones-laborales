@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { Plus, X, Loader2 } from "lucide-react"
+import { Plus, X, Loader2, Pencil } from "lucide-react"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { updateCandidatoFields } from "@/lib/actions/candidatos"
@@ -14,6 +14,7 @@ export type Referencia = {
   contacto: string
   relacion: string
   calificacion: "buena" | "mala" | null
+  notas: string
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -37,7 +38,7 @@ const labelStyle: React.CSSProperties = {
   letterSpacing: "0.08em", textTransform: "uppercase", color: INK3, marginBottom: "0.3rem",
 }
 
-const EMPTY: Referencia = { nombre: "", contacto: "", relacion: "", calificacion: null }
+const EMPTY: Referencia = { nombre: "", contacto: "", relacion: "", calificacion: null, notas: "" }
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -48,11 +49,15 @@ export function ReferenciaInlinePanel({
   candidatoId: string
   refs: Referencia[]
 }) {
-  const [refs, setRefs] = useState<Referencia[]>(initialRefs)
+  const [refs, setRefs]         = useState<Referencia[]>(initialRefs)
   const [addOpen, setAddOpen]   = useState(false)
+  const [editIdx, setEditIdx]   = useState<number | null>(null)
   const [form, setForm]         = useState<Referencia>(EMPTY)
   const [saving, startSave]     = useTransition()
   const [deleting, startDelete] = useTransition()
+
+  function openAdd() { setForm(EMPTY); setEditIdx(null); setAddOpen(true) }
+  function openEdit(idx: number) { setForm(refs[idx]); setEditIdx(idx); setAddOpen(true) }
 
   async function persist(next: Referencia[]) {
     const result = await updateCandidatoFields(candidatoId, {
@@ -62,22 +67,26 @@ export function ReferenciaInlinePanel({
     return next
   }
 
-  function handleAdd() {
+  function handleSave() {
     if (!form.nombre.trim()) return
-    const nuevo: Referencia = {
+    const entry: Referencia = {
       nombre:       form.nombre.trim(),
       contacto:     form.contacto.trim(),
       relacion:     form.relacion.trim(),
       calificacion: form.calificacion,
+      notas:        form.notas.trim(),
     }
     startSave(async () => {
       try {
-        const next = [...refs, nuevo]
+        const next = editIdx !== null
+          ? refs.map((r, i) => i === editIdx ? entry : r)
+          : [...refs, entry]
         await persist(next)
         setRefs(next)
         setForm(EMPTY)
+        setEditIdx(null)
         setAddOpen(false)
-        toast.success("Referencia guardada")
+        toast.success(editIdx !== null ? "Referencia actualizada" : "Referencia guardada")
       } catch {
         toast.error("No se pudo guardar la referencia")
       }
@@ -104,7 +113,7 @@ export function ReferenciaInlinePanel({
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-[15px] font-bold" style={{ color: INK }}>Referencias</h2>
         <button
-          onClick={() => { setForm(EMPTY); setAddOpen(true) }}
+          onClick={openAdd}
           style={{
             display: "inline-flex", alignItems: "center", gap: 4,
             fontSize: 12, fontWeight: 600, color: OLIVE,
@@ -149,20 +158,36 @@ export function ReferenciaInlinePanel({
                   </div>
                   {ref.contacto && <div className="text-xs mt-0.5" style={{ color: INK3 }}>{ref.contacto}</div>}
                   {ref.relacion && <div className="text-xs"        style={{ color: INK3 }}>{ref.relacion}</div>}
+                  {ref.notas && (
+                    <div className="text-xs mt-1 italic leading-snug" style={{ color: INK3 }}>
+                      "{ref.notas}"
+                    </div>
+                  )}
                 </div>
-                <button
-                  onClick={() => handleDelete(i)}
-                  disabled={deleting}
-                  title="Eliminar referencia"
-                  style={{
-                    padding: 4, color: "#cf222e", background: "transparent",
-                    border: "none", cursor: deleting ? "not-allowed" : "pointer",
-                    borderRadius: 4, display: "flex", opacity: deleting ? 0.5 : 1,
-                    flexShrink: 0,
-                  }}
-                >
-                  <X style={{ width: 13, height: 13 }} />
-                </button>
+                <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
+                  <button
+                    onClick={() => openEdit(i)}
+                    title="Editar referencia"
+                    style={{
+                      padding: 4, color: INK3, background: "transparent",
+                      border: "none", cursor: "pointer", borderRadius: 4, display: "flex",
+                    }}
+                  >
+                    <Pencil style={{ width: 12, height: 12 }} />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(i)}
+                    disabled={deleting}
+                    title="Eliminar referencia"
+                    style={{
+                      padding: 4, color: "#cf222e", background: "transparent",
+                      border: "none", cursor: deleting ? "not-allowed" : "pointer",
+                      borderRadius: 4, display: "flex", opacity: deleting ? 0.5 : 1,
+                    }}
+                  >
+                    <X style={{ width: 13, height: 13 }} />
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -173,7 +198,7 @@ export function ReferenciaInlinePanel({
       <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent showCloseButton={false} style={{ maxWidth: 440 }}>
           <DialogHeader>
-            <DialogTitle>Agregar referencia</DialogTitle>
+            <DialogTitle>{editIdx !== null ? "Editar referencia" : "Agregar referencia"}</DialogTitle>
           </DialogHeader>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem", padding: "0.25rem 0" }}>
@@ -206,6 +231,22 @@ export function ReferenciaInlinePanel({
                 onChange={(e) => setForm((f) => ({ ...f, relacion: e.target.value }))}
                 placeholder="Propietario, administrador..."
                 style={inputStyle}
+              />
+            </div>
+
+            <div>
+              <label style={labelStyle}>Notas de consulta</label>
+              <textarea
+                value={form.notas}
+                onChange={(e) => setForm((f) => ({ ...f, notas: e.target.value }))}
+                placeholder="¿Qué dijo la referencia? Actitud, observaciones..."
+                rows={3}
+                style={{
+                  ...inputStyle,
+                  resize: "vertical",
+                  lineHeight: "1.5",
+                  minHeight: "72px",
+                }}
               />
             </div>
 
@@ -250,7 +291,7 @@ export function ReferenciaInlinePanel({
               Cancelar
             </button>
             <button
-              onClick={handleAdd}
+              onClick={handleSave}
               disabled={saving || !form.nombre.trim()}
               style={{
                 padding: "0.5rem 1.25rem", fontSize: 13.5, fontWeight: 600,
@@ -263,7 +304,7 @@ export function ReferenciaInlinePanel({
             >
               {saving
                 ? <><Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} /> Guardando…</>
-                : "Guardar"
+                : editIdx !== null ? "Actualizar" : "Guardar"
               }
             </button>
           </DialogFooter>
