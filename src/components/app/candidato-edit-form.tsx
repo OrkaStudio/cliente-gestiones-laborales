@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useEffect, useCallback } from "react"
+import { useState, useTransition, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { ArrowLeft, Plus, Trash2, Loader2, Save, ChevronDown } from "lucide-react"
@@ -408,20 +408,26 @@ export function CandidatoEditForm({
   const [deletedExpIds, setDeletedExpIds] = useState<string[]>([])
   const [newExps, setNewExps] = useState<Omit<Experiencia, "id" | "candidato_id" | "created_at">[]>([])
   const [dirty, setDirty] = useState(false)
+  const dirtyRef = useRef(false)
   const [confirmState, setConfirmState] = useState<{ open: boolean; onConfirm: () => void }>({ open: false, onConfirm: () => {} })
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, startDelete] = useTransition()
 
-  function askConfirm(onConfirm: () => void) {
-    setConfirmState({ open: true, onConfirm })
-  }
+  const askConfirm = useCallback((onConfirm: () => void) => {
+    setConfirmState((s) => s.open ? s : { open: true, onConfirm })
+  }, [])
+
+  function markDirty() { setDirty(true); dirtyRef.current = true }
+  function clearDirty() { setDirty(false); dirtyRef.current = false }
 
   const setField = useCallback(<K extends keyof Candidato>(key: K, val: Candidato[K]) => {
     setC((prev) => ({ ...prev, [key]: val }))
-    setDirty(true)
-  }, [])
+    markDirty()
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Bloquear navegación con cambios sin guardar ──
+
+  // Intercepta cierre/recarga del browser (no SPA navigation)
   useEffect(() => {
     if (!dirty) return
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = "" }
@@ -429,27 +435,54 @@ export function CandidatoEditForm({
     return () => window.removeEventListener("beforeunload", handler)
   }, [dirty])
 
+  // Intercepta botón Atrás del browser (popstate)
   useEffect(() => {
     if (!dirty) return
     window.history.pushState(null, "", window.location.href)
     function handlePopState() {
+      if (!dirtyRef.current) return
       window.history.pushState(null, "", window.location.href)
-      askConfirm(() => { setDirty(false); router.back() })
+      askConfirm(() => { clearDirty(); router.back() })
     }
     window.addEventListener("popstate", handlePopState)
     return () => window.removeEventListener("popstate", handlePopState)
-  }, [dirty, router])
+  }, [dirty, router, askConfirm]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Intercepta clicks en links del sidebar / breadcrumbs (SPA navigation)
+  useEffect(() => {
+    if (!dirty) return
+    function handleLinkClick(e: MouseEvent) {
+      // Solo click izquierdo sin modificadores
+      if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+      const anchor = (e.target as Element).closest("a[href]") as HTMLAnchorElement | null
+      if (!anchor) return
+      // Solo misma origen, diferente ruta
+      try {
+        const url = new URL(anchor.href, window.location.origin)
+        if (url.origin !== window.location.origin) return
+        if (url.pathname === window.location.pathname) return
+      } catch { return }
+
+      // Detener el evento antes de que Next.js lo procese (capture phase)
+      e.preventDefault()
+      e.stopPropagation()
+      const href = anchor.href
+      askConfirm(() => { clearDirty(); router.push(href) })
+    }
+    document.addEventListener("click", handleLinkClick, true)
+    return () => document.removeEventListener("click", handleLinkClick, true)
+  }, [dirty, router, askConfirm]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Experiencia: editar existente ──
   function updateExp(id: string, fields: Partial<Experiencia>) {
     setExps((prev) => prev.map((e) => e.id === id ? { ...e, ...fields } : e))
-    setDirty(true)
+    markDirty()
   }
 
   function removeExp(id: string) {
     setExps((prev) => prev.filter((e) => e.id !== id))
     setDeletedExpIds((prev) => [...prev, id])
-    setDirty(true)
+    markDirty()
   }
 
   // ── Experiencia: nueva ──
@@ -461,7 +494,7 @@ export function CandidatoEditForm({
       personal_a_cargo: null, en_blanco: null, ingresos_actuales: null,
       beneficios: null, motivo_cambio_o_salida: null,
     }])
-    setDirty(true)
+    markDirty()
   }
 
   function updateNewExp(idx: number, fields: Partial<Experiencia>) {
@@ -537,14 +570,14 @@ export function CandidatoEditForm({
       }
 
       toast.success("Perfil guardado")
-      setDirty(false)
+      clearDirty()
       router.push(`/candidatos/${c.id}`)
       router.refresh()
     })
   }
 
   function handleCancel() {
-    if (dirty) { askConfirm(() => router.push(`/candidatos/${c.id}`)); return }
+    if (dirtyRef.current) { askConfirm(() => { clearDirty(); router.push(`/candidatos/${c.id}`) }); return }
     router.push(`/candidatos/${c.id}`)
   }
 
@@ -847,7 +880,7 @@ export function CandidatoEditForm({
                 startDelete(async () => {
                   const res = await eliminarCandidato(initial.id)
                   if (res.success) {
-                    setDirty(false)
+                    clearDirty()
                     router.push("/candidatos")
                   } else {
                     toast.error("No se pudo eliminar el candidato")
