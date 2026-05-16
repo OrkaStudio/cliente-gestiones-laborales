@@ -85,61 +85,61 @@ const TIPO: Record<
   cv_nuevo: {
     icon: UserPlus,
     label: "CV nuevo",
-    cardBg: "linear-gradient(135deg, #f7fef9 0%, #f0fdf4 100%)",
-    cardBorder: "#bbf7d0",
+    cardBg: "#ffffff",
+    cardBorder: "#eaecef",
     borderLeft: "#16a34a",
     accentColor: "#15803d",
     iconBg: "#dcfce7",
     iconColor: "#15803d",
     actionLabel: "Ver perfil",
-    actionBg: "#dcfce7",
-    actionColor: "#15803d",
-    actionBorder: "#bbf7d0",
+    actionBg: "#f6f8fa",
+    actionColor: "#0d1117",
+    actionBorder: "#eaecef",
     actionType: "navigate",
   },
   cv_duplicado: {
     icon: Copy,
     label: "Duplicado",
-    cardBg: "linear-gradient(135deg, #fffdf5 0%, #fefce8 100%)",
-    cardBorder: "#fef08a",
+    cardBg: "#ffffff",
+    cardBorder: "#eaecef",
     borderLeft: "#ca8a04",
     accentColor: "#92400e",
     iconBg: "#fef9c3",
     iconColor: "#92400e",
     actionLabel: "Ver existente",
-    actionBg: "#fef9c3",
-    actionColor: "#92400e",
-    actionBorder: "#fde68a",
+    actionBg: "#f6f8fa",
+    actionColor: "#0d1117",
+    actionBorder: "#eaecef",
     actionType: "navigate+dismiss",
   },
   garantia: {
     icon: ShieldCheck,
     label: "Garantía",
-    cardBg: "linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%)",
-    cardBorder: "#bfdbfe",
+    cardBg: "#ffffff",
+    cardBorder: "#eaecef",
     borderLeft: "#2563eb",
     accentColor: "#1d4ed8",
     iconBg: "#dbeafe",
     iconColor: "#1d4ed8",
     actionLabel: "Ver búsqueda",
-    actionBg: "#dbeafe",
-    actionColor: "#1d4ed8",
-    actionBorder: "#bfdbfe",
+    actionBg: "#f6f8fa",
+    actionColor: "#0d1117",
+    actionBorder: "#eaecef",
     actionType: "navigate",
   },
   cv_error: {
     icon: AlertCircle,
     label: "Error",
-    cardBg: "linear-gradient(135deg, #fffafb 0%, #fff1f2 100%)",
-    cardBorder: "#fecaca",
+    cardBg: "#ffffff",
+    cardBorder: "#eaecef",
     borderLeft: "#dc2626",
     accentColor: "#dc2626",
     iconBg: "#fee2e2",
     iconColor: "#dc2626",
     actionLabel: "Descartar",
-    actionBg: "#fee2e2",
-    actionColor: "#dc2626",
-    actionBorder: "#fecaca",
+    actionBg: "#f6f8fa",
+    actionColor: "#0d1117",
+    actionBorder: "#eaecef",
     actionType: "dismiss",
   },
 }
@@ -332,8 +332,8 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                   key={g.id}
                   className="rounded-2xl overflow-hidden"
                   style={{
-                    background: "linear-gradient(135deg, #fffdf5 0%, #fefce8 100%)",
-                    border: "1px solid #fef08a",
+                    background: "#ffffff",
+                    border: "1px solid #eaecef",
                     borderLeft: "3px solid #ca8a04",
                     boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
                   }}
@@ -364,13 +364,13 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center px-3.5 py-2.5" style={{ borderTop: "1px solid #fef08a" }}>
+                  <div className="flex items-center px-3.5 py-2.5" style={{ borderTop: "1px solid #eaecef" }}>
                     {g.candidatoId && (
                       <Link
                         href={`/candidatos/${g.candidatoId}`}
                         onClick={() => setOpen(false)}
                         className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-3 py-1.5"
-                        style={{ background: "#fef9c3", color: "#92400e", border: "1px solid #fde68a" }}
+                        style={{ background: "#f6f8fa", color: "#0d1117", border: "1px solid #eaecef" }}
                       >
                         Ver candidato
                         <ArrowRight className="h-3 w-3" />
