@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath, revalidateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { CVParseado } from "@/lib/cv/parse"
 import { upsertCandidato } from "@/lib/cv/upsert-candidato"
@@ -91,7 +91,7 @@ export async function registrarEnvioWhatsapp(candidatoId: string, mensajeEnviado
 
   revalidatePath("/candidatos")
   revalidatePath(`/candidatos/${candidatoId}`)
-  revalidateTag("dashboard")
+  revalidatePath("/")
   return { success: true, id: candidatoId }
 }
 
