@@ -28,24 +28,18 @@ export async function POST(req: NextRequest) {
   try {
     const ab = await req.arrayBuffer();
     const text = new TextDecoder().decode(ab);
-    console.log("[webhook/cv] byteLength:", ab.byteLength, "preview:", text.slice(0, 200));
     let raw: unknown;
     try {
       raw = JSON.parse(text);
-    } catch (jsonErr) {
-      console.error("[webhook/cv] json_parse_failed:", jsonErr instanceof Error ? jsonErr.message : String(jsonErr));
+    } catch {
       return NextResponse.json({ error: "bad_request", detail: "invalid_json" }, { status: 400 });
     }
     try {
       body = BodySchema.parse(raw);
-    } catch (zodErr) {
-      if (zodErr instanceof ZodError) {
-        console.error("[webhook/cv] zod_error:", JSON.stringify(zodErr.issues));
-      }
+    } catch {
       return NextResponse.json({ error: "bad_request", detail: "schema_mismatch" }, { status: 400 });
     }
-  } catch (err) {
-    console.error("[webhook/cv] body_unreadable:", err instanceof Error ? err.message : String(err));
+  } catch {
     return NextResponse.json({ error: "bad_request", detail: "body_unreadable" }, { status: 400 });
   }
 
@@ -78,7 +72,13 @@ export async function POST(req: NextRequest) {
 
   // 4. Validar que hay adjunto real (Make puede enviar campos vacíos en Replay)
   if (!body.archivo_base64 || !body.archivo_nombre) {
-    console.warn("[webhook/cv] adjunto_vacio: email_id:", body.email_id);
+    await supabase.from("webhook_logs").insert({
+      email_id: body.email_id,
+      estado: "failed",
+      detalle: "adjunto_vacio",
+      archivo_nombre: body.archivo_nombre,
+      remitente_email: body.remitente_email,
+    })
     return NextResponse.json({ error: "bad_request", detail: "adjunto_vacio" }, { status: 400 });
   }
 

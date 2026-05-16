@@ -1,9 +1,24 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { Search, Users, MessageCircle, ThumbsUp, ThumbsDown } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { CandidatoSheet } from "@/components/app/candidato-sheet";
 import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle";
 import { waUrl } from "@/lib/cv/utils";
+
+const getCandidatos = unstable_cache(
+  async () => {
+    const supabase = createServiceClient()
+    const { data } = await supabase
+      .from("candidatos")
+      .select("id, nombre, apellido, ultimo_puesto, fecha_nacimiento, ubicacion, telefono, estado, referencias, categorias, idiomas, fecha_consultado, gestiones(estado, busquedas(puesto))")
+      .order("fecha_ingreso", { ascending: false })
+      .limit(300)
+    return data ?? []
+  },
+  ["candidatos-list"],
+  { revalidate: 60 },
+)
 
 const STAGE_ORDER = [
   "preseleccionado", "entrevista_orka", "presentado_cliente",
@@ -47,22 +62,16 @@ export default async function CandidatosPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   const { q } = await searchParams;
-  const supabase = await createClient();
-
-  let query = supabase
-    .from("candidatos")
-    .select("id, nombre, apellido, ultimo_puesto, fecha_nacimiento, ubicacion, telefono, estado, referencias, categorias, idiomas, fecha_consultado, gestiones(estado, busquedas(puesto))")
-    .order("fecha_ingreso", { ascending: false })
-    .limit(300);
-
-  if (q?.trim()) {
-    const term = q.trim();
-    query = query.or(
-      `nombre.ilike.%${term}%,apellido.ilike.%${term}%,ultimo_puesto.ilike.%${term}%,ubicacion.ilike.%${term}%`
-    );
-  }
-
-  const { data: candidatos } = await query;
+  const todos = await getCandidatos()
+  const term = q?.trim().toLowerCase()
+  const candidatos = term
+    ? todos.filter((c) =>
+        c.nombre?.toLowerCase().includes(term) ||
+        c.apellido?.toLowerCase().includes(term) ||
+        c.ultimo_puesto?.toLowerCase().includes(term) ||
+        c.ubicacion?.toLowerCase().includes(term)
+      )
+    : todos
 
   const total  = candidatos?.length ?? 0;
   const activos = candidatos?.filter((c) => c.estado === "activo").length ?? 0;

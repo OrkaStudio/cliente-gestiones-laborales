@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { Users, Inbox, MapPin, Shield, Archive, Plus } from "lucide-react";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { BusquedasTabs } from "@/components/app/busquedas-tabs";
 
 const AVATAR_HEX = [
@@ -38,6 +39,30 @@ function calcDaysOpen(fecha: string) {
 
 type GestionRaw = { estado: string };
 
+type BusquedaConGestiones = {
+  id: string
+  puesto: string
+  cliente: string
+  estado: string
+  ubicacion: string | null
+  fecha_apertura: string
+  fecha_cierre: string | null
+  gestiones: GestionRaw[]
+}
+
+const getBusquedas = unstable_cache(
+  async () => {
+    const supabase = createServiceClient()
+    const { data } = await supabase
+      .from("busquedas")
+      .select("*, gestiones(id, estado)")
+      .order("fecha_apertura", { ascending: false })
+    return (data ?? []) as BusquedaConGestiones[]
+  },
+  ["busquedas-list"],
+  { revalidate: 60 },
+)
+
 function etapasActivas(gestiones: GestionRaw[]) {
   const activas = gestiones.filter((g) => g.estado !== "descartado");
   if (!activas.length) return [];
@@ -60,15 +85,11 @@ function diasGarantiaRestantes(fecha_cierre: string | null): number | null {
 }
 
 export default async function BusquedasPage() {
-  const supabase = await createClient();
-  const { data: busquedas } = await supabase
-    .from("busquedas")
-    .select("*, gestiones(id, estado)")
-    .order("fecha_apertura", { ascending: false });
+  const busquedas = await getBusquedas();
 
-  const activas    = (busquedas ?? []).filter((b) => b.estado === "activa");
-  const garantia   = (busquedas ?? []).filter((b) => b.estado === "cerrada");
-  const archivadas = (busquedas ?? []).filter((b) => b.estado === "archivada");
+  const activas    = busquedas.filter((b) => b.estado === "activa");
+  const garantia   = busquedas.filter((b) => b.estado === "cerrada");
+  const archivadas = busquedas.filter((b) => b.estado === "archivada");
 
   // Contar garantías vencidas para badge en tab
   const garantiasVencidas = garantia.filter((b) => {
@@ -139,7 +160,7 @@ function BusquedasGrid({
   emptyDesc,
   showDays,
 }: {
-  busquedas: ReturnType<typeof Array.prototype.filter> extends (infer T)[] ? T[] : never[];
+  busquedas: BusquedaConGestiones[];
   emptyIcon: React.ReactNode;
   emptyTitle: string;
   emptyDesc: string;
@@ -164,7 +185,7 @@ function BusquedasGrid({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-      {(busquedas as any[]).map((b, i) => {
+      {busquedas.map((b) => {
         const days   = calcDaysOpen(b.fecha_apertura);
         const count  = b.gestiones.length;
         const dys    = daysBadge(days);
@@ -257,7 +278,7 @@ function GarantiaGrid({
   busquedas,
   diasFn,
 }: {
-  busquedas: any[];
+  busquedas: BusquedaConGestiones[];
   diasFn: (fecha_cierre: string | null) => number | null;
 }) {
   if (busquedas.length === 0) {
