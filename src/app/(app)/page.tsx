@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles, TrendingUp, UserCheck } from "lucide-react";
+import { ArrowRight, Sparkles, TrendingUp, UserCheck, MessageCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { unstable_cache } from "next/cache";
@@ -27,14 +27,16 @@ const getDashboardData = unstable_cache(
       { count: gestionesEnCurso },
       { data: busquedasRaw },
       { data: candidatosRaw },
+      { data: consultados },
     ] = await Promise.all([
       supabase.from("candidatos").select("*", { count: "exact", head: true }).eq("estado", "activo"),
       supabase.from("busquedas").select("*", { count: "exact", head: true }).eq("estado", "activa"),
       supabase.from("gestiones").select("*", { count: "exact", head: true }).neq("estado", "contratado").neq("estado", "descartado"),
       supabase.from("busquedas").select("id, puesto, cliente, gestiones(estado)").eq("estado", "activa"),
       supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, gestiones(estado)").eq("estado", "activo").order("fecha_ingreso", { ascending: false }).limit(200),
+      supabase.from("candidatos").select("id, nombre, apellido, ultimo_puesto, fecha_consultado").not("fecha_consultado", "is", null).eq("estado", "activo").order("fecha_consultado", { ascending: false }).limit(10),
     ])
-    return { candidatosActivos, busquedasActivas, gestionesEnCurso, busquedasRaw, candidatosRaw }
+    return { candidatosActivos, busquedasActivas, gestionesEnCurso, busquedasRaw, candidatosRaw, consultados }
   },
   ["dashboard"],
   { revalidate: 30, tags: ["dashboard"] }
@@ -49,7 +51,7 @@ export default async function Home() {
     getDashboardData(),
   ])
 
-  const { candidatosActivos, busquedasActivas, gestionesEnCurso, busquedasRaw, candidatosRaw } = dashboardData
+  const { candidatosActivos, busquedasActivas, gestionesEnCurso, busquedasRaw, candidatosRaw, consultados } = dashboardData
 
   type GEst = { estado: string };
 
@@ -234,6 +236,66 @@ export default async function Home() {
           )}
         </div>
       </div>
+
+      {/* ── Mensajes enviados ─────────────────────────────────────── */}
+      {(consultados ?? []).length > 0 && (
+        <div
+          className="rounded-2xl border p-6"
+          style={{ background: "#ffffff", borderColor: "var(--gl-border)", boxShadow: "0 2px 8px rgba(13,17,23,0.05)" }}
+        >
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
+                Mensajes enviados
+              </h2>
+              <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                Candidatos que recibieron preguntas por WhatsApp
+              </p>
+            </div>
+            <MessageCircle className="h-4 w-4" style={{ color: "var(--gl-ink-3)", opacity: 0.5 }} />
+          </div>
+
+          <div className="space-y-0.5">
+            {(consultados ?? []).map((c, i) => {
+              const pal  = AVATAR_HEX[i % AVATAR_HEX.length]
+              const dias = Math.floor((Date.now() - new Date(c.fecha_consultado!).getTime()) / 86_400_000)
+              const badge =
+                dias <= 3 ? { bg: "#f6f8fa",  color: "#57606a" } :
+                dias <= 7 ? { bg: "#fff8c5",  color: "#9a6700" } :
+                            { bg: "#ffebe9",  color: "#cf222e" }
+              return (
+                <Link
+                  key={c.id}
+                  href={`/candidatos/${c.id}`}
+                  className="gl-row flex items-center gap-3 px-3 py-3"
+                >
+                  <div
+                    className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
+                    style={{ background: pal.bg, color: pal.color }}
+                  >
+                    {c.nombre[0]}{c.apellido[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>
+                      {c.nombre} {c.apellido}
+                    </div>
+                    <div className="text-xs mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
+                      {c.ultimo_puesto ?? "—"}
+                    </div>
+                  </div>
+                  <span
+                    className="shrink-0 text-[10.5px] font-semibold tabular-nums px-2 py-0.5 rounded-full"
+                    style={badge}
+                  >
+                    hace {dias}d
+                  </span>
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-25" />
+                </Link>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
     </div>
   );
