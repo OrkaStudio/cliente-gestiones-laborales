@@ -45,6 +45,8 @@ type BusquedaConGestiones = {
   cliente: string
   estado: string
   ubicacion: string | null
+  rango_salarial: string | null
+  notas_cierre: string | null
   fecha_apertura: string
   fecha_cierre: string | null
   gestiones: GestionRaw[]
