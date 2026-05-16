@@ -320,22 +320,22 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                   key={g.id}
                   className="rounded-2xl overflow-hidden"
                   style={{
-                    background: "linear-gradient(135deg, #fffbeb 0%, #fff8c5 100%)",
-                    border: "1px solid #e6c84a",
-                    borderLeft: "3px solid #d97706",
+                    background: "linear-gradient(135deg, #fffdf5 0%, #fefce8 100%)",
+                    border: "1px solid #fef08a",
+                    borderLeft: "3px solid #ca8a04",
                     boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
                   }}
                 >
                   <div className="flex items-start gap-3 px-3.5 pt-3.5 pb-2.5">
-                    <div className="h-9 w-9 rounded-xl grid place-items-center shrink-0 mt-0.5" style={{ background: "#d97706" }}>
-                      <Clock className="h-4 w-4 text-white" />
+                    <div className="h-9 w-9 rounded-xl grid place-items-center shrink-0 mt-0.5" style={{ background: "#fef9c3" }}>
+                      <Clock className="h-4 w-4" style={{ color: "#92400e" }} />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: "#7d4e00" }}>
+                        <span className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: "#92400e" }}>
                           Sin movimiento
                         </span>
-                        <span className="text-[10px] font-semibold tabular-nums" style={{ color: "#7d4e00", opacity: 0.8 }}>
+                        <span className="text-[10px] font-semibold tabular-nums" style={{ color: "#92400e", opacity: 0.7 }}>
                           hace {g.diasSinMovimiento}d
                         </span>
                       </div>
@@ -345,20 +345,20 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                       <p className="text-[11.5px] mt-0.5 leading-snug" style={{ color: "var(--gl-ink-3)" }}>
                         {g.busquedaPuesto}
                         {g.estado && STAGE_LABEL[g.estado] && (
-                          <span className="ml-1.5 font-medium" style={{ color: "#7d4e00" }}>
+                          <span className="ml-1.5 font-medium" style={{ color: "#92400e" }}>
                             · {STAGE_LABEL[g.estado]}
                           </span>
                         )}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center px-3.5 py-2.5" style={{ borderTop: "1px solid #e6c84a" }}>
+                  <div className="flex items-center px-3.5 py-2.5" style={{ borderTop: "1px solid #fef08a" }}>
                     {g.candidatoId && (
                       <Link
                         href={`/candidatos/${g.candidatoId}`}
                         onClick={() => setOpen(false)}
                         className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-3 py-1.5"
-                        style={{ background: "#d97706", color: "#fff" }}
+                        style={{ background: "#fef9c3", color: "#92400e", border: "1px solid #fde68a" }}
                       >
                         Ver candidato
                         <ArrowRight className="h-3 w-3" />
