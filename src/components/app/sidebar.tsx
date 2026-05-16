@@ -69,65 +69,77 @@ const TIPO: Record<
   {
     icon: React.ComponentType<{ className?: string }>
     label: string
-    // card
     cardBg: string
     cardBorder: string
+    borderLeft: string
     accentColor: string
-    // icon circle
     iconBg: string
-    // action
+    iconColor: string
     actionLabel: string
     actionBg: string
     actionColor: string
+    actionBorder: string
     actionType: "navigate" | "dismiss" | "navigate+dismiss"
   }
 > = {
   cv_nuevo: {
     icon: UserPlus,
     label: "CV nuevo",
-    cardBg: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)",
+    cardBg: "linear-gradient(135deg, #f7fef9 0%, #f0fdf4 100%)",
     cardBorder: "#bbf7d0",
-    accentColor: "#16a34a",
-    iconBg: "#16a34a",
+    borderLeft: "#16a34a",
+    accentColor: "#15803d",
+    iconBg: "#dcfce7",
+    iconColor: "#15803d",
     actionLabel: "Ver perfil",
-    actionBg: "#16a34a",
-    actionColor: "#fff",
+    actionBg: "#dcfce7",
+    actionColor: "#15803d",
+    actionBorder: "#bbf7d0",
     actionType: "navigate",
   },
   cv_duplicado: {
     icon: Copy,
     label: "Duplicado",
-    cardBg: "linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)",
-    cardBorder: "#fde68a",
-    accentColor: "#d97706",
-    iconBg: "#d97706",
+    cardBg: "linear-gradient(135deg, #fffdf5 0%, #fefce8 100%)",
+    cardBorder: "#fef08a",
+    borderLeft: "#ca8a04",
+    accentColor: "#92400e",
+    iconBg: "#fef9c3",
+    iconColor: "#92400e",
     actionLabel: "Ver existente",
-    actionBg: "#d97706",
-    actionColor: "#fff",
+    actionBg: "#fef9c3",
+    actionColor: "#92400e",
+    actionBorder: "#fde68a",
     actionType: "navigate+dismiss",
   },
   garantia: {
     icon: ShieldCheck,
     label: "Garantía",
-    cardBg: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+    cardBg: "linear-gradient(135deg, #f8fbff 0%, #eff6ff 100%)",
     cardBorder: "#bfdbfe",
-    accentColor: "#2563eb",
-    iconBg: "#2563eb",
+    borderLeft: "#2563eb",
+    accentColor: "#1d4ed8",
+    iconBg: "#dbeafe",
+    iconColor: "#1d4ed8",
     actionLabel: "Ver búsqueda",
-    actionBg: "#2563eb",
-    actionColor: "#fff",
+    actionBg: "#dbeafe",
+    actionColor: "#1d4ed8",
+    actionBorder: "#bfdbfe",
     actionType: "navigate",
   },
   cv_error: {
     icon: AlertCircle,
     label: "Error",
-    cardBg: "linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)",
+    cardBg: "linear-gradient(135deg, #fffafb 0%, #fff1f2 100%)",
     cardBorder: "#fecaca",
+    borderLeft: "#dc2626",
     accentColor: "#dc2626",
-    iconBg: "#dc2626",
+    iconBg: "#fee2e2",
+    iconColor: "#dc2626",
     actionLabel: "Descartar",
     actionBg: "#fee2e2",
     actionColor: "#dc2626",
+    actionBorder: "#fecaca",
     actionType: "dismiss",
   },
 }
@@ -391,7 +403,7 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                     style={{
                       background: cfg.cardBg,
                       border: `1px solid ${cfg.cardBorder}`,
-                      borderLeft: `3px solid ${cfg.accentColor}`,
+                      borderLeft: `3px solid ${cfg.borderLeft}`,
                       boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
                     }}
                     onMouseEnter={(e) => {
@@ -407,7 +419,7 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                     <div className="flex items-start gap-3 px-3.5 pt-3.5 pb-2.5">
                       {/* Ícono */}
                       <div className="h-9 w-9 rounded-xl grid place-items-center shrink-0 mt-0.5" style={{ background: cfg.iconBg }}>
-                        <Icon className="h-4 w-4 text-white" />
+                        <Icon className="h-4 w-4" style={{ color: cfg.iconColor }} />
                       </div>
                       {/* Contenido */}
                       <div className="flex-1 min-w-0">
@@ -447,7 +459,7 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                         <button
                           onClick={() => dismiss(n.id)}
                           className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-3 py-1.5 transition-all duration-150"
-                          style={{ background: cfg.actionBg, color: cfg.actionColor, border: "none", cursor: "pointer" }}
+                          style={{ background: cfg.actionBg, color: cfg.actionColor, border: `1px solid ${cfg.actionBorder}`, cursor: "pointer" }}
                           onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
                           onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                         >
@@ -461,7 +473,7 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
                               href={href}
                               onClick={() => { dismiss(n.id); setOpen(false) }}
                               className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-3 py-1.5 transition-all duration-150"
-                              style={{ background: cfg.actionBg, color: cfg.actionColor }}
+                              style={{ background: cfg.actionBg, color: cfg.actionColor, border: `1px solid ${cfg.actionBorder}` }}
                               onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
                               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                             >
