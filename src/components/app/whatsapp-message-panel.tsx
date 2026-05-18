@@ -38,6 +38,7 @@ export function WhatsappMessagePanel({
 
   // ── Respuestas ──────────────────────────────────────────────────────────────
   const hasRespuestas = !!initialRespuestas?.some((r) => r.respuesta.trim())
+  const [modoHistorial, setModoHistorial] = useState(hasRespuestas)
   const [showRespuestas, setShowRespuestas] = useState(hasRespuestas)
   const [answers, setAnswers] = useState<string[]>(() =>
     preguntas_sugeridas.map((p) => initialRespuestas?.find((r) => r.pregunta === p)?.respuesta ?? "")
@@ -133,6 +134,48 @@ export function WhatsappMessagePanel({
     if (sinTelefono) return
     abrirWA()
     setModalOpen(false)
+  }
+
+  // ── Vista historial ─────────────────────────────────────────────────────────
+  if (modoHistorial && initialRespuestas?.length) {
+    const pares = preguntas_sugeridas.map((p, i) => ({
+      pregunta: p,
+      respuesta: initialRespuestas?.find(r => r.pregunta === p)?.respuesta ?? initialRespuestas?.[i]?.respuesta ?? "",
+    }))
+    return (
+      <div className="rounded-2xl border p-5" style={CARD}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Q&amp;A registrado</h2>
+            {fechaFormateada && (
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                Consultado el {fechaFormateada}
+              </p>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={() => setModoHistorial(false)}
+            className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg"
+            style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
+          >
+            Nuevo ciclo →
+          </button>
+        </div>
+        <div className="space-y-3">
+          {pares.map(({ pregunta, respuesta }, i) => (
+            <div key={i} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 12 }}>
+              <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                {pregunta}
+              </div>
+              <div className="text-[12.5px]" style={{ color: respuesta.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
+                {respuesta.trim() || "— sin respuesta"}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

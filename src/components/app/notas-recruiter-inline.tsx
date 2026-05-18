@@ -16,7 +16,8 @@ const CARD = {
 } as const
 
 export function NotasRecruiterInline({ candidatoId, notas: initial }: Props) {
-  const [notas,     setNotas]     = useState(initial ?? "")
+  const limpio = (initial ?? "").trimStart().startsWith("Campos no encontrados") ? "" : (initial ?? "")
+  const [notas,     setNotas]     = useState(limpio)
   const [editing,   setEditing]   = useState(false)
   const [draft,     setDraft]     = useState("")
   const [saveOk,    setSaveOk]    = useState(false)

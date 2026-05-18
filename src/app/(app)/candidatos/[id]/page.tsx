@@ -14,6 +14,7 @@ import type { Referencia } from "@/components/app/referencia-inline-panel"
 import { FichaEditablePanel } from "@/components/app/ficha-editable-panel"
 import { NotasRecruiterInline } from "@/components/app/notas-recruiter-inline"
 import { CategoriasInlinePanel } from "@/components/app/categorias-inline-panel"
+import { CamposPendientesPanel } from "@/components/app/campos-pendientes-panel"
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -317,6 +318,12 @@ export default async function CandidatoDetailPage({
         estado_civil={candidato.estado_civil ?? null}
         hijos={candidato.hijos ?? null}
         edad={edad}
+      />
+
+      {/* ── Campos pendientes ─────────────────────────────────────── */}
+      <CamposPendientesPanel
+        candidato={candidato}
+        experiencia={experiencia ?? []}
       />
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
