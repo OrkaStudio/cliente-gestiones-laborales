@@ -77,13 +77,18 @@ export async function updateCVProcesado(candidatoId: string, texto: string) {
   revalidatePath(`/candidatos/${candidatoId}`);
 }
 
-export async function registrarEnvioWhatsapp(candidatoId: string, mensajeEnviado: string): Promise<ActionResult> {
+export async function registrarEnvioWhatsapp(
+  candidatoId: string,
+  mensajeEnviado: string,
+  preguntasActuales?: string[],
+): Promise<ActionResult> {
   const supabase = createServiceClient()
   const { error } = await supabase
     .from("candidatos")
     .update({
       fecha_consultado: new Date().toISOString(),
       mensaje_whatsapp: mensajeEnviado,
+      ...(preguntasActuales ? { preguntas_sugeridas: preguntasActuales } : {}),
     })
     .eq("id", candidatoId)
 
@@ -182,6 +187,7 @@ export async function updateCandidatoFields(
   const supabase = createServiceClient()
   const { error } = await supabase.from("candidatos").update(fields).eq("id", id)
   if (error) return { success: false, error: error.message }
+  revalidatePath("/candidatos")
   revalidatePath(`/candidatos/${id}`)
   revalidatePath(`/candidatos/${id}/cv`)
   return { success: true, id }

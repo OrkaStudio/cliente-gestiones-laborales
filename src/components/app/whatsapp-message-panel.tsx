@@ -123,7 +123,7 @@ export function WhatsappMessagePanel({
   function handleEnviarYMarcar() {
     if (sinTelefono) return
     startTransition(async () => {
-      await registrarEnvioWhatsapp(candidatoId, mensajeEnModal)
+      await registrarEnvioWhatsapp(candidatoId, mensajeEnModal, preguntas.filter((p) => p.trim()))
       abrirWA()
       setModalOpen(false)
     })
@@ -257,7 +257,7 @@ export function WhatsappMessagePanel({
                     value={convTexto}
                     onChange={(e) => setConvTexto(e.target.value)}
                     rows={6}
-                    placeholder="Pegá acá el chat de WhatsApp y la IA extrae las respuestas automáticamente..."
+                    placeholder="Pegá acá el chat de WhatsApp y se extraen las respuestas automáticamente..."
                     className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                     style={{
                       background: "var(--gl-surface)",
@@ -291,7 +291,7 @@ export function WhatsappMessagePanel({
                       }}
                     >
                       <Wand2 className="h-3.5 w-3.5" />
-                      {parsePending ? "Analizando…" : "Analizar con IA"}
+                      {parsePending ? "Extrayendo…" : "Extraer respuestas"}
                     </button>
                   </div>
                 </div>
