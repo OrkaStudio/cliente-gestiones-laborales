@@ -146,6 +146,33 @@ export async function actualizarCVConRespuestas(candidatoId: string): Promise<Ac
   return { success: true, id: candidatoId }
 }
 
+export async function extraerRespuestasDeConversacion(
+  preguntas: string[],
+  conversacion: string,
+): Promise<{ success: true; respuestas: string[] } | { success: false; error: string }> {
+  if (!conversacion.trim()) return { success: false, error: "La conversación está vacía" }
+
+  const listaPreguntas = preguntas.map((p, i) => `${i + 1}. ${p}`).join("\n")
+
+  const { text } = await generateText({
+    model: anthropic("claude-haiku-4-5-20251001"),
+    prompt: `Se le hicieron estas preguntas a un candidato laboral:\n${listaPreguntas}\n\nEsta es la conversación de WhatsApp donde respondió:\n${conversacion}\n\nExtrae la respuesta a cada pregunta. Si no hay respuesta para una pregunta, dejá el campo vacío.\n\nRespondé ÚNICAMENTE con un JSON array con exactamente ${preguntas.length} elementos, en el mismo orden que las preguntas:\n["respuesta 1", "respuesta 2", ...]`,
+  })
+
+  try {
+    const match = text.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error("No JSON array found")
+    const parsed = JSON.parse(match[0]) as unknown[]
+    if (!Array.isArray(parsed)) throw new Error("Not an array")
+    const respuestas = preguntas.map((_, i) =>
+      typeof parsed[i] === "string" ? (parsed[i] as string) : ""
+    )
+    return { success: true, respuestas }
+  } catch {
+    return { success: false, error: "No se pudo interpretar la respuesta de Claude" }
+  }
+}
+
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
 
 export async function updateCandidatoFields(

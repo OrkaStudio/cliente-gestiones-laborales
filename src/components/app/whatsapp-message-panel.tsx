@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare } from "lucide-react"
+import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare, Clipboard, Wand2 } from "lucide-react"
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
-import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas } from "@/lib/actions/candidatos"
+import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion } from "@/lib/actions/candidatos"
 
 interface Props {
   candidatoId: string
@@ -44,9 +44,13 @@ export function WhatsappMessagePanel({
   )
   const [savePending,   startSave]   = useTransition()
   const [updatePending, startUpdate] = useTransition()
+  const [parsePending,  startParse]  = useTransition()
   const [saveOk,   setSaveOk]   = useState(false)
   const [updateOk, setUpdateOk] = useState(false)
+  const [parseOk,  setParseOk]  = useState(false)
   const [respErr,  setRespErr]  = useState<string | null>(null)
+  const [showConvPaste, setShowConvPaste] = useState(false)
+  const [convTexto,     setConvTexto]     = useState("")
 
   function handleGuardar() {
     setRespErr(null); setSaveOk(false)
@@ -66,6 +70,21 @@ export function WhatsappMessagePanel({
       const result = await actualizarCVConRespuestas(candidatoId)
       if (result.success) { setUpdateOk(true); setTimeout(() => setUpdateOk(false), 3000) }
       else setRespErr(result.error)
+    })
+  }
+
+  function handleAnalizarConversacion() {
+    setRespErr(null); setParseOk(false)
+    startParse(async () => {
+      const result = await extraerRespuestasDeConversacion(preguntas_sugeridas, convTexto)
+      if (result.success) {
+        setAnswers(result.respuestas)
+        setParseOk(true)
+        setShowConvPaste(false)
+        setTimeout(() => setParseOk(false), 4000)
+      } else {
+        setRespErr(result.error)
+      }
     })
   }
 
@@ -232,6 +251,74 @@ export function WhatsappMessagePanel({
 
             {showRespuestas && (
               <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
+
+                {/* Pegar conversación completa */}
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShowConvPaste((v) => !v)}
+                    className="flex items-center gap-1.5 text-[11.5px] font-semibold px-3 py-2 rounded-xl transition-opacity hover:opacity-70"
+                    style={{
+                      background: "var(--gl-surface)",
+                      border: "1px solid var(--gl-border)",
+                      color: "var(--gl-ink-3)",
+                    }}
+                  >
+                    <Clipboard className="h-3.5 w-3.5" />
+                    Pegar conversación completa
+                    {showConvPaste
+                      ? <ChevronUp className="h-3 w-3" style={{ marginLeft: 2 }} />
+                      : <ChevronDown className="h-3 w-3" style={{ marginLeft: 2 }} />}
+                  </button>
+
+                  {showConvPaste && (
+                    <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      <textarea
+                        value={convTexto}
+                        onChange={(e) => setConvTexto(e.target.value)}
+                        rows={8}
+                        placeholder="Pegá acá el chat de WhatsApp completo y la IA va a extraer las respuestas automáticamente..."
+                        className="w-full rounded-xl px-3 py-2 text-sm outline-none"
+                        style={{
+                          background: "var(--gl-surface)",
+                          border: "1px solid var(--gl-border)",
+                          color: "var(--gl-ink)",
+                          fontFamily: "inherit",
+                          lineHeight: 1.5,
+                          resize: "vertical",
+                        }}
+                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
+                        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
+                      />
+                      <div className="flex items-center justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAnalizarConversacion}
+                          disabled={parsePending || !convTexto.trim()}
+                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold"
+                          style={{
+                            background: "var(--gl-olive)",
+                            color: "#fff",
+                            border: "none",
+                            opacity: parsePending || !convTexto.trim() ? 0.5 : 1,
+                            cursor: parsePending || !convTexto.trim() ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          <Wand2 className="h-3.5 w-3.5" />
+                          {parsePending ? "Analizando…" : "Analizar con IA"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {parseOk && (
+                    <div className="mt-2 text-xs font-semibold flex items-center gap-1.5" style={{ color: "#1a7f37" }}>
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Respuestas cargadas automáticamente — revisalas antes de guardar
+                    </div>
+                  )}
+                </div>
+
                 {preguntas_sugeridas.map((pregunta, i) => (
                   <div key={i}>
                     <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--gl-olive)" }}>
