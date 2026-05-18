@@ -10,7 +10,10 @@ import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle"
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 import { waUrl } from "@/lib/cv/utils"
 import { ReferenciaInlinePanel } from "@/components/app/referencia-inline-panel"
-import type { Referencia } from "@/components/app/referencia-inline-panel";
+import type { Referencia } from "@/components/app/referencia-inline-panel"
+import { FichaEditablePanel } from "@/components/app/ficha-editable-panel"
+import { NotasRecruiterInline } from "@/components/app/notas-recruiter-inline"
+import { TrayectoriaPanel } from "@/components/app/trayectoria-panel"
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -96,19 +99,6 @@ export default async function CandidatoDetailPage({
   const avatarPal = AVATAR_HEX[
     ((candidato.nombre.charCodeAt(0) || 0) + (candidato.apellido.charCodeAt(0) || 0)) % AVATAR_HEX.length
   ];
-
-  // Ficha: items que tienen valor
-  type FichaItem = { label: string; value: string; positive?: boolean; negative?: boolean }
-  const fichaItems: FichaItem[] = [
-    edad != null                            ? { label: "Edad",             value: `${edad} años` }                                                   : null,
-    candidato.estado_civil                  ? { label: "Estado civil",     value: candidato.estado_civil }                                           : null,
-    candidato.hijos                         ? { label: "Hijos",            value: candidato.hijos }                                                  : null,
-    candidato.pretension_salarial           ? { label: "Pretensión",       value: candidato.pretension_salarial }                                    : null,
-    candidato.disponibilidad                ? { label: "Disponibilidad",   value: candidato.disponibilidad }                                         : null,
-    candidato.movilidad !== null            ? { label: "Movilidad a campo", value: candidato.movilidad ? "Sí" : "No", positive: !!candidato.movilidad, negative: candidato.movilidad === false } : null,
-    candidato.vehiculo_propio !== null      ? { label: "Vehículo propio",  value: candidato.vehiculo_propio ? "Sí" : "No", positive: !!candidato.vehiculo_propio, negative: candidato.vehiculo_propio === false } : null,
-    candidato.licencia_conducir !== null    ? { label: "Licencia conducir", value: candidato.licencia_conducir ? "Sí" : "No", positive: !!candidato.licencia_conducir, negative: candidato.licencia_conducir === false } : null,
-  ].filter(Boolean) as FichaItem[]
 
   // Stats que van en el header (sólo los que tienen valor)
   const headerStats = [
@@ -255,19 +245,19 @@ export default async function CandidatoDetailPage({
                 display:        "inline-flex",
                 alignItems:     "center",
                 gap:            "0.375rem",
-                padding:        "0.5rem 1.125rem",
+                padding:        "0.5rem 1rem",
                 fontSize:       "13.5px",
-                fontWeight:     700,
-                color:          "#ffffff",
-                background:     "#2a4a18",
-                border:         "1.5px solid #2a4a18",
+                fontWeight:     600,
+                color:          "var(--gl-ink-3)",
+                background:     "transparent",
+                border:         "1.5px solid var(--gl-border)",
                 borderRadius:   "0.75rem",
                 textDecoration: "none",
                 whiteSpace:     "nowrap",
                 transition:     "all 0.15s",
               }}
             >
-              Editar perfil
+              Datos del candidato
             </Link>
           </div>
         </div>
@@ -310,51 +300,18 @@ export default async function CandidatoDetailPage({
         </div>
       </div>
 
-      {/* ── Ficha rápida ──────────────────────────────────────────── */}
-      {fichaItems.length > 0 && (
-        <div className="rounded-2xl border p-5" style={CARD}>
-          <div
-            className="text-[10px] font-bold uppercase tracking-[0.18em] mb-4"
-            style={{ color: "var(--gl-ink-3)" }}
-          >
-            Datos del candidato
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-              gap: "1rem 2.5rem",
-            }}
-          >
-            {fichaItems.map((item) => (
-              <div key={item.label}>
-                <div
-                  className="text-[10px] font-semibold uppercase tracking-wide mb-0.5"
-                  style={{ color: "var(--gl-ink-3)" }}
-                >
-                  {item.label}
-                </div>
-                <div
-                  className="text-[13.5px] font-semibold"
-                  style={{
-                    color: item.positive
-                      ? "var(--gl-olive)"
-                      : item.negative
-                        ? "#cf222e"
-                        : "var(--gl-ink)",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                  title={item.value}
-                >
-                  {item.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* ── Ficha editable ────────────────────────────────────────── */}
+      <FichaEditablePanel
+        candidatoId={candidato.id}
+        disponibilidad={candidato.disponibilidad ?? null}
+        pretension_salarial={candidato.pretension_salarial ?? null}
+        movilidad={candidato.movilidad ?? null}
+        vehiculo_propio={candidato.vehiculo_propio ?? null}
+        licencia_conducir={candidato.licencia_conducir ?? null}
+        estado_civil={candidato.estado_civil ?? null}
+        hijos={candidato.hijos ?? null}
+        edad={edad}
+      />
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -474,67 +431,23 @@ export default async function CandidatoDetailPage({
           </div>
 
           {/* Trayectoria */}
-          {experiencia && experiencia.length > 0 && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <h2 className="text-[15px] font-bold mb-5" style={{ color: "var(--gl-ink)" }}>Trayectoria</h2>
-              <div className="space-y-0.5">
-                {experiencia.map((exp, i) => (
-                  <div
-                    key={exp.id}
-                    className="flex gap-4 py-4"
-                    style={{ borderTop: "1px solid var(--gl-border)" }}
-                  >
-                    <div className="flex flex-col items-center pt-1.5 shrink-0">
-                      <div
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{
-                          background: i === 0 ? "var(--gl-olive)" : "var(--gl-border)",
-                        }}
-                      />
-                      {i < experiencia.length - 1 && (
-                        <div className="flex-1 w-px mt-2" style={{ background: "var(--gl-border)", minHeight: "1.5rem" }} />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 pb-2">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <span className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>
-                          {exp.rol}
-                        </span>
-                        {(exp.desde || exp.hasta) && (
-                          <span className="text-xs font-mono tabular-nums shrink-0" style={{ color: "var(--gl-ink-3)" }}>
-                            {exp.desde ?? "?"} — {exp.hasta ?? "actual"}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-sm mt-0.5 font-medium" style={{ color: "var(--gl-olive)" }}>
-                        {exp.empresa}
-                      </div>
-                      {exp.descripcion && (
-                        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
-                          {exp.descripcion}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <TrayectoriaPanel
+            candidatoId={candidato.id}
+            experiencia={(experiencia ?? []).map((e) => ({
+              id:          e.id,
+              rol:         e.rol ?? null,
+              empresa:     e.empresa ?? null,
+              desde:       e.desde ?? null,
+              hasta:       e.hasta ?? null,
+              descripcion: e.descripcion ?? null,
+            }))}
+          />
 
           {/* Notas del recruiter */}
-          {candidato.notas_recruiter && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
-                Notas internas
-              </h2>
-              <p
-                className="text-sm leading-relaxed pl-4"
-                style={{ color: "var(--gl-ink-3)", borderLeft: "3px solid var(--gl-olive)" }}
-              >
-                {candidato.notas_recruiter}
-              </p>
-            </div>
-          )}
+          <NotasRecruiterInline
+            candidatoId={candidato.id}
+            notas={candidato.notas_recruiter ?? null}
+          />
         </div>
 
         {/* ── Derecha: contacto + perfil ── */}
