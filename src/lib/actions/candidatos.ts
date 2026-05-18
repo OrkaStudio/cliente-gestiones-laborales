@@ -151,6 +151,38 @@ export async function actualizarCVConRespuestas(candidatoId: string): Promise<Ac
   return { success: true, id: candidatoId }
 }
 
+export async function actualizarCVDesdeConversacion(
+  candidatoId: string,
+  conversacion: string,
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { data: candidato, error: fetchError } = await supabase
+    .from("candidatos")
+    .select("cv_procesado_texto")
+    .eq("id", candidatoId)
+    .single()
+
+  if (fetchError || !candidato) return { success: false, error: "Candidato no encontrado" }
+  if (!candidato.cv_procesado_texto) return { success: false, error: "El candidato no tiene CV procesado" }
+
+  const { text } = await generateText({
+    model: anthropic("claude-sonnet-4-6"),
+    system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y una conversación de WhatsApp, incorporá al CV toda información nueva y relevante que aparezca en la conversación. No inventés datos, no elimines información existente. Mantenés el formato exacto del CV: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). Respondé solo con el CV actualizado, sin explicaciones.`,
+    prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nConversación de WhatsApp:\n${conversacion}`,
+  })
+
+  const { error: updateError } = await supabase
+    .from("candidatos")
+    .update({ cv_procesado_texto: text })
+    .eq("id", candidatoId)
+
+  if (updateError) return { success: false, error: updateError.message }
+
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
+  return { success: true, id: candidatoId }
+}
+
 export async function extraerRespuestasDeConversacion(
   preguntas: string[],
   conversacion: string,

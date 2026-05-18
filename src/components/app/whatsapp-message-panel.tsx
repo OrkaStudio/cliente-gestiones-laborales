@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare, Wand2 } from "lucide-react"
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
-import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion } from "@/lib/actions/candidatos"
+import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion, actualizarCVDesdeConversacion } from "@/lib/actions/candidatos"
 
 interface Props {
   candidatoId: string
@@ -39,6 +39,11 @@ export function WhatsappMessagePanel({
   // ── Respuestas ──────────────────────────────────────────────────────────────
   const hasRespuestas = !!initialRespuestas?.some((r) => r.respuesta.trim())
   const [modoHistorial, setModoHistorial] = useState(hasRespuestas)
+  const [modoCiclo, setModoCiclo]         = useState(false)
+  const [cicloTexto, setCicloTexto]       = useState("")
+  const [cicloOk, setCicloOk]             = useState(false)
+  const [cicloErr, setCicloErr]           = useState<string | null>(null)
+  const [cicloPending, startCiclo]        = useTransition()
   const [showRespuestas, setShowRespuestas] = useState(hasRespuestas)
   const [answers, setAnswers] = useState<string[]>(() =>
     preguntas_sugeridas.map((p) => initialRespuestas?.find((r) => r.pregunta === p)?.respuesta ?? "")
@@ -142,6 +147,86 @@ export function WhatsappMessagePanel({
       pregunta: p,
       respuesta: initialRespuestas?.find(r => r.pregunta === p)?.respuesta ?? initialRespuestas?.[i]?.respuesta ?? "",
     }))
+
+    // Modo: pegar nueva conversación para actualizar CV
+    if (modoCiclo) {
+      function handleActualizarCiclo() {
+        setCicloErr(null); setCicloOk(false)
+        startCiclo(async () => {
+          const result = await actualizarCVDesdeConversacion(candidatoId, cicloTexto)
+          if (result.success) {
+            setCicloOk(true)
+            setCicloTexto("")
+            setTimeout(() => { setCicloOk(false); setModoCiclo(false) }, 2500)
+          } else {
+            setCicloErr(result.error)
+          }
+        })
+      }
+
+      return (
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Nueva conversación</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                Pegá la conversación de WhatsApp — el CV se actualiza automáticamente
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setModoCiclo(false); setCicloTexto(""); setCicloErr(null) }}
+              style={{ background: "none", border: "none", color: "var(--gl-ink-3)", cursor: "pointer", fontSize: 13 }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <textarea
+            value={cicloTexto}
+            onChange={e => setCicloTexto(e.target.value)}
+            rows={8}
+            placeholder={"[Oriana]: ¿Tenés vehículo propio?\n[Candidato]: Sí, auto Gol 2012.\n..."}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
+            style={{
+              background: "var(--gl-surface)",
+              border: "1.5px solid var(--gl-olive)",
+              color: "var(--gl-ink)",
+              fontFamily: "inherit",
+              lineHeight: 1.6,
+              resize: "vertical",
+            }}
+          />
+
+          {cicloErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{cicloErr}</p>}
+
+          <div className="flex items-center justify-end gap-2">
+            {cicloOk && (
+              <span className="text-[11px] font-semibold flex items-center gap-1" style={{ color: "#1a7f37" }}>
+                <CheckCircle className="h-3 w-3" /> CV actualizado
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={handleActualizarCiclo}
+              disabled={cicloPending || !cicloTexto.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+              style={{
+                background: "var(--gl-olive)",
+                color: "#fff",
+                border: "none",
+                cursor: cicloPending || !cicloTexto.trim() ? "default" : "pointer",
+                opacity: cicloPending || !cicloTexto.trim() ? 0.6 : 1,
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {cicloPending ? "Actualizando CV…" : "Actualizar CV"}
+            </button>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div className="rounded-2xl border p-5" style={CARD}>
         <div className="flex items-center justify-between mb-4">
@@ -155,11 +240,11 @@ export function WhatsappMessagePanel({
           </div>
           <button
             type="button"
-            onClick={() => setModoHistorial(false)}
+            onClick={() => setModoCiclo(true)}
             className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg"
             style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
           >
-            Nuevo ciclo →
+            + Agregar conversación
           </button>
         </div>
         <div className="space-y-3">
