@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare, Clipboard, Wand2 } from "lucide-react"
+import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare, Wand2 } from "lucide-react"
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
 import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion } from "@/lib/actions/candidatos"
 
@@ -49,8 +49,7 @@ export function WhatsappMessagePanel({
   const [updateOk, setUpdateOk] = useState(false)
   const [parseOk,  setParseOk]  = useState(false)
   const [respErr,  setRespErr]  = useState<string | null>(null)
-  const [showConvPaste, setShowConvPaste] = useState(false)
-  const [convTexto,     setConvTexto]     = useState("")
+  const [convTexto, setConvTexto] = useState("")
 
   function handleGuardar() {
     setRespErr(null); setSaveOk(false)
@@ -80,7 +79,7 @@ export function WhatsappMessagePanel({
       if (result.success) {
         setAnswers(result.respuestas)
         setParseOk(true)
-        setShowConvPaste(false)
+        setConvTexto("")
         setTimeout(() => setParseOk(false), 4000)
       } else {
         setRespErr(result.error)
@@ -254,99 +253,82 @@ export function WhatsappMessagePanel({
 
                 {/* Pegar conversación completa */}
                 <div>
-                  <button
-                    type="button"
-                    onClick={() => setShowConvPaste((v) => !v)}
-                    className="flex items-center gap-1.5 text-[11.5px] font-semibold px-3 py-2 rounded-xl transition-opacity hover:opacity-70"
+                  <textarea
+                    value={convTexto}
+                    onChange={(e) => setConvTexto(e.target.value)}
+                    rows={6}
+                    placeholder="Pegá acá el chat de WhatsApp y la IA extrae las respuestas automáticamente..."
+                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
                     style={{
                       background: "var(--gl-surface)",
                       border: "1px solid var(--gl-border)",
-                      color: "var(--gl-ink-3)",
+                      color: "var(--gl-ink)",
+                      fontFamily: "inherit",
+                      lineHeight: 1.5,
+                      resize: "vertical",
                     }}
-                  >
-                    <Clipboard className="h-3.5 w-3.5" />
-                    Pegar conversación completa
-                    {showConvPaste
-                      ? <ChevronUp className="h-3 w-3" style={{ marginLeft: 2 }} />
-                      : <ChevronDown className="h-3 w-3" style={{ marginLeft: 2 }} />}
-                  </button>
-
-                  {showConvPaste && (
-                    <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                      <textarea
-                        value={convTexto}
-                        onChange={(e) => setConvTexto(e.target.value)}
-                        rows={8}
-                        placeholder="Pegá acá el chat de WhatsApp completo y la IA va a extraer las respuestas automáticamente..."
-                        className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                        style={{
-                          background: "var(--gl-surface)",
-                          border: "1px solid var(--gl-border)",
-                          color: "var(--gl-ink)",
-                          fontFamily: "inherit",
-                          lineHeight: 1.5,
-                          resize: "vertical",
-                        }}
-                        onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
-                        onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
-                      />
-                      <div className="flex items-center justify-end">
-                        <button
-                          type="button"
-                          onClick={handleAnalizarConversacion}
-                          disabled={parsePending || !convTexto.trim()}
-                          className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold"
-                          style={{
-                            background: "var(--gl-olive)",
-                            color: "#fff",
-                            border: "none",
-                            opacity: parsePending || !convTexto.trim() ? 0.5 : 1,
-                            cursor: parsePending || !convTexto.trim() ? "not-allowed" : "pointer",
-                          }}
-                        >
-                          <Wand2 className="h-3.5 w-3.5" />
-                          {parsePending ? "Analizando…" : "Analizar con IA"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {parseOk && (
-                    <div className="mt-2 text-xs font-semibold flex items-center gap-1.5" style={{ color: "#1a7f37" }}>
-                      <CheckCircle className="h-3.5 w-3.5" />
-                      Respuestas cargadas automáticamente — revisalas antes de guardar
-                    </div>
-                  )}
+                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
+                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
+                  />
+                  <div className="flex items-center justify-between mt-2">
+                    {parseOk ? (
+                      <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#1a7f37" }}>
+                        <CheckCircle className="h-3.5 w-3.5" />
+                        Respuestas cargadas — revisalas antes de guardar
+                      </span>
+                    ) : <span />}
+                    <button
+                      type="button"
+                      onClick={handleAnalizarConversacion}
+                      disabled={parsePending || !convTexto.trim()}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold"
+                      style={{
+                        background: "var(--gl-olive)",
+                        color: "#fff",
+                        border: "none",
+                        opacity: parsePending || !convTexto.trim() ? 0.5 : 1,
+                        cursor: parsePending || !convTexto.trim() ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <Wand2 className="h-3.5 w-3.5" />
+                      {parsePending ? "Analizando…" : "Analizar con IA"}
+                    </button>
+                  </div>
                 </div>
 
-                {preguntas_sugeridas.map((pregunta, i) => (
-                  <div key={i}>
-                    <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--gl-olive)" }}>
-                      {i + 1}. {pregunta}
-                    </div>
-                    <textarea
-                      value={answers[i] ?? ""}
-                      onChange={(e) => {
-                        const next = [...answers]
-                        next[i] = e.target.value
-                        setAnswers(next)
-                      }}
-                      rows={2}
-                      placeholder="Respuesta del candidato..."
-                      className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
-                      style={{
-                        background: "var(--gl-surface)",
-                        border: "1px solid var(--gl-border)",
-                        color: "var(--gl-ink)",
-                        lineHeight: 1.5,
-                        fontFamily: "inherit",
-                        transition: "border-color 0.15s",
-                      }}
-                      onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
-                      onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
-                    />
+                {/* Respuestas extraídas — solo si hay alguna */}
+                {answers.some((a) => a.trim()) && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", borderTop: "1px solid var(--gl-border)", paddingTop: "0.875rem" }}>
+                    {preguntas_sugeridas.map((pregunta, i) => (
+                      <div key={i}>
+                        <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--gl-olive)" }}>
+                          {i + 1}. {pregunta}
+                        </div>
+                        <textarea
+                          value={answers[i] ?? ""}
+                          onChange={(e) => {
+                            const next = [...answers]
+                            next[i] = e.target.value
+                            setAnswers(next)
+                          }}
+                          rows={2}
+                          placeholder="Sin respuesta"
+                          className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
+                          style={{
+                            background: "var(--gl-surface)",
+                            border: "1px solid var(--gl-border)",
+                            color: "var(--gl-ink)",
+                            lineHeight: 1.5,
+                            fontFamily: "inherit",
+                            transition: "border-color 0.15s",
+                          }}
+                          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
+                          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
+                        />
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
 
                 {respErr && (
                   <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "#ffebe9", color: "#cf222e", border: "1px solid #f1aeb5" }}>
@@ -354,40 +336,42 @@ export function WhatsappMessagePanel({
                   </div>
                 )}
 
-                <div className="flex items-center justify-end gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleGuardar}
-                    disabled={savePending || updatePending}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-opacity"
-                    style={{
-                      background: saveOk ? "#dafbe1" : "var(--gl-surface)",
-                      border: `1px solid ${saveOk ? "#1a7f37" : "var(--gl-border)"}`,
-                      color: saveOk ? "#1a7f37" : "var(--gl-ink-3)",
-                      opacity: savePending ? 0.7 : 1,
-                      cursor: savePending ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    {saveOk ? <CheckCircle className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-                    {saveOk ? "Guardado" : savePending ? "Guardando…" : "Guardar"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleActualizarCV}
-                    disabled={savePending || updatePending}
-                    className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-opacity"
-                    style={{
-                      background: updateOk ? "#1a7f37" : "var(--gl-olive)",
-                      color: "#fff",
-                      border: "none",
-                      opacity: updatePending ? 0.8 : 1,
-                      cursor: updatePending ? "not-allowed" : "pointer",
-                    }}
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" style={{ animation: updatePending ? "spin 1s linear infinite" : "none" }} />
-                    {updateOk ? "CV actualizado ✓" : updatePending ? "Actualizando…" : "Actualizar CV"}
-                  </button>
-                </div>
+                {answers.some((a) => a.trim()) && (
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleGuardar}
+                      disabled={savePending || updatePending}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-opacity"
+                      style={{
+                        background: saveOk ? "#dafbe1" : "var(--gl-surface)",
+                        border: `1px solid ${saveOk ? "#1a7f37" : "var(--gl-border)"}`,
+                        color: saveOk ? "#1a7f37" : "var(--gl-ink-3)",
+                        opacity: savePending ? 0.7 : 1,
+                        cursor: savePending ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      {saveOk ? <CheckCircle className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
+                      {saveOk ? "Guardado" : savePending ? "Guardando…" : "Guardar"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleActualizarCV}
+                      disabled={savePending || updatePending}
+                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-opacity"
+                      style={{
+                        background: updateOk ? "#1a7f37" : "var(--gl-olive)",
+                        color: "#fff",
+                        border: "none",
+                        opacity: updatePending ? 0.8 : 1,
+                        cursor: updatePending ? "not-allowed" : "pointer",
+                      }}
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" style={{ animation: updatePending ? "spin 1s linear infinite" : "none" }} />
+                      {updateOk ? "CV actualizado ✓" : updatePending ? "Actualizando…" : "Actualizar CV"}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
