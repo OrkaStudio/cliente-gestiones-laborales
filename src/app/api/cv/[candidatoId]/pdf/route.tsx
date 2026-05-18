@@ -1,7 +1,7 @@
 import { renderToBuffer, type DocumentProps } from "@react-pdf/renderer"
 import { createElement, type ReactElement } from "react"
 import { createServiceClient } from "@/lib/supabase/service"
-import { CVDocument } from "@/lib/cv/pdf"
+import { CVDocument, CVTextoDocument } from "@/lib/cv/pdf"
 
 export async function GET(
   _req: Request,
@@ -24,11 +24,10 @@ export async function GET(
   })
 
   const buffer = await renderToBuffer(
-    createElement(CVDocument, {
-      candidato,
-      experiencia: experiencia ?? [],
-      fecha,
-    }) as ReactElement<DocumentProps>,
+    (candidato.cv_procesado_texto
+      ? createElement(CVTextoDocument, { candidato, fecha })
+      : createElement(CVDocument, { candidato, experiencia: experiencia ?? [], fecha })
+    ) as ReactElement<DocumentProps>,
   )
 
   const safe = (s: string) =>

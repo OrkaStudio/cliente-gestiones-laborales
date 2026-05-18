@@ -1,9 +1,50 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
+import { CATEGORIAS_GL } from "@/lib/cv/categorias";
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { z, ZodError } from "zod";
+
+async function detectarCategorias(cvTexto: string): Promise<string[]> {
+  const key = process.env.ANTHROPIC_API_KEY
+  if (!key || !cvTexto.trim()) return []
+
+  const lista = CATEGORIAS_GL.join(", ")
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      messages: [{
+        role: "user",
+        content: `Dado este CV de un candidato rural/agropecuario, indicá cuáles categorías aplican realmente según su experiencia comprobada. Solo incluí las que el CV evidencia claramente.
+
+Categorías posibles: ${lista}
+
+CV:
+${cvTexto.slice(0, 3000)}
+
+Respondé ÚNICAMENTE con un JSON array. Ejemplo: ["Peón General", "Tractorista"]`,
+      }],
+    }),
+  })
+
+  if (!res.ok) return []
+  const data = await res.json()
+  const text: string = data?.content?.[0]?.text ?? ""
+  const match = text.match(/\[[\s\S]*?\]/)
+  if (!match) return []
+  const parsed: unknown = JSON.parse(match[0])
+  if (!Array.isArray(parsed)) return []
+  return (parsed as unknown[])
+    .filter((c): c is string => typeof c === "string" && CATEGORIAS_GL.includes(c))
+}
 
 // Claude puede tardar 30s+ — respondemos 202 a Make y procesamos en background
 export const maxDuration = 60;
@@ -203,6 +244,16 @@ export async function POST(req: NextRequest) {
           remitente_email: body.remitente_email,
         });
         return;
+      }
+
+      // Auto-categorización con Haiku
+      try {
+        const cats = await detectarCategorias(candidatoParseado.cv_procesado_texto ?? "")
+        if (cats.length > 0) {
+          await supabase.from("candidatos").update({ categorias: cats }).eq("id", candidatoId)
+        }
+      } catch {
+        // no interrumpe el flujo si falla
       }
 
       await supabase.from("notificaciones").insert({

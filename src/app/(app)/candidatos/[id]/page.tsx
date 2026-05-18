@@ -13,7 +13,7 @@ import { ReferenciaInlinePanel } from "@/components/app/referencia-inline-panel"
 import type { Referencia } from "@/components/app/referencia-inline-panel"
 import { FichaEditablePanel } from "@/components/app/ficha-editable-panel"
 import { NotasRecruiterInline } from "@/components/app/notas-recruiter-inline"
-import { TrayectoriaPanel } from "@/components/app/trayectoria-panel"
+import { CategoriasInlinePanel } from "@/components/app/categorias-inline-panel"
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -300,6 +300,12 @@ export default async function CandidatoDetailPage({
         </div>
       </div>
 
+      {/* ── Categorías a aplicar ──────────────────────────────────── */}
+      <CategoriasInlinePanel
+        candidatoId={candidato.id}
+        initialCategorias={(candidato.categorias as string[] | null) ?? []}
+      />
+
       {/* ── Ficha editable ────────────────────────────────────────── */}
       <FichaEditablePanel
         candidatoId={candidato.id}
@@ -429,19 +435,6 @@ export default async function CandidatoDetailPage({
               </div>
             )}
           </div>
-
-          {/* Trayectoria */}
-          <TrayectoriaPanel
-            candidatoId={candidato.id}
-            experiencia={(experiencia ?? []).map((e) => ({
-              id:          e.id,
-              rol:         e.rol ?? null,
-              empresa:     e.empresa ?? null,
-              desde:       e.desde ?? null,
-              hasta:       e.hasta ?? null,
-              descripcion: e.descripcion ?? null,
-            }))}
-          />
 
           {/* Notas del recruiter */}
           <NotasRecruiterInline

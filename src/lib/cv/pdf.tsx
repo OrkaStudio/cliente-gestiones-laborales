@@ -163,6 +163,191 @@ function ExperienciaPDF({ experiencia }: { experiencia: Experiencia[] }) {
   )
 }
 
+// ─── CVTextoDocument: renderiza desde cv_procesado_texto ─────────────────────
+
+function parseSectionsPDF(texto: string): Array<{ title: string | null; lines: string[] }> {
+  const sections: Array<{ title: string | null; lines: string[] }> = []
+  let current: { title: string | null; lines: string[] } = { title: null, lines: [] }
+
+  for (const raw of texto.split("\n")) {
+    const t = raw.trimEnd()
+    if (/^[═─]{6,}$/.test(t.trim())) continue
+    if (/^CURRICULUM VITAE/i.test(t.trim())) continue
+    if (
+      t.trim().length > 2 &&
+      t.trim() === t.trim().toUpperCase() &&
+      /^[A-ZÁÉÍÓÚÑÜÀÈÌÒÙÂÊÎÔÛÇ\s\/\-–—]+$/.test(t.trim())
+    ) {
+      sections.push(current)
+      current = { title: t.trim(), lines: [] }
+      continue
+    }
+    current.lines.push(t)
+  }
+  sections.push(current)
+  return sections.filter(s => s.title !== null || s.lines.some(l => l.trim()))
+}
+
+// Helpers para CVTextoDocument
+
+const PRIMARY_KEYS_PDF = new Set(["cargo", "establecimiento", "período", "periodo", "tareas", "descripción", "descripcion"])
+
+function splitJobsPDF(lines: string[]): { preLines: string[]; blocks: Array<{ header: string; lines: string[] }> } {
+  const preLines: string[] = []
+  const blocks: Array<{ header: string; lines: string[] }> = []
+  let cur: { header: string; lines: string[] } | null = null
+  for (const line of lines) {
+    const t = line.trim()
+    if (t.startsWith("▸")) {
+      if (cur) blocks.push(cur)
+      cur = { header: t.replace(/^▸\s*/, ""), lines: [] }
+    } else if (cur) {
+      cur.lines.push(line)
+    } else {
+      preLines.push(line)
+    }
+  }
+  if (cur) blocks.push(cur)
+  return { preLines, blocks }
+}
+
+function extractJobFieldsPDF(lines: string[]) {
+  const fields: Record<string, string> = {}
+  const rest: string[] = []
+  for (const line of lines) {
+    const t = line.trim()
+    if (!t) continue
+    const kv = t.match(/^([^:]+?):\s*(.+)$/)
+    if (kv && kv[1].length < 50) {
+      const key = kv[1].trim().toLowerCase()
+      if (PRIMARY_KEYS_PDF.has(key)) {
+        fields[key] = kv[2].trim()
+      } else {
+        rest.push(`${kv[1]}: ${kv[2]}`)
+      }
+    } else {
+      rest.push(t)
+    }
+  }
+  return {
+    cargo:           fields["cargo"] ?? "",
+    establecimiento: fields["establecimiento"] ?? "",
+    periodo:         fields["período"] ?? fields["periodo"] ?? "",
+    tareas:          fields["tareas"] ?? fields["descripción"] ?? fields["descripcion"] ?? "",
+    metadata:        rest,
+  }
+}
+
+function renderLinePDF(line: string, idx: number) {
+  const t = line.trim()
+  if (!t) return <View key={idx} style={{ height: 3 }} />
+
+  if (t.startsWith("•")) {
+    return (
+      <View key={idx} style={{ flexDirection: "row", marginBottom: 3 }}>
+        <Text style={{ color: C.olive, marginRight: 5, fontSize: 9.5 }}>•</Text>
+        <Text style={{ flex: 1, fontSize: 9.5, color: C.ink2, lineHeight: 1.55 }}>{t.replace(/^•\s*/, "")}</Text>
+      </View>
+    )
+  }
+
+  const kv = t.match(/^([^:]+?):\s*(.+)$/)
+  if (kv && kv[1].length < 50) {
+    return (
+      <View key={idx} style={{ flexDirection: "row", marginBottom: 3, flexWrap: "wrap" }}>
+        <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink3 }}>{kv[1]}: </Text>
+        <Text style={{ fontSize: 9.5, color: C.ink2, lineHeight: 1.5, flex: 1 }}>{kv[2]}</Text>
+      </View>
+    )
+  }
+
+  return (
+    <Text key={idx} style={{ fontSize: 9.5, color: C.ink2, lineHeight: 1.72, marginBottom: 3 }}>{t}</Text>
+  )
+}
+
+export function CVTextoDocument({
+  candidato,
+  fecha,
+}: {
+  candidato: Candidato
+  fecha:     string
+}) {
+  const sections = parseSectionsPDF(candidato.cv_procesado_texto ?? "")
+
+  return (
+    <Document>
+      <Page size="A4" style={s.page}>
+        <Image src={LOGO_LEYENDA} style={s.brandFixed} fixed />
+        <View fixed render={({ pageNumber }) => pageNumber > 1 ? <View style={{ height: 64 }} /> : null} />
+
+        <View style={s.body}>
+          <View style={s.candidatoHeader}>
+            <Text style={s.candidatoNombre}>{candidato.nombre} {candidato.apellido}</Text>
+            <Text style={s.candidatoSub}>CURRÍCULUM VITAE</Text>
+          </View>
+
+          {sections.map((sec, si) => {
+            if (!sec.title) {
+              return <View key={si}>{sec.lines.map((l, li) => renderLinePDF(l, li))}</View>
+            }
+
+            const { preLines, blocks } = splitJobsPDF(sec.lines)
+
+            return (
+              <View key={si} style={s.section}>
+                <Text style={s.sectionTitle}>{sec.title}</Text>
+                {preLines.map((l, li) => renderLinePDF(l, li))}
+                {blocks.map((block, bi) => {
+                  const f = extractJobFieldsPDF(block.lines)
+                  return (
+                    <View key={bi} wrap={false} style={{ marginBottom: 12, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: C.olive }}>
+                      {/* Tipo */}
+                      <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 7.5, color: C.olive, letterSpacing: 0.8, marginBottom: 4 }}>
+                        {block.header.toUpperCase()}
+                      </Text>
+                      {/* Cargo */}
+                      {!!f.cargo && (
+                        <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 11, color: C.ink, marginBottom: 1 }}>
+                          {f.cargo}
+                        </Text>
+                      )}
+                      {/* Empresa + período */}
+                      {(f.establecimiento || f.periodo) && (
+                        <Text style={{ fontSize: 9.5, color: C.ink2, marginBottom: f.tareas || f.metadata.length > 0 ? 5 : 0 }}>
+                          {[f.establecimiento, f.periodo].filter(Boolean).join("  ·  ")}
+                        </Text>
+                      )}
+                      {/* Tareas */}
+                      {!!f.tareas && (
+                        <Text style={{ fontSize: 9.5, color: C.ink2, lineHeight: 1.65, marginBottom: f.metadata.length > 0 ? 4 : 0 }}>
+                          {f.tareas}
+                        </Text>
+                      )}
+                      {/* Metadata */}
+                      {f.metadata.length > 0 && (
+                        <Text style={{ fontSize: 8.5, color: C.ink3, lineHeight: 1.6 }}>
+                          {f.metadata.join("  ·  ")}
+                        </Text>
+                      )}
+                    </View>
+                  )
+                })}
+              </View>
+            )
+          })}
+        </View>
+
+        <View style={s.footer} fixed>
+          <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
+          <Text style={s.footerMid}>{fecha}</Text>
+          <Text style={s.footerPage} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
 // ─── Documento ────────────────────────────────────────────────────────────────
 
 export function CVDocument({
