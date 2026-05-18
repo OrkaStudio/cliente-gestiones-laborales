@@ -3,6 +3,9 @@ import { notFound } from "next/navigation"
 import { ArrowLeft, Download } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 import { CandidatoCVView } from "@/components/app/candidato-cv-view"
+import { CVTextoView } from "@/components/app/cv-texto-view"
+
+export const dynamic = "force-dynamic"
 
 export default async function CVPage({
   params,
@@ -74,10 +77,17 @@ export default async function CVPage({
 
       {/* Documento */}
       <div style={{ maxWidth: 860, margin: "0 auto", padding: "2rem 2rem 4rem" }}>
-        <CandidatoCVView
-          candidato={candidato}
-          experiencia={experiencia ?? []}
-        />
+        {candidato.cv_procesado_texto ? (
+          <CVTextoView
+            cvTexto={candidato.cv_procesado_texto}
+            nombre={`${candidato.nombre} ${candidato.apellido}`}
+          />
+        ) : (
+          <CandidatoCVView
+            candidato={candidato}
+            experiencia={experiencia ?? []}
+          />
+        )}
       </div>
     </div>
   )
