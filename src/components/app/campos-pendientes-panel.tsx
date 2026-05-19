@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
-import { CheckCircle } from "lucide-react"
+import { useState, useEffect } from "react"
+import { CheckCircle, X, MessageCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
 import {
   generarPreguntasParaCampos,
@@ -51,12 +52,11 @@ function getExpCampos(exp: Experiencia): ExpCampo[] {
   return r
 }
 
-// Item in activo state: a selectable chip backed by a generated question
 interface ItemActivo {
-  key: string      // "candidato:field" | "exp:N:field" | "q:N"
-  label: string    // campo label or truncated question text
-  pregunta: string // full question to include in message
-  grupo?: string   // for campo mode grouping
+  key: string
+  label: string
+  pregunta: string
+  grupo?: string
 }
 
 interface Props {
@@ -72,12 +72,11 @@ interface Props {
 type Estado = "idle" | "cargando" | "activo"
 
 const CHIP_BASE: React.CSSProperties = {
-  fontSize: 11.5, borderRadius: 6, padding: "2px 8px",
+  fontSize: 11.5, borderRadius: 6, padding: "3px 9px",
   border: "1px solid #d4e0c4", cursor: "pointer",
-  background: "#edf2e6", color: "#5a6e48",
-  fontWeight: 400,
+  background: "#edf2e6", color: "#5a6e48", fontWeight: 400,
+  transition: "all 0.12s",
 }
-
 const CHIP_SEL: React.CSSProperties = {
   ...CHIP_BASE,
   background: "var(--gl-olive)", color: "#fff",
@@ -85,81 +84,40 @@ const CHIP_SEL: React.CSSProperties = {
 }
 
 export function CamposPendientesPanel({
-  candidato,
-  experiencia,
-  candidatoId,
-  nombre,
-  telefono,
-  preguntas_sugeridas,
-  fecha_consultado,
+  candidato, experiencia, candidatoId, nombre, telefono,
+  preguntas_sugeridas, fecha_consultado,
 }: Props) {
-  const [estado, setEstado]             = useState<Estado>("idle")
-  const [items, setItems]               = useState<ItemActivo[]>([])
-  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
-  const [mensajeTexto, setMensajeTexto] = useState("")
-  const [enviado, setEnviado]           = useState(false)
-  const [sendPending, setSendPending]   = useState(false)
-  const [error, setError]               = useState<string | null>(null)
+  const router = useRouter()
 
-  // ── Compute pending campos ──────────────────────────────────────────────────
+  const [estado, setEstado]                   = useState<Estado>("idle")
+  const [items, setItems]                     = useState<ItemActivo[]>([])
+  const [pregeneratedItems, setPregeneratedItems] = useState<ItemActivo[] | null>(null)
+  const [seleccionados, setSeleccionados]     = useState<Set<string>>(new Set())
+  const [modalOpen, setModalOpen]             = useState(false)
+  const [mensajeTexto, setMensajeTexto]       = useState("")
+  const [enviado, setEnviado]                 = useState(false)
+  const [sendPending, setSendPending]         = useState(false)
+  const [error, setError]                     = useState<string | null>(null)
+
+  // ── Pending campo computation ───────────────────────────────────────────────
 
   const pendientes = CAMPOS.filter((c) => isMissing(candidato[c.key]))
-
   const expPendientes: { expIndex: number; empresa: string; campo: ExpCampo }[] = []
   experiencia.forEach((exp, i) => {
     getExpCampos(exp).forEach((campo) => {
       expPendientes.push({ expIndex: i, empresa: exp.empresa ?? `Exp ${i + 1}`, campo })
     })
   })
-
   const total = pendientes.length + expPendientes.length
-  if (total === 0) return null
 
-  // ── Chip toggle helpers ─────────────────────────────────────────────────────
+  // ── Pre-generate questions in background on mount (for subsequent cycles) ──
 
-  function recalcMensaje(sel: Set<string>, allItems: ItemActivo[]) {
-    const pregs = [...sel]
-      .map((k) => allItems.find((it) => it.key === k)?.pregunta)
-      .filter((p): p is string => !!p)
-    setMensajeTexto(generarMensajeWhatsapp(nombre, pregs))
-  }
+  useEffect(() => {
+    // First contact uses parse suggestions — no need to pre-generate
+    if (!fecha_consultado && preguntas_sugeridas.length > 0) return
 
-  function toggleItem(key: string, allItems: ItemActivo[]) {
-    setSeleccionados((prev) => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
-      recalcMensaje(next, allItems)
-      return next
-    })
-  }
-
-  // ── Prepare questions ───────────────────────────────────────────────────────
-
-  async function handlePreparar() {
-    // First contact: use parse-time suggestions as flat selectable list
-    if (!fecha_consultado && preguntas_sugeridas.length > 0) {
-      const allItems: ItemActivo[] = preguntas_sugeridas.map((p, i) => ({
-        key: `q:${i}`,
-        label: p,
-        pregunta: p,
-      }))
-      setItems(allItems)
-      setSeleccionados(new Set())
-      setMensajeTexto("")
-      setEstado("activo")
-      return
-    }
-
-    // Subsequent cycles: call Haiku for all pending campos
-    setError(null)
-    setEstado("cargando")
-
-    const camposPendientes: CampoPendiente[] = [
-      ...pendientes.map((c) => ({
-        tipo: "candidato" as const,
-        campo: c.key as string,
-        label: c.label,
-      })),
+    const campos: CampoPendiente[] = [
+      ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
       ...expPendientes.map((ep) => ({
         tipo: "experiencia" as const,
         expIndex: ep.expIndex,
@@ -168,18 +126,20 @@ export function CamposPendientesPanel({
         label: ep.campo.label,
       })),
     ]
+    if (!campos.length) return
 
-    const result = await generarPreguntasParaCampos(candidatoId, camposPendientes)
+    generarPreguntasParaCampos(candidatoId, campos).then((result) => {
+      if (result.success) {
+        setPregeneratedItems(buildItems(result.preguntas.map((p) => [p.campo, p.pregunta])))
+      }
+    })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-    if (!result.success) {
-      setError(result.error)
-      setEstado("idle")
-      return
-    }
+  // ── helpers ─────────────────────────────────────────────────────────────────
 
-    const pregByKey = new Map(result.preguntas.map((p) => [p.campo, p.pregunta]))
-
-    const allItems: ItemActivo[] = [
+  function buildItems(entries: [string, string][]): ItemActivo[] {
+    const pregByKey = new Map(entries)
+    return [
       ...pendientes.flatMap((c) => {
         const key = `candidato:${c.key}`
         const pregunta = pregByKey.get(key)
@@ -193,14 +153,24 @@ export function CamposPendientesPanel({
         return [{ key, label: `${ep.empresa}: ${ep.campo.label}`, pregunta, grupo: "Experiencia laboral" }]
       }),
     ]
-
-    setItems(allItems)
-    setSeleccionados(new Set())
-    setMensajeTexto("")
-    setEstado("activo")
   }
 
-  // ── Send handlers ───────────────────────────────────────────────────────────
+  function toggleItem(key: string, allItems: ItemActivo[]) {
+    setSeleccionados((prev) => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+    void allItems // keep reference stable
+  }
+
+  function handleAbrirModal(allItems: ItemActivo[]) {
+    const pregs = [...seleccionados]
+      .map((k) => allItems.find((it) => it.key === k)?.pregunta)
+      .filter((p): p is string => !!p)
+    setMensajeTexto(generarMensajeWhatsapp(nombre, pregs))
+    setModalOpen(true)
+  }
 
   async function handleEnviar() {
     if (!telefono || !mensajeTexto.trim() || sendPending) return
@@ -209,78 +179,182 @@ export function CamposPendientesPanel({
       .map((k) => items.find((it) => it.key === k)?.pregunta)
       .filter((p): p is string => !!p)
     await registrarEnvioWhatsapp(candidatoId, mensajeTexto, preguntasTexto)
-    const url = `${waUrl(telefono)}?text=${encodeURIComponent(mensajeTexto)}`
-    window.open(url, "_blank")
+    window.open(`${waUrl(telefono)}?text=${encodeURIComponent(mensajeTexto)}`, "_blank")
     setSendPending(false)
     setEnviado(true)
+    setModalOpen(false)
+    router.refresh()
   }
 
   function handleCopiar() {
-    if (mensajeTexto.trim()) navigator.clipboard.writeText(mensajeTexto)
+    if (mensajeTexto.trim()) void navigator.clipboard.writeText(mensajeTexto)
   }
 
-  function handleReset() {
-    setEstado("idle")
-    setItems([])
-    setSeleccionados(new Set())
-    setMensajeTexto("")
-    setEnviado(false)
+  // ── handlePreparar: instant if pre-generated, spinner otherwise ─────────────
+
+  async function handlePreparar() {
+    if (!fecha_consultado && preguntas_sugeridas.length > 0) {
+      // First contact: use parse-time suggestions
+      const allItems: ItemActivo[] = preguntas_sugeridas.map((p, i) => ({
+        key: `q:${i}`, label: p, pregunta: p,
+      }))
+      setItems(allItems)
+      setSeleccionados(new Set())
+      setEstado("activo")
+      return
+    }
+
+    if (pregeneratedItems) {
+      // Already ready — instant
+      setItems(pregeneratedItems)
+      setSeleccionados(new Set())
+      setEstado("activo")
+      return
+    }
+
+    // Still generating — show spinner and await
     setError(null)
+    setEstado("cargando")
+    const campos: CampoPendiente[] = [
+      ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
+      ...expPendientes.map((ep) => ({
+        tipo: "experiencia" as const, expIndex: ep.expIndex, empresa: ep.empresa,
+        campo: ep.campo.id, label: ep.campo.label,
+      })),
+    ]
+    const result = await generarPreguntasParaCampos(candidatoId, campos)
+    if (!result.success) { setError(result.error); setEstado("idle"); return }
+    const allItems = buildItems(result.preguntas.map((p) => [p.campo, p.pregunta]))
+    setItems(allItems)
+    setSeleccionados(new Set())
+    setEstado("activo")
   }
 
-  // ── Chip renderer ───────────────────────────────────────────────────────────
+  // ── Early return after all hooks ────────────────────────────────────────────
 
-  function Chip({ item }: { item: ItemActivo }) {
-    const sel = seleccionados.has(item.key)
-    return (
-      <button
-        type="button"
-        onClick={() => toggleItem(item.key, items)}
-        style={sel ? CHIP_SEL : CHIP_BASE}
-      >
-        {sel ? "✓ " : ""}{item.label}
-      </button>
-    )
-  }
-
-  // ── Panel wrapper ───────────────────────────────────────────────────────────
+  if (total === 0) return null
 
   const panelStyle: React.CSSProperties = {
     background: "#fafbf8", border: "1px solid #e2e8d9", borderRadius: 12, padding: "14px 18px",
   }
-
   const headerLabel = (
     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "#6b7c5a" }}>
       Pendiente de completar
     </div>
   )
-
   const totalBadge = (
     <span style={{ fontSize: 11, fontWeight: 700, color: "#8b9e73", background: "#e8f0df", padding: "2px 8px", borderRadius: 20 }}>
       {total} campo{total !== 1 ? "s" : ""}
     </span>
   )
 
+  // ── SEND MODAL ──────────────────────────────────────────────────────────────
+
+  const Modal = modalOpen ? (
+    <div
+      style={{
+        position: "fixed", inset: 0, zIndex: 9999,
+        background: "rgba(13,17,23,0.55)", backdropFilter: "blur(3px)",
+        display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false) }}
+    >
+      <div style={{
+        background: "#fff", borderRadius: 20, padding: "28px 32px",
+        boxShadow: "0 24px 64px rgba(13,17,23,0.22)",
+        width: "min(640px, 96vw)", maxHeight: "90vh",
+        display: "flex", flexDirection: "column", gap: 16, overflowY: "auto",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117" }}>
+            Mensaje para {nombre}
+          </div>
+          <button
+            type="button"
+            onClick={() => setModalOpen(false)}
+            style={{ background: "none", border: "none", cursor: "pointer", color: "#8b949e", padding: 4 }}
+          >
+            <X style={{ width: 18, height: 18 }} />
+          </button>
+        </div>
+
+        <textarea
+          value={mensajeTexto}
+          onChange={(e) => setMensajeTexto(e.target.value)}
+          rows={12}
+          style={{
+            width: "100%", boxSizing: "border-box",
+            borderRadius: 12, padding: "12px 14px",
+            fontSize: 13.5, lineHeight: 1.7,
+            fontFamily: "inherit",
+            background: "#f6f8f3",
+            border: "1.5px solid var(--gl-olive)",
+            color: "#0d1117", outline: "none", resize: "vertical",
+          }}
+        />
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => { void handleEnviar() }}
+            disabled={sendPending || !telefono}
+            title={!telefono ? "El candidato no tiene teléfono registrado" : undefined}
+            style={{
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              padding: "10px 0", borderRadius: 12, border: "none",
+              fontSize: 13.5, fontWeight: 700, cursor: sendPending || !telefono ? "not-allowed" : "pointer",
+              background: !telefono ? "#e2e8d9" : "#25D366",
+              color: !telefono ? "#8b9e73" : "#fff",
+              opacity: sendPending ? 0.7 : 1,
+            }}
+          >
+            <MessageCircle style={{ width: 16, height: 16 }} />
+            {sendPending ? "Abriendo…" : "Abrir en WhatsApp y registrar envío"}
+          </button>
+          <button
+            type="button"
+            onClick={handleCopiar}
+            style={{
+              padding: "8px 0", borderRadius: 12, fontSize: 13, fontWeight: 600,
+              background: "transparent", color: "#6b7c5a",
+              border: "1px solid #d4e0c4", cursor: "pointer",
+            }}
+          >
+            Solo copiar texto
+          </button>
+          <button
+            type="button"
+            onClick={() => setModalOpen(false)}
+            style={{ padding: "6px 0", fontSize: 12, color: "#8b949e", background: "none", border: "none", cursor: "pointer" }}
+          >
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  ) : null
+
   // ── CARGANDO ────────────────────────────────────────────────────────────────
 
   if (estado === "cargando") {
     return (
-      <div style={panelStyle}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          {headerLabel}{totalBadge}
+      <>
+        {Modal}
+        <div style={panelStyle}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            {headerLabel}{totalBadge}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0" }}>
+            <div style={{
+              width: 18, height: 18, borderRadius: "50%",
+              border: "2px solid #e2e8d9", borderTopColor: "#2a4a18",
+              animation: "spin 0.9s linear infinite", flexShrink: 0,
+            }} />
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+            <span style={{ fontSize: 12, color: "#6b7c5a" }}>Generando preguntas…</span>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0" }}>
-          <div style={{
-            width: 18, height: 18, borderRadius: "50%",
-            border: "2px solid #e2e8d9", borderTopColor: "#2a4a18",
-            animation: "spin 0.9s linear infinite", flexShrink: 0,
-          }} />
-          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-          <span style={{ fontSize: 12, color: "#6b7c5a" }}>
-            Generando preguntas para los campos pendientes…
-          </span>
-        </div>
-      </div>
+      </>
     )
   }
 
@@ -288,144 +362,115 @@ export function CamposPendientesPanel({
 
   if (estado === "activo") {
     const esModoparse = items[0]?.key.startsWith("q:")
-
-    // Grouped display for campo mode
     const grupos = esModoparse ? [] : Array.from(
       new Set(items.filter((it) => !it.key.startsWith("exp:")).map((it) => it.grupo ?? "Otro"))
     )
+    const expItems = items.filter((it) => it.key.startsWith("exp:"))
+    const nSel = seleccionados.size
+
+    function Chip({ item }: { item: ItemActivo }) {
+      const sel = seleccionados.has(item.key)
+      return (
+        <button
+          type="button"
+          onClick={() => toggleItem(item.key, items)}
+          style={sel ? CHIP_SEL : CHIP_BASE}
+        >
+          {sel ? "✓ " : ""}{item.label}
+        </button>
+      )
+    }
 
     return (
-      <div style={panelStyle}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-          {headerLabel}
-          <button
-            type="button"
-            onClick={handleReset}
-            style={{ fontSize: 11, color: "#8b9e73", background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}
-          >
-            ← volver
-          </button>
-        </div>
-
-        {/* Chips */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
-          {esModoparse ? (
-            // First-contact mode: one chip per question, listed vertically
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              {items.map((item) => (
-                <Chip key={item.key} item={item} />
-              ))}
-            </div>
-          ) : (
-            // Campo mode: grouped chips
-            <>
-              {grupos.map((grupo) => {
-                const grupoItems = items.filter((it) => it.grupo === grupo && !it.key.startsWith("exp:"))
-                if (!grupoItems.length) return null
-                return (
-                  <div key={grupo}>
-                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
-                      {grupo}
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                      {grupoItems.map((item) => <Chip key={item.key} item={item} />)}
-                    </div>
-                  </div>
-                )
-              })}
-              {items.filter((it) => it.key.startsWith("exp:")).length > 0 && (
-                <div>
-                  <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
-                    Experiencia laboral
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                    {items.filter((it) => it.key.startsWith("exp:")).map((item) => <Chip key={item.key} item={item} />)}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* Message preview */}
-        <div style={{ borderTop: "1px solid #e2e8d9", paddingTop: 12 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
-            Vista previa del mensaje
+      <>
+        {Modal}
+        <div style={panelStyle}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+            {headerLabel}
+            <button
+              type="button"
+              onClick={() => { setEstado("idle"); setItems([]); setSeleccionados(new Set()); setEnviado(false) }}
+              style={{ fontSize: 11, color: "#8b9e73", background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}
+            >
+              ← volver
+            </button>
           </div>
 
-          {seleccionados.size === 0 ? (
-            <p style={{ fontSize: 11.5, color: "#8b9e73", fontStyle: "italic", marginBottom: 10, marginTop: 0 }}>
-              Seleccioná los campos para armar el mensaje
-            </p>
-          ) : (
-            <textarea
-              value={mensajeTexto}
-              onChange={(e) => setMensajeTexto(e.target.value)}
-              rows={8}
-              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none"
-              style={{
-                background: "var(--gl-surface)",
-                border: "1.5px solid var(--gl-olive)",
-                color: "var(--gl-ink)",
-                fontFamily: "inherit",
-                lineHeight: 1.6,
-                resize: "vertical",
-                width: "100%",
-                boxSizing: "border-box",
-                marginBottom: 10,
-                display: "block",
-              }}
-            />
-          )}
-
-          {enviado ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
-              <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <CheckCircle style={{ width: 14, height: 14, color: "#1a7f37" }} />
+          {/* Chips */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+            {esModoparse ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                {items.map((item) => <Chip key={item.key} item={item} />)}
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: "#1a7f37" }}>
-                Enviado — {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+            ) : (
+              <>
+                {grupos.map((grupo) => {
+                  const grupoItems = items.filter((it) => it.grupo === grupo && !it.key.startsWith("exp:"))
+                  if (!grupoItems.length) return null
+                  return (
+                    <div key={grupo}>
+                      <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
+                        {grupo}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                        {grupoItems.map((item) => <Chip key={item.key} item={item} />)}
+                      </div>
+                    </div>
+                  )
+                })}
+                {expItems.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
+                      Experiencia laboral
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      {expItems.map((item) => <Chip key={item.key} item={item} />)}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Footer: count + CTA */}
+          <div style={{ borderTop: "1px solid #e2e8d9", paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+            {enviado ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <CheckCircle style={{ width: 14, height: 14, color: "#1a7f37" }} />
+                </div>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#1a7f37" }}>
+                  Enviado — {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </div>
+            ) : (
+              <span style={{ fontSize: 11.5, color: "#8b9e73" }}>
+                {nSel === 0 ? "Seleccioná los campos que querés preguntar" : `${nSel} pregunta${nSel !== 1 ? "s" : ""} seleccionada${nSel !== 1 ? "s" : ""}`}
               </span>
-            </div>
-          ) : (
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+            )}
+
+            {!enviado && (
               <button
                 type="button"
-                onClick={handleCopiar}
-                disabled={seleccionados.size === 0}
+                onClick={() => handleAbrirModal(items)}
+                disabled={nSel === 0}
                 style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: "var(--gl-ink-3)",
-                  background: "var(--gl-surface)",
-                  border: "1px solid var(--gl-border)",
-                  borderRadius: 8, padding: "6px 14px",
-                  cursor: seleccionados.size === 0 ? "not-allowed" : "pointer",
-                  opacity: seleccionados.size === 0 ? 0.5 : 1,
+                  fontSize: 12, fontWeight: 700,
+                  color: nSel === 0 ? "#8b9e73" : "#fff",
+                  background: nSel === 0 ? "#e2e8d9" : "var(--gl-olive)",
+                  border: "none", borderRadius: 8, padding: "7px 16px",
+                  cursor: nSel === 0 ? "not-allowed" : "pointer",
+                  display: "flex", alignItems: "center", gap: 6,
+                  whiteSpace: "nowrap",
                 }}
               >
-                Solo copiar
+                <MessageCircle style={{ width: 13, height: 13 }} />
+                Armar mensaje →
               </button>
-              <button
-                type="button"
-                onClick={() => { void handleEnviar() }}
-                disabled={sendPending || seleccionados.size === 0 || !telefono}
-                title={!telefono ? "El candidato no tiene teléfono registrado" : undefined}
-                style={{
-                  fontSize: 12, fontWeight: 600,
-                  color: "#fff",
-                  background: seleccionados.size === 0 || !telefono ? "#c8d9b8" : "var(--gl-olive)",
-                  border: "none",
-                  borderRadius: 8, padding: "6px 14px",
-                  cursor: sendPending || seleccionados.size === 0 || !telefono ? "not-allowed" : "pointer",
-                  opacity: sendPending ? 0.7 : 1,
-                }}
-              >
-                {sendPending ? "Abriendo…" : "Abrir en WhatsApp y registrar →"}
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      </>
     )
   }
 
@@ -433,6 +478,7 @@ export function CamposPendientesPanel({
 
   const grupos = Array.from(new Set(pendientes.map((p) => p.grupo)))
   const esPrimerContacto = !fecha_consultado && preguntas_sugeridas.length > 0
+  const isPregenerated = !!pregeneratedItems
 
   return (
     <div style={panelStyle}>
@@ -450,7 +496,7 @@ export function CamposPendientesPanel({
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
                 {grupoCampos.map((c) => (
-                  <span key={c.key as string} style={CHIP_BASE}>{c.label}</span>
+                  <span key={c.key as string} style={{ ...CHIP_BASE, cursor: "default" }}>{c.label}</span>
                 ))}
               </div>
             </div>
@@ -464,7 +510,7 @@ export function CamposPendientesPanel({
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
               {expPendientes.map((ep) => (
-                <span key={`${ep.expIndex}:${ep.campo.id}`} style={CHIP_BASE}>
+                <span key={`${ep.expIndex}:${ep.campo.id}`} style={{ ...CHIP_BASE, cursor: "default" }}>
                   {ep.empresa}: {ep.campo.label}
                 </span>
               ))}
@@ -477,7 +523,15 @@ export function CamposPendientesPanel({
         <p style={{ fontSize: 11, color: "#c0392b", marginTop: 8, marginBottom: 0 }}>{error}</p>
       )}
 
-      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+      <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        {/* Pre-generation status indicator */}
+        {!esPrimerContacto && (
+          <span style={{ fontSize: 11, color: isPregenerated ? "#1a7f37" : "#8b9e73" }}>
+            {isPregenerated ? "✓ Preguntas listas" : "Generando preguntas…"}
+          </span>
+        )}
+        {esPrimerContacto && <span />}
+
         <button
           type="button"
           onClick={() => { void handlePreparar() }}

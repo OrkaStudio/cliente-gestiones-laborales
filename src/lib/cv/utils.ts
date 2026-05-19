@@ -7,18 +7,13 @@ export function waUrl(phone: string): string {
 
 export function generarMensajeWhatsapp(nombre: string, preguntas: string[]): string {
   const lista = preguntas.map((p, i) => `${i + 1}. ${p}`).join("\n");
-  return `Hola ${nombre}!
+  return `Hola ${nombre}! Somos Gestiones Laborales, recibimos tu CV y nos interesó tu perfil.
 
-Te contactamos desde Gestiones Laborales porque recibimos tu CV y nos interesó tu perfil.
-
-Para poder avanzar, necesitamos completar algunos datos:
+Para avanzar con tu postulación, necesitamos completar algunos datos:
 
 ${lista}
 
-Muchas gracias por tu tiempo!
-
----
-NOTA (borrar antes de enviar): Confirmar con GL si el mensaje debe ir en primera persona de Oriana ("Te escribo yo, Oriana") o como empresa ("Somos Gestiones Laborales"). Pendiente definir con Andrea/Oriana.`;
+¡Muchas gracias!`;
 }
 
 export type CvSection = { title: string; content: string }
