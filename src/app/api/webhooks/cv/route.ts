@@ -139,13 +139,19 @@ export async function POST(req: NextRequest) {
   };
   const mimeGenerico = !body.archivo_mime || body.archivo_mime === "application/octet-stream";
   let mimeEfectivo = mimeGenerico && mimeMap[ext] ? mimeMap[ext] : (body.archivo_mime || "application/octet-stream");
-  // Fallback por magic bytes si aún es octet-stream
-  if (mimeEfectivo === "application/octet-stream") {
-    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
-      mimeEfectivo = "application/pdf"; // %PDF
-    } else if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
-      mimeEfectivo = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; // PK (docx/xlsx)
-    }
+  // Fallback por magic bytes — corre siempre para corregir MIMEs incorrectos de Pipedream/Gmail
+  if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+    mimeEfectivo = "application/pdf"; // %PDF
+  } else if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+    mimeEfectivo = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; // PK (docx/xlsx/zip)
+  } else if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    mimeEfectivo = "image/jpeg"; // JPEG
+  } else if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+    mimeEfectivo = "image/png"; // PNG
+  } else if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+    mimeEfectivo = "image/gif"; // GIF
+  } else if (buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46) {
+    mimeEfectivo = "image/webp"; // RIFF/WebP
   }
 
   // 7. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
@@ -176,6 +182,7 @@ export async function POST(req: NextRequest) {
         estado: "processing",
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
+        detalle: `mime:${mimeEfectivo}`,
       });
 
       let candidatoParseado;
