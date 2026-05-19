@@ -81,9 +81,20 @@ export default function ProcesarPage() {
       else         fd.append("texto",   cvText)
 
       const res  = await fetch("/api/procesar", { method: "POST", body: fd })
-      const json = await res.json()
 
       if (res.status === 401) throw new Error("No autorizado. Iniciá sesión para procesar CVs.")
+
+      let json: Record<string, string>
+      try {
+        json = await res.json() as Record<string, string>
+      } catch {
+        throw new Error(
+          res.ok
+            ? "El servidor devolvió una respuesta inesperada. Intentá de nuevo."
+            : `Error ${res.status} — el procesado tardó demasiado o hubo un problema con el servidor. Intentá de nuevo.`
+        )
+      }
+
       if (!res.ok) throw new Error(json.detail ?? json.error ?? "Error desconocido")
 
       clearInterval(interval)
