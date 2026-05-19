@@ -368,6 +368,11 @@ export function CamposPendientesPanel({
     const expItems = items.filter((it) => it.key.startsWith("exp:"))
     const nSel = seleccionados.size
 
+    // Questions in selection order
+    const preguntasSeleccionadas = [...seleccionados]
+      .map((k) => items.find((it) => it.key === k))
+      .filter((it): it is ItemActivo => !!it)
+
     function Chip({ item }: { item: ItemActivo }) {
       const sel = seleccionados.has(item.key)
       return (
@@ -381,11 +386,41 @@ export function CamposPendientesPanel({
       )
     }
 
+    // Parse-mode: checkboxes list (questions are long)
+    function CheckRow({ item }: { item: ItemActivo }) {
+      const sel = seleccionados.has(item.key)
+      return (
+        <button
+          type="button"
+          onClick={() => toggleItem(item.key, items)}
+          style={{
+            display: "flex", alignItems: "flex-start", gap: 10, width: "100%",
+            background: sel ? "#f0f5ea" : "transparent",
+            border: sel ? "1px solid #c5d9b0" : "1px solid transparent",
+            borderRadius: 8, padding: "7px 10px", cursor: "pointer", textAlign: "left",
+          }}
+        >
+          <div style={{
+            width: 16, height: 16, borderRadius: 4, flexShrink: 0, marginTop: 2,
+            background: sel ? "var(--gl-olive)" : "#fff",
+            border: sel ? "1.5px solid var(--gl-olive)" : "1.5px solid #c5d9b0",
+            display: "flex", alignItems: "center", justifyContent: "center",
+          }}>
+            {sel && <span style={{ color: "#fff", fontSize: 10, lineHeight: 1, fontWeight: 700 }}>✓</span>}
+          </div>
+          <span style={{ fontSize: 12.5, color: sel ? "#2d3a1f" : "#5a6e48", lineHeight: 1.5 }}>
+            {item.pregunta}
+          </span>
+        </button>
+      )
+    }
+
     return (
       <>
         {Modal}
         <div style={panelStyle}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
             {headerLabel}
             <button
               type="button"
@@ -396,23 +431,25 @@ export function CamposPendientesPanel({
             </button>
           </div>
 
-          {/* Chips */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 14 }}>
+          {/* Chips / checkboxes */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {esModoparse ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-                {items.map((item) => <Chip key={item.key} item={item} />)}
+              // First-contact: checkbox list (questions are long)
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {items.map((item) => <CheckRow key={item.key} item={item} />)}
               </div>
             ) : (
+              // Campo mode: grouped pills
               <>
                 {grupos.map((grupo) => {
                   const grupoItems = items.filter((it) => it.grupo === grupo && !it.key.startsWith("exp:"))
                   if (!grupoItems.length) return null
                   return (
                     <div key={grupo}>
-                      <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
+                      <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
                         {grupo}
                       </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                         {grupoItems.map((item) => <Chip key={item.key} item={item} />)}
                       </div>
                     </div>
@@ -420,10 +457,10 @@ export function CamposPendientesPanel({
                 })}
                 {expItems.length > 0 && (
                   <div>
-                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
+                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
                       Experiencia laboral
                     </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                       {expItems.map((item) => <Chip key={item.key} item={item} />)}
                     </div>
                   </div>
@@ -432,8 +469,58 @@ export function CamposPendientesPanel({
             )}
           </div>
 
-          {/* Footer: count + CTA */}
-          <div style={{ borderTop: "1px solid #e2e8d9", paddingTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          {/* Questions preview — clean card, no textarea */}
+          <div style={{ marginTop: 14 }}>
+            {nSel === 0 ? (
+              <div style={{
+                borderRadius: 10, padding: "12px 14px",
+                background: "#f4f7f0", border: "1px dashed #c5d9b0",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <span style={{ fontSize: 12, color: "#8b9e73" }}>
+                  Tocá un campo para agregar la pregunta
+                </span>
+              </div>
+            ) : (
+              <div style={{
+                borderRadius: 10, padding: "14px 16px",
+                background: "#f4f7f0", border: "1px solid #c5d9b0",
+                display: "flex", flexDirection: "column", gap: 10,
+              }}>
+                {preguntasSeleccionadas.map((item, i) => (
+                  <div key={item.key} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                    <div style={{
+                      width: 20, height: 20, borderRadius: "50%",
+                      background: "var(--gl-olive)", color: "#fff",
+                      fontSize: 10, fontWeight: 700,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      flexShrink: 0, marginTop: 1,
+                    }}>
+                      {i + 1}
+                    </div>
+                    <span style={{ fontSize: 13, color: "#2d3a1f", lineHeight: 1.55, flex: 1 }}>
+                      {item.pregunta}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => toggleItem(item.key, items)}
+                      style={{
+                        background: "none", border: "none", cursor: "pointer",
+                        color: "#8b9e73", fontSize: 14, lineHeight: 1,
+                        padding: "2px 4px", flexShrink: 0,
+                      }}
+                      title="Quitar"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
             {enviado ? (
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -444,8 +531,8 @@ export function CamposPendientesPanel({
                 </span>
               </div>
             ) : (
-              <span style={{ fontSize: 11.5, color: "#8b9e73" }}>
-                {nSel === 0 ? "Seleccioná los campos que querés preguntar" : `${nSel} pregunta${nSel !== 1 ? "s" : ""} seleccionada${nSel !== 1 ? "s" : ""}`}
+              <span style={{ fontSize: 11.5, color: nSel > 0 ? "#5a6e48" : "#8b9e73", fontWeight: nSel > 0 ? 600 : 400 }}>
+                {nSel === 0 ? "Seleccioná los campos que querés preguntar" : `${nSel} pregunta${nSel !== 1 ? "s" : ""}`}
               </span>
             )}
 
