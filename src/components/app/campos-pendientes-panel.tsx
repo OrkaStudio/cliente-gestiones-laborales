@@ -94,6 +94,7 @@ export function CamposPendientesPanel({
   const [estado, setEstado]                   = useState<Estado>("idle")
   const [items, setItems]                     = useState<ItemActivo[]>([])
   const [pregeneratedItems, setPregeneratedItems] = useState<ItemActivo[] | null>(null)
+  const [preGenerating, setPreGenerating]     = useState(false)
   const [seleccionados, setSeleccionados]     = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen]             = useState(false)
   const [mensajeTexto, setMensajeTexto]       = useState("")
@@ -130,10 +131,12 @@ export function CamposPendientesPanel({
     ]
     if (!campos.length) return
 
+    setPreGenerating(true)
     generarPreguntasParaCampos(candidatoId, campos).then((result) => {
       if (result.success) {
         setPregeneratedItems(buildItems(result.preguntas.map((p) => [p.campo, p.pregunta])))
       }
+      setPreGenerating(false)
     })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -364,8 +367,8 @@ export function CamposPendientesPanel({
 
   if (estado === "activo") {
     const grupos = Array.from(
-      new Set(items.map((it) => it.grupo ?? ""))
-    ).filter(Boolean)
+      new Set(items.filter((it) => it.grupo).map((it) => it.grupo!))
+    )
     const sinGrupo = items.filter((it) => !it.grupo)
     const nSel = seleccionados.size
 
@@ -373,30 +376,15 @@ export function CamposPendientesPanel({
       .map((k) => items.find((it) => it.key === k))
       .filter((it): it is ItemActivo => !!it)
 
-    function CheckRow({ item }: { item: ItemActivo }) {
+    function Chip({ item }: { item: ItemActivo }) {
       const sel = seleccionados.has(item.key)
       return (
         <button
           type="button"
           onClick={() => toggleItem(item.key, items)}
-          style={{
-            display: "flex", alignItems: "flex-start", gap: 10, width: "100%",
-            background: sel ? "#f0f5ea" : "transparent",
-            border: sel ? "1px solid #c5d9b0" : "1px solid transparent",
-            borderRadius: 8, padding: "7px 10px", cursor: "pointer", textAlign: "left",
-          }}
+          style={sel ? CHIP_SEL : CHIP_BASE}
         >
-          <div style={{
-            width: 16, height: 16, borderRadius: 4, flexShrink: 0, marginTop: 2,
-            background: sel ? "var(--gl-olive)" : "#fff",
-            border: sel ? "1.5px solid var(--gl-olive)" : "1.5px solid #c5d9b0",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            {sel && <span style={{ color: "#fff", fontSize: 10, lineHeight: 1, fontWeight: 700 }}>✓</span>}
-          </div>
-          <span style={{ fontSize: 12.5, color: sel ? "#2d3a1f" : "#5a6e48", lineHeight: 1.5 }}>
-            {item.pregunta || item.label}
-          </span>
+          {sel ? "✓ " : ""}{item.label}
         </button>
       )
     }
@@ -417,25 +405,23 @@ export function CamposPendientesPanel({
             </button>
           </div>
 
-          {/* Lista unificada — CheckRow para todos los modos */}
+          {/* Chips — mismo look en todos los modos */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {/* Items sin grupo (modo parseo: preguntas directas) */}
             {sinGrupo.length > 0 && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {sinGrupo.map((item) => <CheckRow key={item.key} item={item} />)}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {sinGrupo.map((item) => <Chip key={item.key} item={item} />)}
               </div>
             )}
-            {/* Items agrupados (modo ciclos siguientes) */}
             {grupos.map((grupo) => {
               const grupoItems = items.filter((it) => it.grupo === grupo)
               if (!grupoItems.length) return null
               return (
                 <div key={grupo}>
-                  <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
                     {grupo}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                    {grupoItems.map((item) => <CheckRow key={item.key} item={item} />)}
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {grupoItems.map((item) => <Chip key={item.key} item={item} />)}
                   </div>
                 </div>
               )
@@ -583,11 +569,17 @@ export function CamposPendientesPanel({
         <p style={{ fontSize: 11, color: "#c0392b", marginTop: 8, marginBottom: 0 }}>{error}</p>
       )}
 
-      <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         {/* Pre-generation status indicator */}
         {!esPrimerContacto && (
-          <span style={{ fontSize: 11, color: isPregenerated ? "#1a7f37" : "#8b9e73" }}>
-            {isPregenerated ? "✓ Preguntas listas" : "Generando preguntas…"}
+          <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: isPregenerated ? "#1a7f37" : "#8b9e73" }}>
+            {preGenerating && (
+              <>
+                <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid #d4e0c4", borderTopColor: "#5a6e48", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+              </>
+            )}
+            {isPregenerated ? "✓ Preguntas listas" : preGenerating ? "Preparando preguntas…" : ""}
           </span>
         )}
         {esPrimerContacto && <span />}
