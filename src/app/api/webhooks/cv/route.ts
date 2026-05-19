@@ -283,18 +283,24 @@ export async function POST(req: NextRequest) {
         const campos: CampoPendienteInput[] = []
 
         const CAMPOS_CONFIG = [
-          { campo: "lugar_nacimiento",     label: "Lugar de nacimiento"    },
-          { campo: "estado_civil",         label: "Estado civil"           },
-          { campo: "hijos",                label: "Hijos"                  },
-          { campo: "disponibilidad",       label: "Disponibilidad"         },
-          { campo: "pretension_salarial",  label: "Pretensión salarial"    },
-          { campo: "movilidad",            label: "Movilidad"              },
-          { campo: "vehiculo_propio",      label: "Vehículo propio"        },
-          { campo: "licencia_conducir",    label: "Licencia de conducir"   },
-          { campo: "muebles_propios",      label: "Muebles propios"        },
-          { campo: "animales",             label: "Animales"               },
-          { campo: "hectareas_max",        label: "Hectáreas máx."         },
-          { campo: "personal_a_cargo_max", label: "Personal a cargo"       },
+          { campo: "dni",                  label: "DNI"                     },
+          { campo: "fecha_nacimiento",     label: "Fecha de nacimiento"     },
+          { campo: "lugar_nacimiento",     label: "Lugar de nacimiento"     },
+          { campo: "domicilio_completo",   label: "Domicilio completo"      },
+          { campo: "email",                label: "Email"                   },
+          { campo: "telefono",             label: "Teléfono"                },
+          { campo: "estado_civil",         label: "Estado civil"            },
+          { campo: "hijos",                label: "Hijos"                   },
+          { campo: "educacion",            label: "Estudios"                },
+          { campo: "disponibilidad",       label: "Disponibilidad"          },
+          { campo: "pretension_salarial",  label: "Pretensión salarial"     },
+          { campo: "movilidad",            label: "Movilidad"               },
+          { campo: "vehiculo_propio",      label: "Vehículo propio"         },
+          { campo: "licencia_conducir",    label: "Licencia de conducir"    },
+          { campo: "muebles_propios",      label: "Muebles propios"         },
+          { campo: "animales",             label: "Animales"                },
+          { campo: "hectareas_max",        label: "Hectáreas máx."          },
+          { campo: "personal_a_cargo_max", label: "Personal a cargo máx."   },
         ] as const
 
         for (const c of CAMPOS_CONFIG) {
@@ -305,11 +311,17 @@ export async function POST(req: NextRequest) {
 
         cp.experiencia.forEach((exp, i) => {
           const empresa = exp.empresa || `Exp ${i + 1}`
-          if (isMissing(exp.empresa))                               campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "empresa",                   label: "Nombre del establecimiento" })
-          if (isMissing(exp.ubicacion))                             campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "ubicacion",                  label: "Ubicación"                  })
-          if (isMissing(exp.dimension_establecimiento))             campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "dimension_establecimiento",  label: "Tamaño establecimiento"     })
-          if (exp.en_blanco === null)                               campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "en_blanco",                  label: "En blanco"                  })
-          if (isMissing(exp.motivo_cambio_o_salida) && exp.hasta !== null) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "motivo_cambio_o_salida", label: "Motivo de salida"        })
+          if (isMissing(exp.empresa))                  campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "empresa",                  label: "Nombre del establecimiento" })
+          if (isMissing(exp.nombre_propietario))        campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "nombre_propietario",        label: "Nombre del propietario"     })
+          if (isMissing(exp.rol))                       campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "rol",                       label: "Cargo/puesto"               })
+          if (isMissing(exp.desde))                     campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "desde",                     label: "Fecha de ingreso"           })
+          if (isMissing(exp.ubicacion))                 campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "ubicacion",                 label: "Ubicación"                  })
+          if (isMissing(exp.dimension_establecimiento)) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "dimension_establecimiento", label: "Tamaño establecimiento"     })
+          if (isMissing(exp.descripcion))               campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "descripcion",               label: "Tareas desarrolladas"       })
+          if (isMissing(exp.personal_a_cargo))          campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "personal_a_cargo",          label: "Personas a cargo"           })
+          if (exp.en_blanco === null)                   campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "en_blanco",                  label: "En blanco"                  })
+          if (isMissing(exp.motivo_cambio_o_salida) && exp.hasta !== null)
+                                                        campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "motivo_cambio_o_salida",   label: "Motivo de salida"           })
           if (exp.hasta === null) {
             if (isMissing(exp.ingresos_actuales)) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "ingresos_actuales", label: "Ingresos actuales" })
             if (isMissing(exp.beneficios))        campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "beneficios",        label: "Beneficios"        })

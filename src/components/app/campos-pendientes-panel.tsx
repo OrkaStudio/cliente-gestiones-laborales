@@ -16,18 +16,28 @@ type Candidato   = Tables<"candidatos">
 type Experiencia = Tables<"experiencia_laboral">
 
 const CAMPOS: { key: keyof Candidato; label: string; grupo: string }[] = [
-  { key: "lugar_nacimiento",     label: "Lugar de nacimiento",  grupo: "Personal"    },
-  { key: "estado_civil",         label: "Estado civil",         grupo: "Personal"    },
-  { key: "hijos",                label: "Hijos",                grupo: "Personal"    },
-  { key: "disponibilidad",       label: "Disponibilidad",       grupo: "Condiciones" },
-  { key: "pretension_salarial",  label: "Pretensión salarial",  grupo: "Condiciones" },
-  { key: "movilidad",            label: "Movilidad",            grupo: "Condiciones" },
-  { key: "vehiculo_propio",      label: "Vehículo propio",      grupo: "Condiciones" },
-  { key: "licencia_conducir",    label: "Licencia de conducir", grupo: "Condiciones" },
-  { key: "muebles_propios",      label: "Muebles propios",      grupo: "Campo"       },
-  { key: "animales",             label: "Animales",             grupo: "Campo"       },
-  { key: "hectareas_max",        label: "Hectáreas máx.",       grupo: "Capacidad"   },
-  { key: "personal_a_cargo_max", label: "Personal a cargo",     grupo: "Capacidad"   },
+  // Personal
+  { key: "dni",                  label: "DNI",                    grupo: "Personal"    },
+  { key: "fecha_nacimiento",     label: "Fecha de nacimiento",    grupo: "Personal"    },
+  { key: "lugar_nacimiento",     label: "Lugar de nacimiento",    grupo: "Personal"    },
+  { key: "domicilio_completo",   label: "Domicilio completo",     grupo: "Personal"    },
+  { key: "email",                label: "Email",                  grupo: "Personal"    },
+  { key: "telefono",             label: "Teléfono",               grupo: "Personal"    },
+  { key: "estado_civil",         label: "Estado civil",           grupo: "Personal"    },
+  { key: "hijos",                label: "Hijos",                  grupo: "Personal"    },
+  { key: "educacion",            label: "Estudios",               grupo: "Personal"    },
+  // Condiciones
+  { key: "disponibilidad",       label: "Disponibilidad",         grupo: "Condiciones" },
+  { key: "pretension_salarial",  label: "Pretensión salarial",    grupo: "Condiciones" },
+  { key: "movilidad",            label: "Movilidad",              grupo: "Condiciones" },
+  { key: "vehiculo_propio",      label: "Vehículo propio",        grupo: "Condiciones" },
+  { key: "licencia_conducir",    label: "Licencia de conducir",   grupo: "Condiciones" },
+  // Campo
+  { key: "muebles_propios",      label: "Muebles propios",        grupo: "Campo"       },
+  { key: "animales",             label: "Animales",               grupo: "Campo"       },
+  // Capacidad
+  { key: "hectareas_max",        label: "Hectáreas máx.",         grupo: "Capacidad"   },
+  { key: "personal_a_cargo_max", label: "Personal a cargo máx.",  grupo: "Capacidad"   },
 ]
 
 function isMissing(val: unknown): boolean {
@@ -38,19 +48,20 @@ type ExpCampo = { id: string; label: string }
 
 function getExpCampos(exp: Experiencia): ExpCampo[] {
   const r: ExpCampo[] = []
-  if (isMissing(exp.empresa))
-    r.push({ id: "empresa", label: "Nombre del establecimiento" })
-  if (isMissing(exp.ubicacion))
-    r.push({ id: "ubicacion", label: "Ubicación" })
-  if (isMissing(exp.dimension_establecimiento))
-    r.push({ id: "dimension_establecimiento", label: "Tamaño establecimiento" })
-  if (exp.en_blanco === null)
-    r.push({ id: "en_blanco", label: "En blanco" })
+  if (isMissing(exp.empresa))                   r.push({ id: "empresa",                  label: "Nombre del establecimiento" })
+  if (isMissing(exp.nombre_propietario))         r.push({ id: "nombre_propietario",        label: "Nombre del propietario"     })
+  if (isMissing(exp.rol))                        r.push({ id: "rol",                       label: "Cargo/puesto"               })
+  if (isMissing(exp.desde))                      r.push({ id: "desde",                     label: "Fecha de ingreso"           })
+  if (isMissing(exp.ubicacion))                  r.push({ id: "ubicacion",                 label: "Ubicación"                  })
+  if (isMissing(exp.dimension_establecimiento))  r.push({ id: "dimension_establecimiento", label: "Tamaño establecimiento"     })
+  if (isMissing(exp.descripcion))                r.push({ id: "descripcion",               label: "Tareas desarrolladas"       })
+  if (isMissing(exp.personal_a_cargo))           r.push({ id: "personal_a_cargo",          label: "Personas a cargo"           })
+  if (exp.en_blanco === null)                    r.push({ id: "en_blanco",                 label: "En blanco"                  })
   if (isMissing(exp.motivo_cambio_o_salida) && exp.hasta !== null)
-    r.push({ id: "motivo_cambio_o_salida", label: "Motivo de salida" })
+                                                  r.push({ id: "motivo_cambio_o_salida",   label: "Motivo de salida"           })
   if (exp.hasta === null) {
     if (isMissing(exp.ingresos_actuales)) r.push({ id: "ingresos_actuales", label: "Ingresos actuales" })
-    if (isMissing(exp.beneficios))        r.push({ id: "beneficios",        label: "Beneficios"       })
+    if (isMissing(exp.beneficios))        r.push({ id: "beneficios",        label: "Beneficios"        })
   }
   return r
 }
