@@ -5,7 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { Home, Users, Search, FileText, LogOut, Bell, UserPlus, Copy, ShieldCheck, AlertCircle, X, ArrowRight, Trash2 } from "lucide-react"
 import { signOut } from "@/lib/actions/auth"
 import { marcarTodasLeidas, marcarLeida } from "@/lib/actions/notificaciones"
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 
 const NAV = [
   { label: "Inicio",      href: "/",          icon: Home },
@@ -133,6 +134,21 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: Si
   const [navPending, startNav]      = useTransition()
   const [notifs, setNotifs]         = useState(initialNotificaciones)
   const count = notifs.length
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel("notificaciones-realtime")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notificaciones" },
+        (payload) => {
+          setNotifs((prev) => [payload.new as Notificacion, ...prev])
+        },
+      )
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [])
 
   function dismiss(id: string) {
     setNotifs((prev) => prev.filter((n) => n.id !== id))
