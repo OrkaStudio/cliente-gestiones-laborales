@@ -45,7 +45,7 @@ function CVOverlay({ estado }: { estado: "cargando" | "ok" }) {
                 Actualizando CV…
               </div>
               <div style={{ fontSize: 12, color: "#8b949e" }}>
-                Sonnet está procesando la conversación
+                Procesando la conversación…
               </div>
             </div>
           </>
@@ -152,9 +152,13 @@ export function WhatsappMessagePanel({
       const result = await extraerRespuestasDeConversacion(preguntas_sugeridas, convTexto)
       if (result.success) {
         setAnswers(result.respuestas)
+        // Auto-guardar inmediatamente
+        const payload = preguntas_sugeridas.map((p, i) => ({ pregunta: p, respuesta: result.respuestas[i] ?? "" }))
+        await guardarRespuestas(candidatoId, payload)
         setParseOk(true)
         setConvTexto("")
-        setTimeout(() => setParseOk(false), 4000)
+        // Pasar a vista historial — ya no pide el chat de nuevo
+        setTimeout(() => { setParseOk(false); setModoHistorial(true) }, 1800)
       } else {
         setRespErr(result.error)
       }
