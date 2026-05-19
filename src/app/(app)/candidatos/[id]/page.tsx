@@ -331,7 +331,7 @@ export default async function CandidatoDetailPage({
         candidatoId={candidato.id}
         nombre={candidato.nombre}
         telefono={candidato.telefono ?? null}
-        preguntas_sugeridas={(candidato.preguntas_sugeridas as string[] | null) ?? []}
+        pregunasMapeadasDb={((candidato as unknown as Record<string, unknown>).preguntas_mapeadas as import("@/lib/cv/generar-preguntas-mapeadas").PreguntaMapeada[] | null) ?? null}
         fecha_consultado={candidato.fecha_consultado ?? null}
       />
 

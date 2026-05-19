@@ -2,6 +2,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
 import { CATEGORIAS_GL } from "@/lib/cv/categorias";
+import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas";
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { z, ZodError } from "zod";
@@ -274,6 +275,63 @@ export async function POST(req: NextRequest) {
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
       });
+
+      // Generar preguntas mapeadas por campo — para que el panel cargue instantáneo
+      try {
+        const isMissing = (v: unknown) => v === null || v === undefined || v === ""
+        const cp = candidatoParseado
+        const campos: CampoPendienteInput[] = []
+
+        const CAMPOS_CONFIG = [
+          { campo: "lugar_nacimiento",     label: "Lugar de nacimiento"    },
+          { campo: "estado_civil",         label: "Estado civil"           },
+          { campo: "hijos",                label: "Hijos"                  },
+          { campo: "disponibilidad",       label: "Disponibilidad"         },
+          { campo: "pretension_salarial",  label: "Pretensión salarial"    },
+          { campo: "movilidad",            label: "Movilidad"              },
+          { campo: "vehiculo_propio",      label: "Vehículo propio"        },
+          { campo: "licencia_conducir",    label: "Licencia de conducir"   },
+          { campo: "muebles_propios",      label: "Muebles propios"        },
+          { campo: "animales",             label: "Animales"               },
+          { campo: "hectareas_max",        label: "Hectáreas máx."         },
+          { campo: "personal_a_cargo_max", label: "Personal a cargo"       },
+        ] as const
+
+        for (const c of CAMPOS_CONFIG) {
+          if (isMissing(cp[c.campo])) {
+            campos.push({ tipo: "candidato", campo: c.campo, label: c.label })
+          }
+        }
+
+        cp.experiencia.forEach((exp, i) => {
+          const empresa = exp.empresa || `Exp ${i + 1}`
+          if (isMissing(exp.empresa))                               campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "empresa",                   label: "Nombre del establecimiento" })
+          if (isMissing(exp.ubicacion))                             campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "ubicacion",                  label: "Ubicación"                  })
+          if (isMissing(exp.dimension_establecimiento))             campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "dimension_establecimiento",  label: "Tamaño establecimiento"     })
+          if (exp.en_blanco === null)                               campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "en_blanco",                  label: "En blanco"                  })
+          if (isMissing(exp.motivo_cambio_o_salida) && exp.hasta !== null) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "motivo_cambio_o_salida", label: "Motivo de salida"        })
+          if (exp.hasta === null) {
+            if (isMissing(exp.ingresos_actuales)) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "ingresos_actuales", label: "Ingresos actuales" })
+            if (isMissing(exp.beneficios))        campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "beneficios",        label: "Beneficios"        })
+          }
+        })
+
+        if (campos.length > 0) {
+          const preguntas = await generarPreguntasMapeadas(
+            cp.nombre,
+            cp.cv_procesado_texto ?? "",
+            campos,
+          )
+          if (preguntas.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (supabase.from("candidatos") as any)
+              .update({ preguntas_mapeadas: preguntas })
+              .eq("id", candidatoId)
+          }
+        }
+      } catch {
+        // no interrumpe el flujo
+      }
 
       // Auto-categorización con Haiku — puede fallar sin consecuencias
       try {

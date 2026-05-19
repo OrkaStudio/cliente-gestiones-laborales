@@ -7,6 +7,7 @@ import { upsertCandidato } from "@/lib/cv/upsert-candidato"
 import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
+import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -331,10 +332,7 @@ export async function extraerRespuestasDeConversacion(
   }
 }
 
-export type CampoPendiente =
-  | { tipo: "candidato"; campo: string; label: string }
-  | { tipo: "experiencia"; expIndex: number; empresa: string; campo: string; label: string }
-
+export type CampoPendiente = CampoPendienteInput
 export type PreguntaGenerada = { campo: string; pregunta: string }
 
 export async function generarPreguntasParaCampos(
@@ -352,55 +350,15 @@ export async function generarPreguntasParaCampos(
 
   if (error || !data) return { success: false, error: "Candidato no encontrado" }
 
-  const lista = campos
-    .map((c, i) => {
-      const desc =
-        c.tipo === "candidato"
-          ? c.label
-          : `Trabajo en ${c.empresa}: ${c.label}`
-      return `${i + 1}. ${desc}`
-    })
-    .join("\n")
-
-  const { text } = await generateText({
-    model: anthropic("claude-haiku-4-5-20251001"),
-    prompt: `Sos una recruitera de Gestiones Laborales, consultora de RRHH agropecuaria.
-Formular preguntas para hacerle al candidato ${data.nombre} sobre los datos que faltan.
-
-CV actual:
-${data.cv_procesado_texto ?? "(sin CV)"}
-
-Datos faltantes (uno por línea):
-${lista}
-
-Para cada dato, escribí UNA pregunta en español rioplatense informal, personalizada con el contexto del CV si aplica.
-Una pregunta por dato — sin agrupar.
-
-Respondé ÚNICAMENTE con un JSON array de exactamente ${campos.length} strings, en el mismo orden:
-["pregunta 1", "pregunta 2", ...]`,
-  })
-
   try {
-    const match = text.match(/\[[\s\S]*\]/)
-    if (!match) throw new Error("No JSON array found")
-    const parsed = JSON.parse(match[0]) as unknown[]
-    if (!Array.isArray(parsed)) throw new Error("Not an array")
-
-    const preguntas: PreguntaGenerada[] = campos
-      .map((c, i) => {
-        const pregunta = typeof parsed[i] === "string" ? (parsed[i] as string).trim() : ""
-        if (!pregunta) return null
-        const campo =
-          c.tipo === "candidato"
-            ? `candidato:${c.campo}`
-            : `exp:${c.expIndex}:${c.campo}`
-        return { campo, pregunta }
-      })
-      .filter((p): p is PreguntaGenerada => p !== null)
-
+    const preguntas = await generarPreguntasMapeadas(
+      data.nombre,
+      data.cv_procesado_texto ?? "",
+      campos,
+    )
     return { success: true, preguntas }
   } catch {
-    return { success: false, error: "No se pudo interpretar la respuesta de Claude" }
+    return { success: false, error: "No se pudo generar las preguntas" }
   }
 }
 

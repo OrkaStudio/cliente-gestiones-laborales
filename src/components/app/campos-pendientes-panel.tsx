@@ -10,6 +10,7 @@ import {
   type CampoPendiente,
 } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
+import type { PreguntaMapeada } from "@/lib/cv/generar-preguntas-mapeadas"
 
 type Candidato   = Tables<"candidatos">
 type Experiencia = Tables<"experiencia_laboral">
@@ -62,13 +63,13 @@ interface ItemActivo {
 }
 
 interface Props {
-  candidato:           Candidato
-  experiencia:         Experiencia[]
-  candidatoId:         string
-  nombre:              string
-  telefono:            string | null
-  preguntas_sugeridas: string[]
-  fecha_consultado:    string | null
+  candidato:              Candidato
+  experiencia:            Experiencia[]
+  candidatoId:            string
+  nombre:                 string
+  telefono:               string | null
+  pregunasMapeadasDb:     PreguntaMapeada[] | null
+  fecha_consultado:       string | null
 }
 
 type Estado = "idle" | "cargando" | "activo"
@@ -87,20 +88,9 @@ const CHIP_SEL: React.CSSProperties = {
 
 export function CamposPendientesPanel({
   candidato, experiencia, candidatoId, nombre, telefono,
-  preguntas_sugeridas, fecha_consultado,
+  pregunasMapeadasDb, fecha_consultado,
 }: Props) {
   const router = useRouter()
-
-  const [estado, setEstado]                   = useState<Estado>("idle")
-  const [items, setItems]                     = useState<ItemActivo[]>([])
-  const [pregeneratedItems, setPregeneratedItems] = useState<ItemActivo[] | null>(null)
-  const [preGenerating, setPreGenerating]     = useState(false)
-  const [seleccionados, setSeleccionados]     = useState<Set<string>>(new Set())
-  const [modalOpen, setModalOpen]             = useState(false)
-  const [mensajeTexto, setMensajeTexto]       = useState("")
-  const [enviado, setEnviado]                 = useState(false)
-  const [sendPending, setSendPending]         = useState(false)
-  const [error, setError]                     = useState<string | null>(null)
 
   // ── Pending campo computation ───────────────────────────────────────────────
 
@@ -113,9 +103,28 @@ export function CamposPendientesPanel({
   })
   const total = pendientes.length + expPendientes.length
 
-  // ── Pre-generate questions in background on mount (for subsequent cycles) ──
+  // ── Inicializar desde DB (ya generadas al parsear el CV) ────────────────────
+
+  const initialItems = pregunasMapeadasDb
+    ? buildItemsFromDb(pregunasMapeadasDb)
+    : null
+
+  const [estado, setEstado]                   = useState<Estado>("idle")
+  const [items, setItems]                     = useState<ItemActivo[]>([])
+  const [pregeneratedItems, setPregeneratedItems] = useState<ItemActivo[] | null>(initialItems)
+  const [preGenerating, setPreGenerating]     = useState(false)
+  const [seleccionados, setSeleccionados]     = useState<Set<string>>(new Set())
+  const [modalOpen, setModalOpen]             = useState(false)
+  const [mensajeTexto, setMensajeTexto]       = useState("")
+  const [enviado, setEnviado]                 = useState(false)
+  const [sendPending, setSendPending]         = useState(false)
+  const [error, setError]                     = useState<string | null>(null)
+
+  // ── Fallback: si no hay preguntas en DB, generar en background al montar ───
 
   useEffect(() => {
+    if (initialItems) return // ya tenemos datos del DB
+
     const campos: CampoPendiente[] = [
       ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
       ...expPendientes.map((ep) => ({
@@ -138,6 +147,10 @@ export function CamposPendientesPanel({
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── helpers ─────────────────────────────────────────────────────────────────
+
+  function buildItemsFromDb(mapeadas: PreguntaMapeada[]): ItemActivo[] {
+    return buildItems(mapeadas.map((p) => [p.campo, p.pregunta]))
+  }
 
   function buildItems(entries: [string, string][]): ItemActivo[] {
     const pregByKey = new Map(entries)
