@@ -121,6 +121,7 @@ export type Database = {
           referencias: Json | null
           campos_faltantes: string[] | null
           categorias: string[]
+          conversaciones_historial: Json | null
         }
         Insert: {
           apellido: string
@@ -165,6 +166,7 @@ export type Database = {
           referencias?: Json | null
           campos_faltantes?: string[] | null
           categorias?: string[]
+          conversaciones_historial?: Json | null
         }
         Update: {
           apellido?: string
@@ -209,6 +211,7 @@ export type Database = {
           referencias?: Json | null
           campos_faltantes?: string[] | null
           categorias?: string[]
+          conversaciones_historial?: Json | null
         }
         Relationships: []
       }

@@ -536,6 +536,7 @@ export default async function CandidatoDetailPage({
           fecha_consultado={candidato.fecha_consultado ?? null}
           mensaje_whatsapp={candidato.mensaje_whatsapp ?? null}
           initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as { pregunta: string; respuesta: string }[] | null}
+          initialConversaciones={(candidato as { conversaciones_historial?: unknown }).conversaciones_historial as import("@/lib/actions/candidatos").ConversacionEntry[] | null}
         />
       </section>
     </div>

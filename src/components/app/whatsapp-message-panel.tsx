@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react"
 import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare, Wand2 } from "lucide-react"
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
-import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion, actualizarCVDesdeConversacion } from "@/lib/actions/candidatos"
+import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion, actualizarCVDesdeConversacion, type ConversacionEntry } from "@/lib/actions/candidatos"
 
 // ─── Overlay de carga / éxito ─────────────────────────────────────────────────
 
@@ -81,6 +81,7 @@ interface Props {
   fecha_consultado: string | null
   mensaje_whatsapp: string | null
   initialRespuestas?: { pregunta: string; respuesta: string }[] | null
+  initialConversaciones?: ConversacionEntry[] | null
 }
 
 const CARD = {
@@ -97,12 +98,17 @@ export function WhatsappMessagePanel({
   fecha_consultado,
   mensaje_whatsapp,
   initialRespuestas,
+  initialConversaciones,
 }: Props) {
   const [preguntas, setPreguntas] = useState(preguntas_sugeridas)
   const [modalOpen, setModalOpen] = useState(false)
   const [mensajeEnModal, setMensajeEnModal] = useState("")
   const [showOriginal, setShowOriginal] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  // ── Conversaciones historial ────────────────────────────────────────────────
+  const [conversaciones, setConversaciones] = useState<ConversacionEntry[]>(initialConversaciones ?? [])
+  const [expandedConvId, setExpandedConvId] = useState<string | null>(null)
 
   // ── Respuestas ──────────────────────────────────────────────────────────────
   const hasRespuestas = !!initialRespuestas?.some((r) => r.respuesta.trim())
@@ -224,12 +230,20 @@ export function WhatsappMessagePanel({
     if (modoCiclo) {
       function handleActualizarCiclo() {
         setCicloErr(null); setCicloOk(false)
+        const textoGuardado = cicloTexto
         startCiclo(async () => {
-          const result = await actualizarCVDesdeConversacion(candidatoId, cicloTexto)
+          const result = await actualizarCVDesdeConversacion(candidatoId, textoGuardado)
           if (result.success) {
+            // Agregar la conversación al historial local para que aparezca sin recargar
+            const nueva: ConversacionEntry = {
+              id: crypto.randomUUID(),
+              fecha: new Date().toISOString(),
+              texto: textoGuardado,
+            }
+            setConversaciones((prev) => [nueva, ...prev])
             setCicloOk(true)
             setCicloTexto("")
-            setTimeout(() => { setCicloOk(false); setModoCiclo(false) }, 2500)
+            setTimeout(() => { setCicloOk(false); setModoCiclo(false) }, 2000)
           } else {
             setCicloErr(result.error)
           }
@@ -299,37 +313,105 @@ export function WhatsappMessagePanel({
     }
 
     return (
-      <div className="rounded-2xl border p-5" style={CARD}>
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Q&amp;A registrado</h2>
-            {fechaFormateada && (
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                Consultado el {fechaFormateada}
-              </p>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => setModoCiclo(true)}
-            className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg"
-            style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
-          >
-            + Agregar conversación
-          </button>
-        </div>
-        <div className="space-y-3">
-          {pares.map(({ pregunta, respuesta }, i) => (
-            <div key={i} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 12 }}>
-              <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                {pregunta}
-              </div>
-              <div className="text-[12.5px]" style={{ color: respuesta.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
-                {respuesta.trim() || "— sin respuesta"}
-              </div>
+      <div className="flex flex-col gap-3">
+        {/* Q&A original */}
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Q&amp;A registrado</h2>
+              {fechaFormateada && (
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  Consultado el {fechaFormateada}
+                </p>
+              )}
             </div>
-          ))}
+            <button
+              type="button"
+              onClick={() => setModoCiclo(true)}
+              className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg"
+              style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
+            >
+              + Agregar conversación
+            </button>
+          </div>
+          <div className="space-y-3">
+            {pares.map(({ pregunta, respuesta }, i) => (
+              <div key={i} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 12 }}>
+                <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  {pregunta}
+                </div>
+                <div className="text-[12.5px]" style={{ color: respuesta.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
+                  {respuesta.trim() || "— sin respuesta"}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Historial de conversaciones */}
+        {conversaciones.length > 0 && (
+          <div className="rounded-2xl border p-5" style={CARD}>
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color: "var(--gl-ink-3)" }}>
+              Conversaciones ({conversaciones.length})
+            </div>
+            <div className="flex flex-col gap-2">
+              {conversaciones.map((conv) => {
+                const isOpen = expandedConvId === conv.id
+                const fecha = new Date(conv.fecha).toLocaleDateString("es-AR", {
+                  day: "2-digit", month: "short", year: "numeric",
+                })
+                const hora = new Date(conv.fecha).toLocaleTimeString("es-AR", {
+                  hour: "2-digit", minute: "2-digit",
+                })
+                const preview = conv.texto.split("\n")[0]?.slice(0, 60) ?? ""
+                return (
+                  <div
+                    key={conv.id}
+                    className="rounded-xl overflow-hidden"
+                    style={{ border: "1px solid var(--gl-border)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setExpandedConvId(isOpen ? null : conv.id)}
+                      className="w-full flex items-center justify-between px-4 py-3 text-left"
+                      style={{ background: isOpen ? "var(--gl-surface)" : "#fff", cursor: "pointer", border: "none" }}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="text-[11.5px] font-semibold shrink-0" style={{ color: "var(--gl-olive)" }}>
+                          {fecha} · {hora}
+                        </span>
+                        {!isOpen && (
+                          <span className="text-[11px] truncate" style={{ color: "var(--gl-ink-3)" }}>
+                            {preview}…
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ color: "var(--gl-ink-3)", fontSize: 12, flexShrink: 0 }}>
+                        {isOpen ? "▲" : "▼"}
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <pre
+                        className="px-4 pb-4 text-xs leading-relaxed whitespace-pre-wrap font-sans"
+                        style={{
+                          color: "var(--gl-ink)",
+                          borderTop: "1px solid var(--gl-border)",
+                          margin: 0,
+                          paddingTop: 12,
+                          background: "var(--gl-surface)",
+                          maxHeight: 320,
+                          overflowY: "auto",
+                        }}
+                      >
+                        {conv.texto}
+                      </pre>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     )
   }

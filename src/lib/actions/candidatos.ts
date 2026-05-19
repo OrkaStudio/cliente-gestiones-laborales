@@ -8,6 +8,31 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 
+export type ConversacionEntry = { id: string; fecha: string; texto: string }
+
+async function agregarConversacion(
+  candidatoId: string,
+  texto: string,
+  supabase: ReturnType<typeof createServiceClient>,
+): Promise<void> {
+  const { data } = await supabase
+    .from("candidatos")
+    .select("conversaciones_historial")
+    .eq("id", candidatoId)
+    .single()
+
+  const historial = (data?.conversaciones_historial as ConversacionEntry[] | null) ?? []
+  const nueva: ConversacionEntry = {
+    id: crypto.randomUUID(),
+    fecha: new Date().toISOString(),
+    texto,
+  }
+  await supabase
+    .from("candidatos")
+    .update({ conversaciones_historial: [nueva, ...historial] as unknown as import("@/lib/supabase/types").Json })
+    .eq("id", candidatoId)
+}
+
 // ─── Sync campos estructurados desde cv_procesado_texto ────────────────────────
 
 type CampoCV = { label: string; field: string; type: "string" | "bool" | "num" }
@@ -241,30 +266,18 @@ export async function actualizarCVDesdeConversacion(
   const supabase = createServiceClient()
   const { data: candidato, error: fetchError } = await supabase
     .from("candidatos")
-    .select("cv_procesado_texto, preguntas_sugeridas, respuestas_candidato")
+    .select("cv_procesado_texto")
     .eq("id", candidatoId)
     .single()
 
   if (fetchError || !candidato) return { success: false, error: "Candidato no encontrado" }
   if (!candidato.cv_procesado_texto) return { success: false, error: "El candidato no tiene CV procesado" }
 
-  // Actualizar CV texto (Sonnet) + extraer respuestas (Haiku) en paralelo
-  const [cvResult, respResult] = await Promise.allSettled([
-    generateText({
-      model: anthropic("claude-sonnet-4-6"),
-      system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y una conversación de WhatsApp, incorporá al CV toda información nueva y relevante que aparezca en la conversación. No inventés datos, no elimines información existente. Mantenés el formato exacto del CV: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). Respondé solo con el CV actualizado, sin explicaciones.`,
-      prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nConversación de WhatsApp:\n${conversacion}`,
-    }),
-    candidato.preguntas_sugeridas?.length
-      ? generateText({
-          model: anthropic("claude-haiku-4-5-20251001"),
-          prompt: `Se le hicieron estas preguntas a un candidato laboral:\n${candidato.preguntas_sugeridas.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\nEsta es la conversación de WhatsApp donde respondió:\n${conversacion}\n\nExtrae la respuesta a cada pregunta. Si no hay respuesta, dejá el campo vacío.\n\nRespondé ÚNICAMENTE con un JSON array con exactamente ${candidato.preguntas_sugeridas.length} elementos:\n["respuesta 1", "respuesta 2", ...]`,
-        })
-      : Promise.resolve(null),
-  ])
-
-  if (cvResult.status === "rejected") return { success: false, error: "Error actualizando el CV" }
-  const text = cvResult.value.text
+  const { text } = await generateText({
+    model: anthropic("claude-sonnet-4-6"),
+    system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y una conversación de WhatsApp, incorporá al CV toda información nueva y relevante que aparezca en la conversación. No inventés datos, no elimines información existente. Mantenés el formato exacto del CV: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). Respondé solo con el CV actualizado, sin explicaciones.`,
+    prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nConversación de WhatsApp:\n${conversacion}`,
+  })
 
   const { error: updateError } = await supabase
     .from("candidatos")
@@ -273,29 +286,11 @@ export async function actualizarCVDesdeConversacion(
 
   if (updateError) return { success: false, error: updateError.message }
 
-  // Merge respuestas: solo rellenar las que estaban vacías
-  if (respResult.status === "fulfilled" && respResult.value) {
-    try {
-      const match = respResult.value.text.match(/\[[\s\S]*\]/)
-      if (match) {
-        const parsed = JSON.parse(match[0]) as unknown[]
-        if (Array.isArray(parsed)) {
-          const existing = (candidato.respuestas_candidato as RespuestaItem[] | null) ?? []
-          const merged: RespuestaItem[] = candidato.preguntas_sugeridas.map((p, i) => {
-            const prev = existing.find((r) => r.pregunta === p) ?? existing[i]
-            const nuevo = typeof parsed[i] === "string" ? (parsed[i] as string).trim() : ""
-            return { pregunta: p, respuesta: prev?.respuesta?.trim() || nuevo }
-          })
-          await supabase
-            .from("candidatos")
-            .update({ respuestas_candidato: merged as unknown as import("@/lib/supabase/types").Json })
-            .eq("id", candidatoId)
-        }
-      }
-    } catch { /* no interrumpir si falla la extracción */ }
-  }
-
-  await sincronizarCamposDesdeCV(candidatoId, text, supabase)
+  // Guardar la conversación en el historial + sincronizar campos estructurados
+  await Promise.all([
+    agregarConversacion(candidatoId, conversacion, supabase),
+    sincronizarCamposDesdeCV(candidatoId, text, supabase),
+  ])
 
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
