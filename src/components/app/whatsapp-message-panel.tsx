@@ -5,6 +5,74 @@ import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw
 import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
 import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion, actualizarCVDesdeConversacion } from "@/lib/actions/candidatos"
 
+// ─── Overlay de carga / éxito ─────────────────────────────────────────────────
+
+function CVOverlay({ estado }: { estado: "cargando" | "ok" }) {
+  return (
+    <div style={{
+      position:       "fixed",
+      inset:          0,
+      zIndex:         9999,
+      background:     "rgba(13,17,23,0.55)",
+      backdropFilter: "blur(3px)",
+      display:        "flex",
+      alignItems:     "center",
+      justifyContent: "center",
+    }}>
+      <div style={{
+        background:   "#fff",
+        borderRadius: 20,
+        padding:      "40px 52px",
+        textAlign:    "center",
+        boxShadow:    "0 24px 64px rgba(13,17,23,0.22)",
+        display:      "flex",
+        flexDirection: "column",
+        alignItems:   "center",
+        gap:          16,
+        minWidth:     260,
+      }}>
+        {estado === "cargando" ? (
+          <>
+            <div style={{
+              width: 44, height: 44, borderRadius: "50%",
+              border: "3px solid #e2e8d9",
+              borderTopColor: "#2a4a18",
+              animation: "spin 0.9s linear infinite",
+            }} />
+            <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>
+                Actualizando CV…
+              </div>
+              <div style={{ fontSize: 12, color: "#8b949e" }}>
+                Sonnet está procesando la conversación
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={{
+              width: 48, height: 48, borderRadius: "50%",
+              background: "#dafbe1",
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <CheckCircle style={{ width: 26, height: 26, color: "#1a7f37" }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>
+                CV actualizado
+              </div>
+              <div style={{ fontSize: 12, color: "#8b949e" }}>
+                Los cambios ya están guardados
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 interface Props {
   candidatoId: string
   nombre: string
@@ -165,65 +233,64 @@ export function WhatsappMessagePanel({
       }
 
       return (
-        <div className="rounded-2xl border p-5" style={CARD}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Nueva conversación</h2>
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                Pegá la conversación de WhatsApp — el CV se actualiza automáticamente
-              </p>
+        <>
+          {cicloPending && <CVOverlay estado="cargando" />}
+          {cicloOk      && <CVOverlay estado="ok" />}
+          <div className="rounded-2xl border p-5" style={CARD}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Nueva conversación</h2>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  Pegá la conversación de WhatsApp — el CV se actualiza automáticamente
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setModoCiclo(false); setCicloTexto(""); setCicloErr(null) }}
+                style={{ background: "none", border: "none", color: "var(--gl-ink-3)", cursor: "pointer", fontSize: 13 }}
+              >
+                ✕
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => { setModoCiclo(false); setCicloTexto(""); setCicloErr(null) }}
-              style={{ background: "none", border: "none", color: "var(--gl-ink-3)", cursor: "pointer", fontSize: 13 }}
-            >
-              ✕
-            </button>
-          </div>
 
-          <textarea
-            value={cicloTexto}
-            onChange={e => setCicloTexto(e.target.value)}
-            rows={8}
-            placeholder={"[Oriana]: ¿Tenés vehículo propio?\n[Candidato]: Sí, auto Gol 2012.\n..."}
-            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
-            style={{
-              background: "var(--gl-surface)",
-              border: "1.5px solid var(--gl-olive)",
-              color: "var(--gl-ink)",
-              fontFamily: "inherit",
-              lineHeight: 1.6,
-              resize: "vertical",
-            }}
-          />
-
-          {cicloErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{cicloErr}</p>}
-
-          <div className="flex items-center justify-end gap-2">
-            {cicloOk && (
-              <span className="text-[11px] font-semibold flex items-center gap-1" style={{ color: "#1a7f37" }}>
-                <CheckCircle className="h-3 w-3" /> CV actualizado
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={handleActualizarCiclo}
-              disabled={cicloPending || !cicloTexto.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+            <textarea
+              value={cicloTexto}
+              onChange={e => setCicloTexto(e.target.value)}
+              rows={8}
+              placeholder={"[Oriana]: ¿Tenés vehículo propio?\n[Candidato]: Sí, auto Gol 2012.\n..."}
+              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
               style={{
-                background: "var(--gl-olive)",
-                color: "#fff",
-                border: "none",
-                cursor: cicloPending || !cicloTexto.trim() ? "default" : "pointer",
-                opacity: cicloPending || !cicloTexto.trim() ? 0.6 : 1,
+                background: "var(--gl-surface)",
+                border: "1.5px solid var(--gl-olive)",
+                color: "var(--gl-ink)",
+                fontFamily: "inherit",
+                lineHeight: 1.6,
+                resize: "vertical",
               }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              {cicloPending ? "Actualizando CV…" : "Actualizar CV"}
-            </button>
+            />
+
+            {cicloErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{cicloErr}</p>}
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleActualizarCiclo}
+                disabled={cicloPending || !cicloTexto.trim()}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+                style={{
+                  background: "var(--gl-olive)",
+                  color: "#fff",
+                  border: "none",
+                  cursor: cicloPending || !cicloTexto.trim() ? "default" : "pointer",
+                  opacity: cicloPending || !cicloTexto.trim() ? 0.6 : 1,
+                }}
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                {cicloPending ? "Actualizando CV…" : "Actualizar CV"}
+              </button>
+            </div>
           </div>
-        </div>
+        </>
       )
     }
 
@@ -265,6 +332,8 @@ export function WhatsappMessagePanel({
 
   return (
     <>
+      {updatePending && <CVOverlay estado="cargando" />}
+      {updateOk      && <CVOverlay estado="ok" />}
       <div className="rounded-2xl border p-6" style={CARD}>
         {/* Header */}
         <div className="flex items-center justify-between mb-5">

@@ -8,6 +8,87 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 
+// ─── Sync campos estructurados desde cv_procesado_texto ────────────────────────
+
+type CampoCV = { label: string; field: string; type: "string" | "bool" | "num" }
+
+const CAMPOS_CV_MAP: CampoCV[] = [
+  { label: "lugar de nacimiento", field: "lugar_nacimiento",     type: "string" },
+  { label: "estado civil",        field: "estado_civil",         type: "string" },
+  { label: "hijos",               field: "hijos",                type: "string" },
+  { label: "disponibilidad",      field: "disponibilidad",       type: "string" },
+  { label: "pretensión salarial", field: "pretension_salarial",  type: "string" },
+  { label: "pretension salarial", field: "pretension_salarial",  type: "string" },
+  { label: "movilidad",           field: "movilidad",            type: "bool"   },
+  { label: "vehículo propio",     field: "vehiculo_propio",      type: "bool"   },
+  { label: "vehiculo propio",     field: "vehiculo_propio",      type: "bool"   },
+  { label: "licencia de conducir",field: "licencia_conducir",    type: "bool"   },
+  { label: "muebles propios",     field: "muebles_propios",      type: "string" },
+  { label: "animales",            field: "animales",             type: "string" },
+  { label: "hectáreas máx",       field: "hectareas_max",        type: "num"    },
+  { label: "hectareas max",       field: "hectareas_max",        type: "num"    },
+  { label: "personal a cargo",    field: "personal_a_cargo_max", type: "num"    },
+]
+
+function parseBoolFromCV(val: string): boolean | null {
+  const v = val.toLowerCase().trim()
+  if (v.startsWith("sí") || v.startsWith("si") || v === "true" || v === "yes") return true
+  if (v.startsWith("no") || v === "false") return false
+  return null
+}
+
+function parseNumFromCV(val: string): number | null {
+  const n = Number.parseInt(val.replace(/[^\d]/g, ""), 10)
+  return Number.isNaN(n) ? null : n
+}
+
+async function sincronizarCamposDesdeCV(
+  candidatoId: string,
+  cvTexto: string,
+  supabase: ReturnType<typeof createServiceClient>,
+): Promise<void> {
+  const { data: row } = await supabase
+    .from("candidatos")
+    .select("lugar_nacimiento, estado_civil, hijos, disponibilidad, pretension_salarial, movilidad, vehiculo_propio, licencia_conducir, muebles_propios, animales, hectareas_max, personal_a_cargo_max")
+    .eq("id", candidatoId)
+    .single()
+
+  if (!row) return
+
+  const sections = parseSections(cvTexto)
+  const allKVs: KVPair[] = sections.flatMap((s) => parseKV(s.content))
+
+  const update: Record<string, string | boolean | number> = {}
+  const filled = new Set<string>() // evitar duplicados por alias
+
+  for (const { label, field, type } of CAMPOS_CV_MAP) {
+    if (filled.has(field)) continue
+    const current = (row as Record<string, unknown>)[field]
+    if (current !== null && current !== undefined) continue // ya tiene valor
+
+    const match = allKVs.find((kv) => kv.label.toLowerCase() === label.toLowerCase())
+    if (!match?.value.trim()) continue
+
+    if (type === "string") {
+      update[field] = match.value.trim()
+      filled.add(field)
+    } else if (type === "bool") {
+      const b = parseBoolFromCV(match.value)
+      if (b !== null) { update[field] = b; filled.add(field) }
+    } else {
+      const n = parseNumFromCV(match.value)
+      if (n !== null) { update[field] = n; filled.add(field) }
+    }
+  }
+
+  if (Object.keys(update).length === 0) return
+  await supabase.from("candidatos")
+    .update(update as import("@/lib/supabase/types").TablesUpdate<"candidatos">)
+    .eq("id", candidatoId)
+}
+
+// ─── Labels del CV que corresponden a campos del perfil ────────────────────────
+
 // Labels del CV que corresponden a campos del perfil
 const PROFILE_TO_CV_LABEL: Record<string, string> = {
   telefono:         "Teléfono",
@@ -146,6 +227,8 @@ export async function actualizarCVConRespuestas(candidatoId: string): Promise<Ac
 
   if (updateError) return { success: false, error: updateError.message }
 
+  await sincronizarCamposDesdeCV(candidatoId, text, supabase)
+
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: candidatoId }
@@ -177,6 +260,8 @@ export async function actualizarCVDesdeConversacion(
     .eq("id", candidatoId)
 
   if (updateError) return { success: false, error: updateError.message }
+
+  await sincronizarCamposDesdeCV(candidatoId, text, supabase)
 
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
