@@ -64,7 +64,7 @@ async function sincronizarCamposDesdeCV(
   for (const { label, field, type } of CAMPOS_CV_MAP) {
     if (filled.has(field)) continue
     const current = (row as Record<string, unknown>)[field]
-    if (current !== null && current !== undefined) continue // ya tiene valor
+    if (current !== null && current !== undefined && current !== "") continue // ya tiene valor
 
     const match = allKVs.find((kv) => kv.label.toLowerCase() === label.toLowerCase())
     if (!match?.value.trim()) continue
@@ -241,18 +241,30 @@ export async function actualizarCVDesdeConversacion(
   const supabase = createServiceClient()
   const { data: candidato, error: fetchError } = await supabase
     .from("candidatos")
-    .select("cv_procesado_texto")
+    .select("cv_procesado_texto, preguntas_sugeridas, respuestas_candidato")
     .eq("id", candidatoId)
     .single()
 
   if (fetchError || !candidato) return { success: false, error: "Candidato no encontrado" }
   if (!candidato.cv_procesado_texto) return { success: false, error: "El candidato no tiene CV procesado" }
 
-  const { text } = await generateText({
-    model: anthropic("claude-sonnet-4-6"),
-    system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y una conversación de WhatsApp, incorporá al CV toda información nueva y relevante que aparezca en la conversación. No inventés datos, no elimines información existente. Mantenés el formato exacto del CV: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). Respondé solo con el CV actualizado, sin explicaciones.`,
-    prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nConversación de WhatsApp:\n${conversacion}`,
-  })
+  // Actualizar CV texto (Sonnet) + extraer respuestas (Haiku) en paralelo
+  const [cvResult, respResult] = await Promise.allSettled([
+    generateText({
+      model: anthropic("claude-sonnet-4-6"),
+      system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y una conversación de WhatsApp, incorporá al CV toda información nueva y relevante que aparezca en la conversación. No inventés datos, no elimines información existente. Mantenés el formato exacto del CV: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). Respondé solo con el CV actualizado, sin explicaciones.`,
+      prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nConversación de WhatsApp:\n${conversacion}`,
+    }),
+    candidato.preguntas_sugeridas?.length
+      ? generateText({
+          model: anthropic("claude-haiku-4-5-20251001"),
+          prompt: `Se le hicieron estas preguntas a un candidato laboral:\n${candidato.preguntas_sugeridas.map((p, i) => `${i + 1}. ${p}`).join("\n")}\n\nEsta es la conversación de WhatsApp donde respondió:\n${conversacion}\n\nExtrae la respuesta a cada pregunta. Si no hay respuesta, dejá el campo vacío.\n\nRespondé ÚNICAMENTE con un JSON array con exactamente ${candidato.preguntas_sugeridas.length} elementos:\n["respuesta 1", "respuesta 2", ...]`,
+        })
+      : Promise.resolve(null),
+  ])
+
+  if (cvResult.status === "rejected") return { success: false, error: "Error actualizando el CV" }
+  const text = cvResult.value.text
 
   const { error: updateError } = await supabase
     .from("candidatos")
@@ -260,6 +272,28 @@ export async function actualizarCVDesdeConversacion(
     .eq("id", candidatoId)
 
   if (updateError) return { success: false, error: updateError.message }
+
+  // Merge respuestas: solo rellenar las que estaban vacías
+  if (respResult.status === "fulfilled" && respResult.value) {
+    try {
+      const match = respResult.value.text.match(/\[[\s\S]*\]/)
+      if (match) {
+        const parsed = JSON.parse(match[0]) as unknown[]
+        if (Array.isArray(parsed)) {
+          const existing = (candidato.respuestas_candidato as RespuestaItem[] | null) ?? []
+          const merged: RespuestaItem[] = candidato.preguntas_sugeridas.map((p, i) => {
+            const prev = existing.find((r) => r.pregunta === p) ?? existing[i]
+            const nuevo = typeof parsed[i] === "string" ? (parsed[i] as string).trim() : ""
+            return { pregunta: p, respuesta: prev?.respuesta?.trim() || nuevo }
+          })
+          await supabase
+            .from("candidatos")
+            .update({ respuestas_candidato: merged as unknown as import("@/lib/supabase/types").Json })
+            .eq("id", candidatoId)
+        }
+      }
+    } catch { /* no interrumpir si falla la extracción */ }
+  }
 
   await sincronizarCamposDesdeCV(candidatoId, text, supabase)
 
