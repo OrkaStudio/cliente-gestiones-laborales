@@ -84,9 +84,9 @@ export default function ProcesarPage() {
 
       if (res.status === 401) throw new Error("No autorizado. Iniciá sesión para procesar CVs.")
 
-      let json: Record<string, string>
+      let json: unknown
       try {
-        json = await res.json() as Record<string, string>
+        json = await res.json()
       } catch {
         throw new Error(
           res.ok
@@ -95,7 +95,10 @@ export default function ProcesarPage() {
         )
       }
 
-      if (!res.ok) throw new Error(json.detail ?? json.error ?? "Error desconocido")
+      if (!res.ok) {
+        const errJson = json as Record<string, string> | null
+        throw new Error(errJson?.detail ?? errJson?.error ?? "Error desconocido")
+      }
 
       clearInterval(interval)
       const parsedResult = json as CVParseado
