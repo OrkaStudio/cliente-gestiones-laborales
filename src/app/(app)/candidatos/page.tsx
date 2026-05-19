@@ -8,9 +8,10 @@ export default async function CandidatosPage() {
   const supabase = createServiceClient()
   const { data } = await supabase
     .from("candidatos")
-    .select("id, nombre, apellido, ultimo_puesto, fecha_nacimiento, ubicacion, telefono, estado, referencias, categorias, idiomas, fecha_consultado, gestiones(estado, busquedas(puesto))")
+    .select("id, nombre, apellido, ultimo_puesto, fecha_nacimiento, ubicacion, telefono, estado, referencias, categorias, idiomas, fecha_consultado, visto, gestiones(estado, busquedas(puesto))")
+    .order("visto", { ascending: true })
     .order("fecha_ingreso", { ascending: false })
     .limit(300)
-  const todos = (data ?? []) as CandidatoRow[]
+  const todos = (data ?? []) as unknown as CandidatoRow[]
   return <CandidatosClient todos={todos} />
 }

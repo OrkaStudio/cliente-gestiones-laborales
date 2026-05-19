@@ -15,6 +15,7 @@ import { FichaEditablePanel } from "@/components/app/ficha-editable-panel"
 import { NotasRecruiterInline } from "@/components/app/notas-recruiter-inline"
 import { CategoriasInlinePanel } from "@/components/app/categorias-inline-panel"
 import { CamposPendientesPanel } from "@/components/app/campos-pendientes-panel"
+import { marcarVisto } from "@/lib/actions/candidatos"
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -78,6 +79,9 @@ export default async function CandidatoDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+
+  // Marcar como visto en background (no bloquea el render)
+  void marcarVisto(id)
 
   const [{ data: candidato }, { data: experiencia }, { data: gestionesData }, { data: busquedasActivas }] =
     await Promise.all([

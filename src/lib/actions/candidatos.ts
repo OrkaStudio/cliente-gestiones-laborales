@@ -8,6 +8,13 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 
+export async function marcarVisto(candidatoId: string) {
+  const supabase = createServiceClient()
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase.from("candidatos") as any).update({ visto: true }).eq("id", candidatoId).eq("visto", false)
+  revalidatePath("/candidatos")
+}
+
 export type ConversacionEntry = { id: string; fecha: string; texto: string }
 
 async function agregarConversacion(

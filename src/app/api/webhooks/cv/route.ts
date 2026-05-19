@@ -126,7 +126,7 @@ export async function POST(req: NextRequest) {
   // 5. Decodificar archivo desde base64
   const buffer = Buffer.from(body.archivo_base64, "base64");
 
-  // 6. Normalizar MIME: octet-stream o vacío → inferir por extensión
+  // 6. Normalizar MIME: octet-stream o vacío → inferir por extensión o magic bytes
   const ext = body.archivo_nombre.split(".").pop()?.toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
     pdf: "application/pdf",
@@ -138,10 +138,22 @@ export async function POST(req: NextRequest) {
     webp: "image/webp",
   };
   const mimeGenerico = !body.archivo_mime || body.archivo_mime === "application/octet-stream";
-  const mimeEfectivo = mimeGenerico && mimeMap[ext] ? mimeMap[ext] : (body.archivo_mime || "application/octet-stream");
+  let mimeEfectivo = mimeGenerico && mimeMap[ext] ? mimeMap[ext] : (body.archivo_mime || "application/octet-stream");
+  // Fallback por magic bytes si aún es octet-stream
+  if (mimeEfectivo === "application/octet-stream") {
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+      mimeEfectivo = "application/pdf"; // %PDF
+    } else if (buffer[0] === 0x50 && buffer[1] === 0x4B) {
+      mimeEfectivo = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"; // PK (docx/xlsx)
+    }
+  }
 
   // 7. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
-  const storagePath = `${body.email_id}/${body.archivo_nombre}`;
+  const safeEmailId = body.email_id.replace(/[<>]/g, "").replace(/[^a-zA-Z0-9._@-]/g, "_");
+  const safeNombre = body.archivo_nombre && body.archivo_nombre !== "desconocido" && body.archivo_nombre !== "unknown"
+    ? body.archivo_nombre
+    : `cv_${Date.now()}.pdf`;
+  const storagePath = `${safeEmailId}/${safeNombre}`;
   const { error: uploadError } = await supabase.storage
     .from("cv-crudos")
     .upload(storagePath, buffer, {
@@ -156,7 +168,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 8. Parsear en background (Make recibe 202 inmediatamente)
+  // 8. Parsear en background (Pipedream recibe 202 inmediatamente)
   after(async () => {
     try {
       await supabase.from("webhook_logs").insert({
@@ -168,7 +180,6 @@ export async function POST(req: NextRequest) {
 
       let candidatoParseado;
       try {
-        // 50s de timeout — deja margen para upsert+logs antes del maxDuration=60
         const parseSignal = AbortSignal.timeout(50_000);
         candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre, parseSignal);
       } catch (err) {
@@ -199,10 +210,8 @@ export async function POST(req: NextRequest) {
       }
 
       const { id: candidatoId, wasExisting } = upsertResult;
-
       const nombreCompleto = `${candidatoParseado.nombre} ${candidatoParseado.apellido}`.trim() || "Sin nombre";
 
-      // Candidato duplicado → notificar, no actualizar
       if (wasExisting) {
         await supabase.from("notificaciones").insert({
           tipo: "cv_duplicado",
@@ -210,10 +219,7 @@ export async function POST(req: NextRequest) {
           cuerpo: `Se recibió un nuevo CV de ${nombreCompleto} (${body.archivo_nombre}). El perfil existente no fue modificado.`,
           candidato_id: candidatoId,
         });
-        await supabase.from("emails_procesados").insert({
-          email_id: body.email_id,
-          candidato_id: candidatoId,
-        });
+        await supabase.from("emails_procesados").insert({ email_id: body.email_id, candidato_id: candidatoId });
         await supabase.from("webhook_logs").insert({
           email_id: body.email_id,
           estado: "duplicate",
@@ -246,28 +252,14 @@ export async function POST(req: NextRequest) {
         return;
       }
 
-      // Auto-categorización con Haiku
-      try {
-        const cats = await detectarCategorias(candidatoParseado.cv_procesado_texto ?? "")
-        if (cats.length > 0) {
-          await supabase.from("candidatos").update({ categorias: cats }).eq("id", candidatoId)
-        }
-      } catch {
-        // no interrumpe el flujo si falla
-      }
-
+      // Notificación, registro y log ANTES de categorías — garantiza que no se pierdan por timeout
       await supabase.from("notificaciones").insert({
         tipo: "cv_nuevo",
         titulo: `Nuevo CV — ${nombreCompleto}`,
         cuerpo: `Se procesó ${body.archivo_nombre} y se creó un perfil nuevo.`,
         candidato_id: candidatoId,
       });
-
-      await supabase.from("emails_procesados").insert({
-        email_id: body.email_id,
-        candidato_id: candidatoId,
-      });
-
+      await supabase.from("emails_procesados").insert({ email_id: body.email_id, candidato_id: candidatoId });
       await supabase.from("webhook_logs").insert({
         email_id: body.email_id,
         estado: "complete",
@@ -275,6 +267,16 @@ export async function POST(req: NextRequest) {
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
       });
+
+      // Auto-categorización con Haiku — puede fallar sin consecuencias
+      try {
+        const cats = await detectarCategorias(candidatoParseado.cv_procesado_texto ?? "")
+        if (cats.length > 0) {
+          await supabase.from("candidatos").update({ categorias: cats }).eq("id", candidatoId)
+        }
+      } catch {
+        // no interrumpe el flujo
+      }
     } catch (err) {
       // Safety net: si after() muere inesperadamente, loguear el error
       const detail = err instanceof Error ? err.message : String(err);

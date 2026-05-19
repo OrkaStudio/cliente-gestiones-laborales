@@ -24,6 +24,9 @@ export type CandidatoRow = {
   referencias: { calificacion: "buena" | "mala" | null }[] | null
   categorias: string[] | null
   gestiones: GestionRaw[]
+  visto: boolean
+  idiomas: string[] | null
+  fecha_consultado: string | null
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -325,6 +328,7 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
                   padding:             "11px 16px",
                   borderBottom:        "1px solid var(--gl-border)",
                   alignItems:          "center",
+                  background:          !c.visto ? "#f6fbf4" : undefined,
                 }}
                 className="hover:bg-[var(--gl-surface)]"
               >
@@ -348,6 +352,16 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
                     >
                       {c.nombre} {c.apellido}
                     </span>
+                    {!c.visto && (
+                      <span style={{
+                        fontSize: 9.5, fontWeight: 700, letterSpacing: "0.08em",
+                        padding: "1px 6px", borderRadius: 4,
+                        background: "#d1fae5", color: "#065f46",
+                        textTransform: "uppercase", flexShrink: 0,
+                      }}>
+                        Nuevo
+                      </span>
+                    )}
                     {(buenas > 0 || malas > 0) && (
                       <span style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                         {buenas > 0 && (

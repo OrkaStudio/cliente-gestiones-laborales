@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { Home, Users, Search, FileText, LogOut, Bell, UserPlus, Copy, ShieldCheck, AlertCircle, Clock, X, ArrowRight, Trash2 } from "lucide-react"
+import { Home, Users, Search, FileText, LogOut, Bell, UserPlus, Copy, ShieldCheck, AlertCircle, X, ArrowRight, Trash2 } from "lucide-react"
 import { signOut } from "@/lib/actions/auth"
 import { marcarTodasLeidas, marcarLeida } from "@/lib/actions/notificaciones"
 import { useState, useTransition } from "react"
@@ -24,28 +24,9 @@ type Notificacion = {
   created_at: string
 }
 
-export type GestionSinMovimiento = {
-  id: string
-  candidatoId: string | null
-  candidatoNombre: string
-  busquedaId: string | null
-  busquedaPuesto: string
-  estado: string
-  diasSinMovimiento: number
-}
-
-const STAGE_LABEL: Record<string, string> = {
-  preseleccionado:    "Preselec.",
-  entrevista_orka:    "Entrev. GL",
-  presentado_cliente: "Presentado",
-  entrevista_cliente: "2ª Entrev.",
-  ofertado:           "Ofertado",
-}
-
 interface SidebarProps {
   userEmail: string | null
   notificaciones: Notificacion[]
-  gestionesSinMovimiento: GestionSinMovimiento[]
 }
 
 function getInitial(email: string | null) {
@@ -144,13 +125,13 @@ const TIPO: Record<
   },
 }
 
-export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gestionesSinMovimiento }: SidebarProps) {
+export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: SidebarProps) {
   const pathname  = usePathname()
   const router    = useRouter()
   const [open, setOpen]       = useState(false)
   const [pending, startTransition] = useTransition()
   const [notifs, setNotifs]   = useState(initialNotificaciones)
-  const count = notifs.length + gestionesSinMovimiento.length
+  const count = notifs.length
 
   function dismiss(id: string) {
     setNotifs((prev) => prev.filter((n) => n.id !== id))
@@ -315,7 +296,7 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
 
         {/* Lista */}
         <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 140px)" }}>
-          {notifs.length === 0 && gestionesSinMovimiento.length === 0 ? (
+          {notifs.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-14 gap-3" style={{ color: "var(--gl-ink-3)" }}>
               <div className="h-12 w-12 rounded-full grid place-items-center" style={{ background: "var(--gl-surface)" }}>
                 <Bell className="h-5 w-5 opacity-40" />
@@ -325,69 +306,6 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones, gest
             </div>
           ) : (
             <div className="p-3 flex flex-col gap-2.5">
-
-              {/* Gestiones sin movimiento */}
-              {gestionesSinMovimiento.map((g) => (
-                <div
-                  key={g.id}
-                  className="rounded-2xl overflow-hidden"
-                  style={{
-                    background: "#ffffff",
-                    border: "1px solid #eaecef",
-                    borderLeft: "3px solid #fcd34d",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
-                  }}
-                >
-                  <div className="flex items-start gap-3 px-3.5 pt-3.5 pb-2.5">
-                    <div className="h-9 w-9 rounded-xl grid place-items-center shrink-0 mt-0.5" style={{ background: "#fef9c3" }}>
-                      <Clock className="h-4 w-4" style={{ color: "#92400e" }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2 mb-0.5">
-                        <span className="text-[10.5px] font-bold uppercase tracking-wide" style={{ color: "#92400e" }}>
-                          Sin movimiento
-                        </span>
-                        <span className="text-[10px] font-semibold tabular-nums" style={{ color: "#92400e", opacity: 0.7 }}>
-                          hace {g.diasSinMovimiento}d
-                        </span>
-                      </div>
-                      <p className="text-[12.5px] font-semibold leading-snug" style={{ color: "var(--gl-ink)" }}>
-                        {g.candidatoNombre}
-                      </p>
-                      <p className="text-[11.5px] mt-0.5 leading-snug" style={{ color: "var(--gl-ink-3)" }}>
-                        {g.busquedaPuesto}
-                        {g.estado && STAGE_LABEL[g.estado] && (
-                          <span className="ml-1.5 font-medium" style={{ color: "#92400e" }}>
-                            · {STAGE_LABEL[g.estado]}
-                          </span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center px-3.5 py-2.5" style={{ borderTop: "1px solid #eaecef" }}>
-                    {g.candidatoId && (
-                      <Link
-                        href={`/candidatos/${g.candidatoId}`}
-                        onClick={() => setOpen(false)}
-                        className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-3 py-1.5"
-                        style={{ background: "#f6f8fa", color: "#0d1117", border: "1px solid #eaecef" }}
-                      >
-                        Ver candidato
-                        <ArrowRight className="h-3 w-3" />
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              ))}
-
-              {/* Separador si hay ambos tipos */}
-              {gestionesSinMovimiento.length > 0 && notifs.length > 0 && (
-                <div className="flex items-center gap-2 px-1">
-                  <div className="flex-1 h-px" style={{ background: "var(--gl-border)" }} />
-                  <span className="text-[10px] font-medium uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>Notificaciones</span>
-                  <div className="flex-1 h-px" style={{ background: "var(--gl-border)" }} />
-                </div>
-              )}
 
               {notifs.map((n) => {
                 const cfg = TIPO[n.tipo]
