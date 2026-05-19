@@ -116,9 +116,6 @@ export function CamposPendientesPanel({
   // ── Pre-generate questions in background on mount (for subsequent cycles) ──
 
   useEffect(() => {
-    // First contact uses parse suggestions — no need to pre-generate
-    if (!fecha_consultado && preguntas_sugeridas.length > 0) return
-
     const campos: CampoPendiente[] = [
       ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
       ...expPendientes.map((ep) => ({
@@ -198,17 +195,6 @@ export function CamposPendientesPanel({
   // ── handlePreparar: instant if pre-generated, spinner otherwise ─────────────
 
   async function handlePreparar() {
-    if (!fecha_consultado && preguntas_sugeridas.length > 0) {
-      // First contact: use parse-time suggestions
-      const allItems: ItemActivo[] = preguntas_sugeridas.map((p, i) => ({
-        key: `q:${i}`, label: p, pregunta: p,
-      }))
-      setItems(allItems)
-      setSeleccionados(new Set())
-      setEstado("activo")
-      return
-    }
-
     if (pregeneratedItems) {
       // Already ready — instant
       setItems(pregeneratedItems)
@@ -523,7 +509,6 @@ export function CamposPendientesPanel({
   // ── IDLE ────────────────────────────────────────────────────────────────────
 
   const grupos = Array.from(new Set(pendientes.map((p) => p.grupo)))
-  const esPrimerContacto = !fecha_consultado && preguntas_sugeridas.length > 0
   const isPregenerated = !!pregeneratedItems
 
   return (
@@ -571,18 +556,15 @@ export function CamposPendientesPanel({
 
       <div style={{ marginTop: 14, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
         {/* Pre-generation status indicator */}
-        {!esPrimerContacto && (
-          <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: isPregenerated ? "#1a7f37" : "#8b9e73" }}>
-            {preGenerating && (
-              <>
-                <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-                <span style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid #d4e0c4", borderTopColor: "#5a6e48", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
-              </>
-            )}
-            {isPregenerated ? "✓ Preguntas listas" : preGenerating ? "Preparando preguntas…" : ""}
-          </span>
-        )}
-        {esPrimerContacto && <span />}
+        <span style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: isPregenerated ? "#1a7f37" : "#8b9e73" }}>
+          {preGenerating && (
+            <>
+              <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", border: "1.5px solid #d4e0c4", borderTopColor: "#5a6e48", display: "inline-block", animation: "spin 0.8s linear infinite" }} />
+            </>
+          )}
+          {isPregenerated ? "✓ Preguntas listas" : preGenerating ? "Preparando preguntas…" : ""}
+        </span>
 
         <button
           type="button"
@@ -596,7 +578,7 @@ export function CamposPendientesPanel({
             cursor: "pointer",
           }}
         >
-          {esPrimerContacto ? "Revisar preguntas del parseo →" : "Preparar preguntas →"}
+          Preparar preguntas →
         </button>
       </div>
     </div>
