@@ -37,6 +37,8 @@ type ExpCampo = { id: string; label: string }
 
 function getExpCampos(exp: Experiencia): ExpCampo[] {
   const r: ExpCampo[] = []
+  if (isMissing(exp.empresa))
+    r.push({ id: "empresa", label: "Nombre del establecimiento" })
   if (isMissing(exp.ubicacion))
     r.push({ id: "ubicacion", label: "Ubicación" })
   if (isMissing(exp.dimension_establecimiento))
@@ -361,32 +363,16 @@ export function CamposPendientesPanel({
   // ── ACTIVO ──────────────────────────────────────────────────────────────────
 
   if (estado === "activo") {
-    const esModoparse = items[0]?.key.startsWith("q:")
-    const grupos = esModoparse ? [] : Array.from(
-      new Set(items.filter((it) => !it.key.startsWith("exp:")).map((it) => it.grupo ?? "Otro"))
-    )
-    const expItems = items.filter((it) => it.key.startsWith("exp:"))
+    const grupos = Array.from(
+      new Set(items.map((it) => it.grupo ?? ""))
+    ).filter(Boolean)
+    const sinGrupo = items.filter((it) => !it.grupo)
     const nSel = seleccionados.size
 
-    // Questions in selection order
     const preguntasSeleccionadas = [...seleccionados]
       .map((k) => items.find((it) => it.key === k))
       .filter((it): it is ItemActivo => !!it)
 
-    function Chip({ item }: { item: ItemActivo }) {
-      const sel = seleccionados.has(item.key)
-      return (
-        <button
-          type="button"
-          onClick={() => toggleItem(item.key, items)}
-          style={sel ? CHIP_SEL : CHIP_BASE}
-        >
-          {sel ? "✓ " : ""}{item.label}
-        </button>
-      )
-    }
-
-    // Parse-mode: checkboxes list (questions are long)
     function CheckRow({ item }: { item: ItemActivo }) {
       const sel = seleccionados.has(item.key)
       return (
@@ -409,7 +395,7 @@ export function CamposPendientesPanel({
             {sel && <span style={{ color: "#fff", fontSize: 10, lineHeight: 1, fontWeight: 700 }}>✓</span>}
           </div>
           <span style={{ fontSize: 12.5, color: sel ? "#2d3a1f" : "#5a6e48", lineHeight: 1.5 }}>
-            {item.pregunta}
+            {item.pregunta || item.label}
           </span>
         </button>
       )
@@ -431,42 +417,29 @@ export function CamposPendientesPanel({
             </button>
           </div>
 
-          {/* Chips / checkboxes */}
+          {/* Lista unificada — CheckRow para todos los modos */}
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {esModoparse ? (
-              // First-contact: checkbox list (questions are long)
+            {/* Items sin grupo (modo parseo: preguntas directas) */}
+            {sinGrupo.length > 0 && (
               <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {items.map((item) => <CheckRow key={item.key} item={item} />)}
+                {sinGrupo.map((item) => <CheckRow key={item.key} item={item} />)}
               </div>
-            ) : (
-              // Campo mode: grouped pills
-              <>
-                {grupos.map((grupo) => {
-                  const grupoItems = items.filter((it) => it.grupo === grupo && !it.key.startsWith("exp:"))
-                  if (!grupoItems.length) return null
-                  return (
-                    <div key={grupo}>
-                      <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
-                        {grupo}
-                      </div>
-                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {grupoItems.map((item) => <Chip key={item.key} item={item} />)}
-                      </div>
-                    </div>
-                  )
-                })}
-                {expItems.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>
-                      Experiencia laboral
-                    </div>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                      {expItems.map((item) => <Chip key={item.key} item={item} />)}
-                    </div>
-                  </div>
-                )}
-              </>
             )}
+            {/* Items agrupados (modo ciclos siguientes) */}
+            {grupos.map((grupo) => {
+              const grupoItems = items.filter((it) => it.grupo === grupo)
+              if (!grupoItems.length) return null
+              return (
+                <div key={grupo}>
+                  <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
+                    {grupo}
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    {grupoItems.map((item) => <CheckRow key={item.key} item={item} />)}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Questions preview — clean card, no textarea */}
