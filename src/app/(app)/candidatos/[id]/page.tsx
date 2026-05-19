@@ -324,6 +324,11 @@ export default async function CandidatoDetailPage({
       <CamposPendientesPanel
         candidato={candidato}
         experiencia={experiencia ?? []}
+        candidatoId={candidato.id}
+        nombre={candidato.nombre}
+        telefono={candidato.telefono ?? null}
+        preguntas_sugeridas={(candidato.preguntas_sugeridas as string[] | null) ?? []}
+        fecha_consultado={candidato.fecha_consultado ?? null}
       />
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
@@ -530,12 +535,8 @@ export default async function CandidatoDetailPage({
         </div>
         <WhatsappMessagePanel
           candidatoId={candidato.id}
-          nombre={candidato.nombre}
-          telefono={candidato.telefono}
-          preguntas_sugeridas={candidato.preguntas_sugeridas ?? []}
           fecha_consultado={candidato.fecha_consultado ?? null}
-          mensaje_whatsapp={candidato.mensaje_whatsapp ?? null}
-          initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as { pregunta: string; respuesta: string }[] | null}
+          initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as import("@/lib/actions/candidatos").RespuestaItem[] | null}
           initialConversaciones={(candidato as { conversaciones_historial?: unknown }).conversaciones_historial as import("@/lib/actions/candidatos").ConversacionEntry[] | null}
         />
       </section>

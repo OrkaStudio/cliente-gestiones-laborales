@@ -324,6 +324,79 @@ export async function extraerRespuestasDeConversacion(
   }
 }
 
+export type CampoPendiente =
+  | { tipo: "candidato"; campo: string; label: string }
+  | { tipo: "experiencia"; expIndex: number; empresa: string; campo: string; label: string }
+
+export type PreguntaGenerada = { campo: string; pregunta: string }
+
+export async function generarPreguntasParaCampos(
+  candidatoId: string,
+  campos: CampoPendiente[],
+): Promise<{ success: true; preguntas: PreguntaGenerada[] } | { success: false; error: string }> {
+  if (!campos.length) return { success: true, preguntas: [] }
+
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from("candidatos")
+    .select("nombre, cv_procesado_texto")
+    .eq("id", candidatoId)
+    .single()
+
+  if (error || !data) return { success: false, error: "Candidato no encontrado" }
+
+  const lista = campos
+    .map((c, i) => {
+      const desc =
+        c.tipo === "candidato"
+          ? c.label
+          : `Trabajo en ${c.empresa}: ${c.label}`
+      return `${i + 1}. ${desc}`
+    })
+    .join("\n")
+
+  const { text } = await generateText({
+    model: anthropic("claude-haiku-4-5-20251001"),
+    prompt: `Sos una recruitera de Gestiones Laborales, consultora de RRHH agropecuaria.
+Formular preguntas para hacerle al candidato ${data.nombre} sobre los datos que faltan.
+
+CV actual:
+${data.cv_procesado_texto ?? "(sin CV)"}
+
+Datos faltantes (uno por línea):
+${lista}
+
+Para cada dato, escribí UNA pregunta en español rioplatense informal, personalizada con el contexto del CV si aplica.
+Una pregunta por dato — sin agrupar.
+
+Respondé ÚNICAMENTE con un JSON array de exactamente ${campos.length} strings, en el mismo orden:
+["pregunta 1", "pregunta 2", ...]`,
+  })
+
+  try {
+    const match = text.match(/\[[\s\S]*\]/)
+    if (!match) throw new Error("No JSON array found")
+    const parsed = JSON.parse(match[0]) as unknown[]
+    if (!Array.isArray(parsed)) throw new Error("Not an array")
+
+    const preguntas: PreguntaGenerada[] = campos
+      .map((c, i) => {
+        const pregunta = typeof parsed[i] === "string" ? (parsed[i] as string).trim() : ""
+        if (!pregunta) return null
+        const campo =
+          c.tipo === "candidato"
+            ? `candidato:${c.campo}`
+            : `exp:${c.expIndex}:${c.campo}`
+        return { campo, pregunta }
+      })
+      .filter((p): p is PreguntaGenerada => p !== null)
+
+    return { success: true, preguntas }
+  } catch {
+    return { success: false, error: "No se pudo interpretar la respuesta de Claude" }
+  }
+}
+
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
 
 export async function updateCandidatoFields(

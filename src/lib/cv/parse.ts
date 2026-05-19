@@ -106,10 +106,13 @@ Reglas:
   ),
   preguntas_sugeridas: z.array(z.string()).describe(
     `Preguntas para hacerle al candidato para completar los datos faltantes de la planilla de Gestiones Laborales.
-Solo incluir preguntas para campos que NO se pudieron determinar del CV.
-Máximo 10 preguntas, ordenadas por prioridad (datos personales críticos primero).
+Solo incluir preguntas para campos que NO se pudieron determinar del CV. Sin límite de cantidad.
+Agrupá las relacionadas en una sola cuando tiene sentido (ej: vehículo + licencia juntas; estado civil + hijos juntas).
 En español rioplatense informal, como las haría una recruitera.
-Agrupar preguntas relacionadas en una sola cuando tiene sentido.`,
+Campos a cubrir si faltan: DNI, fecha y lugar de nacimiento, domicilio completo, estado civil e hijos,
+vehículo propio y licencia de conducir, muebles propios y animales, pretensión salarial, disponibilidad y movilidad.
+Por cada trabajo: ubicación del establecimiento, tamaño (hectáreas/cabezas), si fue en blanco,
+motivo de salida (o ingresos actuales + beneficios si es el trabajo actual). Referencias laborales con contacto.`,
   ),
   campos_faltantes: z.array(z.string()).describe("Nombres de los campos que no se pudieron determinar del CV"),
 });

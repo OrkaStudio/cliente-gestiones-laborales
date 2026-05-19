@@ -1,70 +1,45 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { MessageCircle, ChevronDown, ChevronUp, Plus, Trash2, X, Save, RefreshCw, CheckCircle, MessageSquare, Wand2 } from "lucide-react"
-import { generarMensajeWhatsapp, waUrl } from "@/lib/cv/utils"
-import { registrarEnvioWhatsapp, guardarRespuestas, actualizarCVConRespuestas, extraerRespuestasDeConversacion, actualizarCVDesdeConversacion, type ConversacionEntry } from "@/lib/actions/candidatos"
+import { RefreshCw, CheckCircle } from "lucide-react"
+import { actualizarCVDesdeConversacion, type ConversacionEntry, type RespuestaItem } from "@/lib/actions/candidatos"
 
 // ─── Overlay de carga / éxito ─────────────────────────────────────────────────
 
 function CVOverlay({ estado }: { estado: "cargando" | "ok" }) {
   return (
     <div style={{
-      position:       "fixed",
-      inset:          0,
-      zIndex:         9999,
-      background:     "rgba(13,17,23,0.55)",
-      backdropFilter: "blur(3px)",
-      display:        "flex",
-      alignItems:     "center",
-      justifyContent: "center",
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(13,17,23,0.55)", backdropFilter: "blur(3px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
     }}>
       <div style={{
-        background:   "#fff",
-        borderRadius: 20,
-        padding:      "40px 52px",
-        textAlign:    "center",
-        boxShadow:    "0 24px 64px rgba(13,17,23,0.22)",
-        display:      "flex",
-        flexDirection: "column",
-        alignItems:   "center",
-        gap:          16,
-        minWidth:     260,
+        background: "#fff", borderRadius: 20, padding: "40px 52px",
+        textAlign: "center", boxShadow: "0 24px 64px rgba(13,17,23,0.22)",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        gap: 16, minWidth: 260,
       }}>
         {estado === "cargando" ? (
           <>
             <div style={{
               width: 44, height: 44, borderRadius: "50%",
-              border: "3px solid #e2e8d9",
-              borderTopColor: "#2a4a18",
+              border: "3px solid #e2e8d9", borderTopColor: "#2a4a18",
               animation: "spin 0.9s linear infinite",
             }} />
-            <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>
-                Actualizando CV…
-              </div>
-              <div style={{ fontSize: 12, color: "#8b949e" }}>
-                Procesando la conversación…
-              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>Actualizando CV…</div>
+              <div style={{ fontSize: 12, color: "#8b949e" }}>Procesando la conversación…</div>
             </div>
           </>
         ) : (
           <>
-            <div style={{
-              width: 48, height: 48, borderRadius: "50%",
-              background: "#dafbe1",
-              display: "flex", alignItems: "center", justifyContent: "center",
-            }}>
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <CheckCircle style={{ width: 26, height: 26, color: "#1a7f37" }} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>
-                CV actualizado
-              </div>
-              <div style={{ fontSize: 12, color: "#8b949e" }}>
-                Los cambios ya están guardados
-              </div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>CV actualizado</div>
+              <div style={{ fontSize: 12, color: "#8b949e" }}>Los cambios ya están guardados</div>
             </div>
           </>
         )}
@@ -74,13 +49,9 @@ function CVOverlay({ estado }: { estado: "cargando" | "ok" }) {
 }
 
 interface Props {
-  candidatoId: string
-  nombre: string
-  telefono: string | null
-  preguntas_sugeridas: string[]
-  fecha_consultado: string | null
-  mensaje_whatsapp: string | null
-  initialRespuestas?: { pregunta: string; respuesta: string }[] | null
+  candidatoId:           string
+  fecha_consultado:      string | null
+  initialRespuestas?:    RespuestaItem[] | null
   initialConversaciones?: ConversacionEntry[] | null
 }
 
@@ -92,229 +63,121 @@ const CARD = {
 
 export function WhatsappMessagePanel({
   candidatoId,
-  nombre,
-  telefono,
-  preguntas_sugeridas,
   fecha_consultado,
-  mensaje_whatsapp,
   initialRespuestas,
   initialConversaciones,
 }: Props) {
-  const [preguntas, setPreguntas] = useState(preguntas_sugeridas)
-  const [modalOpen, setModalOpen] = useState(false)
-  const [mensajeEnModal, setMensajeEnModal] = useState("")
-  const [showOriginal, setShowOriginal] = useState(false)
-  const [isPending, startTransition] = useTransition()
-
-  // ── Conversaciones historial ────────────────────────────────────────────────
-  const [conversaciones, setConversaciones] = useState<ConversacionEntry[]>(initialConversaciones ?? [])
-  const [expandedConvId, setExpandedConvId] = useState<string | null>(null)
-
-  // ── Respuestas ──────────────────────────────────────────────────────────────
-  const hasRespuestas = !!initialRespuestas?.some((r) => r.respuesta.trim())
-  const [modoHistorial, setModoHistorial] = useState(hasRespuestas)
-  const [modoCiclo, setModoCiclo]         = useState(false)
-  const [cicloTexto, setCicloTexto]       = useState("")
-  const [cicloOk, setCicloOk]             = useState(false)
-  const [cicloErr, setCicloErr]           = useState<string | null>(null)
-  const [cicloPending, startCiclo]        = useTransition()
-  const [showRespuestas, setShowRespuestas] = useState(hasRespuestas)
-  const [answers, setAnswers] = useState<string[]>(() =>
-    preguntas_sugeridas.map((p) => initialRespuestas?.find((r) => r.pregunta === p)?.respuesta ?? "")
-  )
-  const [savePending,   startSave]   = useTransition()
-  const [updatePending, startUpdate] = useTransition()
-  const [parsePending,  startParse]  = useTransition()
-  const [saveOk,   setSaveOk]   = useState(false)
-  const [updateOk, setUpdateOk] = useState(false)
-  const [parseOk,  setParseOk]  = useState(false)
-  const [respErr,  setRespErr]  = useState<string | null>(null)
-  const [convTexto, setConvTexto] = useState("")
-
-  function handleGuardar() {
-    setRespErr(null); setSaveOk(false)
-    startSave(async () => {
-      const payload = preguntas_sugeridas.map((p, i) => ({ pregunta: p, respuesta: answers[i] ?? "" }))
-      const result = await guardarRespuestas(candidatoId, payload)
-      if (result.success) { setSaveOk(true); setTimeout(() => setSaveOk(false), 2500) }
-      else setRespErr(result.error)
-    })
-  }
-
-  function handleActualizarCV() {
-    setRespErr(null); setUpdateOk(false)
-    startUpdate(async () => {
-      const payload = preguntas_sugeridas.map((p, i) => ({ pregunta: p, respuesta: answers[i] ?? "" }))
-      await guardarRespuestas(candidatoId, payload)
-      const result = await actualizarCVConRespuestas(candidatoId)
-      if (result.success) { setUpdateOk(true); setTimeout(() => setUpdateOk(false), 3000) }
-      else setRespErr(result.error)
-    })
-  }
-
-  function handleAnalizarConversacion() {
-    setRespErr(null); setParseOk(false)
-    startParse(async () => {
-      const result = await extraerRespuestasDeConversacion(preguntas_sugeridas, convTexto)
-      if (result.success) {
-        setAnswers(result.respuestas)
-        // Auto-guardar inmediatamente
-        const payload = preguntas_sugeridas.map((p, i) => ({ pregunta: p, respuesta: result.respuestas[i] ?? "" }))
-        await guardarRespuestas(candidatoId, payload)
-        setParseOk(true)
-        setConvTexto("")
-        // Pasar a vista historial — ya no pide el chat de nuevo
-        setTimeout(() => { setParseOk(false); setModoHistorial(true) }, 1800)
-      } else {
-        setRespErr(result.error)
-      }
-    })
-  }
-
-  const sinTelefono = !telefono
+  const [conversaciones, setConversaciones]   = useState<ConversacionEntry[]>(initialConversaciones ?? [])
+  const [expandedConvId, setExpandedConvId]   = useState<string | null>(null)
+  const [modoCiclo, setModoCiclo]             = useState(false)
+  const [cicloTexto, setCicloTexto]           = useState("")
+  const [cicloOk, setCicloOk]                 = useState(false)
+  const [cicloErr, setCicloErr]               = useState<string | null>(null)
+  const [cicloPending, startCiclo]            = useTransition()
 
   const fechaFormateada = fecha_consultado
-    ? new Date(fecha_consultado).toLocaleDateString("es-AR", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-      })
+    ? new Date(fecha_consultado).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
     : null
 
-  function updatePregunta(i: number, value: string) {
-    setPreguntas((prev) => prev.map((p, idx) => (idx === i ? value : p)))
-  }
+  const hasRespuestas = !!initialRespuestas?.some((r) => r.respuesta.trim())
 
-  function removePregunta(i: number) {
-    setPreguntas((prev) => prev.filter((_, idx) => idx !== i))
-  }
+  // ── modoCiclo: paste new conversation ──────────────────────────────────────
 
-  function addPregunta() {
-    setPreguntas((prev) => [...prev, ""])
-  }
-
-  function handleGenerarMensaje() {
-    const preguntasValidas = preguntas.filter((p) => p.trim())
-    setMensajeEnModal(generarMensajeWhatsapp(nombre, preguntasValidas))
-    setModalOpen(true)
-  }
-
-  function abrirWA() {
-    const url = `${waUrl(telefono!)}?text=${encodeURIComponent(mensajeEnModal)}`
-    window.open(url, "_blank")
-  }
-
-  function handleEnviarYMarcar() {
-    if (sinTelefono) return
-    startTransition(async () => {
-      await registrarEnvioWhatsapp(candidatoId, mensajeEnModal, preguntas.filter((p) => p.trim()))
-      abrirWA()
-      setModalOpen(false)
-    })
-  }
-
-  function handleSoloAbrir() {
-    if (sinTelefono) return
-    abrirWA()
-    setModalOpen(false)
-  }
-
-  // ── Vista historial ─────────────────────────────────────────────────────────
-  if (modoHistorial && initialRespuestas?.length) {
-    const pares = preguntas_sugeridas.map((p, i) => ({
-      pregunta: p,
-      respuesta: initialRespuestas?.find(r => r.pregunta === p)?.respuesta ?? initialRespuestas?.[i]?.respuesta ?? "",
-    }))
-
-    // Modo: pegar nueva conversación para actualizar CV
-    if (modoCiclo) {
-      function handleActualizarCiclo() {
-        setCicloErr(null); setCicloOk(false)
-        const textoGuardado = cicloTexto
-        startCiclo(async () => {
-          const result = await actualizarCVDesdeConversacion(candidatoId, textoGuardado)
-          if (result.success) {
-            // Agregar la conversación al historial local para que aparezca sin recargar
-            const nueva: ConversacionEntry = {
-              id: crypto.randomUUID(),
-              fecha: new Date().toISOString(),
-              texto: textoGuardado,
-            }
-            setConversaciones((prev) => [nueva, ...prev])
-            setCicloOk(true)
-            setCicloTexto("")
-            setTimeout(() => { setCicloOk(false); setModoCiclo(false) }, 2000)
-          } else {
-            setCicloErr(result.error)
+  if (modoCiclo) {
+    function handleActualizarCiclo() {
+      setCicloErr(null); setCicloOk(false)
+      const textoGuardado = cicloTexto
+      startCiclo(async () => {
+        const result = await actualizarCVDesdeConversacion(candidatoId, textoGuardado)
+        if (result.success) {
+          const nueva: ConversacionEntry = {
+            id: crypto.randomUUID(),
+            fecha: new Date().toISOString(),
+            texto: textoGuardado,
           }
-        })
-      }
-
-      return (
-        <>
-          {cicloPending && <CVOverlay estado="cargando" />}
-          {cicloOk      && <CVOverlay estado="ok" />}
-          <div className="rounded-2xl border p-5" style={CARD}>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Nueva conversación</h2>
-                <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                  Pegá la conversación de WhatsApp — el CV se actualiza automáticamente
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => { setModoCiclo(false); setCicloTexto(""); setCicloErr(null) }}
-                style={{ background: "none", border: "none", color: "var(--gl-ink-3)", cursor: "pointer", fontSize: 13 }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <textarea
-              value={cicloTexto}
-              onChange={e => setCicloTexto(e.target.value)}
-              rows={8}
-              placeholder={"[Oriana]: ¿Tenés vehículo propio?\n[Candidato]: Sí, auto Gol 2012.\n..."}
-              className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
-              style={{
-                background: "var(--gl-surface)",
-                border: "1.5px solid var(--gl-olive)",
-                color: "var(--gl-ink)",
-                fontFamily: "inherit",
-                lineHeight: 1.6,
-                resize: "vertical",
-              }}
-            />
-
-            {cicloErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{cicloErr}</p>}
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={handleActualizarCiclo}
-                disabled={cicloPending || !cicloTexto.trim()}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
-                style={{
-                  background: "var(--gl-olive)",
-                  color: "#fff",
-                  border: "none",
-                  cursor: cicloPending || !cicloTexto.trim() ? "default" : "pointer",
-                  opacity: cicloPending || !cicloTexto.trim() ? 0.6 : 1,
-                }}
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                {cicloPending ? "Actualizando CV…" : "Actualizar CV"}
-              </button>
-            </div>
-          </div>
-        </>
-      )
+          setConversaciones((prev) => [nueva, ...prev])
+          setCicloOk(true)
+          setCicloTexto("")
+          setTimeout(() => { setCicloOk(false); setModoCiclo(false) }, 2000)
+        } else {
+          setCicloErr(result.error)
+        }
+      })
     }
 
     return (
-      <div className="flex flex-col gap-3">
-        {/* Q&A original */}
+      <>
+        {cicloPending && <CVOverlay estado="cargando" />}
+        {cicloOk      && <CVOverlay estado="ok" />}
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Nueva conversación</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                Pegá la conversación de WhatsApp — el CV se actualiza automáticamente
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setModoCiclo(false); setCicloTexto(""); setCicloErr(null) }}
+              style={{ background: "none", border: "none", color: "var(--gl-ink-3)", cursor: "pointer", fontSize: 13 }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <textarea
+            value={cicloTexto}
+            onChange={(e) => setCicloTexto(e.target.value)}
+            rows={8}
+            placeholder={"[Oriana]: ¿Tenés vehículo propio?\n[Candidato]: Sí, auto Gol 2012.\n..."}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
+            style={{
+              background: "var(--gl-surface)", border: "1.5px solid var(--gl-olive)",
+              color: "var(--gl-ink)", fontFamily: "inherit", lineHeight: 1.6, resize: "vertical",
+            }}
+          />
+
+          {cicloErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{cicloErr}</p>}
+
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleActualizarCiclo}
+              disabled={cicloPending || !cicloTexto.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+              style={{
+                background: "var(--gl-olive)", color: "#fff", border: "none",
+                cursor: cicloPending || !cicloTexto.trim() ? "default" : "pointer",
+                opacity: cicloPending || !cicloTexto.trim() ? 0.6 : 1,
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {cicloPending ? "Actualizando CV…" : "Actualizar CV"}
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
+
+  // ── Historial (Q&A + conversations) ────────────────────────────────────────
+
+  // Empty state
+  if (!fecha_consultado && !hasRespuestas && conversaciones.length === 0) {
+    return (
+      <div className="rounded-2xl border p-6" style={CARD}>
+        <p className="text-sm text-center py-4" style={{ color: "var(--gl-ink-3)" }}>
+          Sin contacto registrado aún — generá las preguntas desde el panel de arriba.
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      {/* Q&A read-only */}
+      {hasRespuestas && (
         <div className="rounded-2xl border p-5" style={CARD}>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -335,7 +198,7 @@ export function WhatsappMessagePanel({
             </button>
           </div>
           <div className="space-y-3">
-            {pares.map(({ pregunta, respuesta }, i) => (
+            {initialRespuestas!.map(({ pregunta, respuesta }, i) => (
               <div key={i} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 12 }}>
                 <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
                   {pregunta}
@@ -347,452 +210,91 @@ export function WhatsappMessagePanel({
             ))}
           </div>
         </div>
+      )}
 
-        {/* Historial de conversaciones */}
-        {conversaciones.length > 0 && (
-          <div className="rounded-2xl border p-5" style={CARD}>
-            <div className="text-[10px] font-bold uppercase tracking-[0.14em] mb-3" style={{ color: "var(--gl-ink-3)" }}>
+      {/* Historial de conversaciones */}
+      {conversaciones.length > 0 && (
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "var(--gl-ink-3)" }}>
               Conversaciones ({conversaciones.length})
             </div>
-            <div className="flex flex-col gap-2">
-              {conversaciones.map((conv) => {
-                const isOpen = expandedConvId === conv.id
-                const fecha = new Date(conv.fecha).toLocaleDateString("es-AR", {
-                  day: "2-digit", month: "short", year: "numeric",
-                })
-                const hora = new Date(conv.fecha).toLocaleTimeString("es-AR", {
-                  hour: "2-digit", minute: "2-digit",
-                })
-                const preview = conv.texto.split("\n")[0]?.slice(0, 60) ?? ""
-                return (
-                  <div
-                    key={conv.id}
-                    className="rounded-xl overflow-hidden"
-                    style={{ border: "1px solid var(--gl-border)" }}
+            {!hasRespuestas && (
+              <button
+                type="button"
+                onClick={() => setModoCiclo(true)}
+                className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg"
+                style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
+              >
+                + Agregar conversación
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col gap-2">
+            {conversaciones.map((conv) => {
+              const isOpen = expandedConvId === conv.id
+              const fecha = new Date(conv.fecha).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
+              const hora  = new Date(conv.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+              const preview = conv.texto.split("\n")[0]?.slice(0, 60) ?? ""
+              return (
+                <div key={conv.id} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--gl-border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedConvId(isOpen ? null : conv.id)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-left"
+                    style={{ background: isOpen ? "var(--gl-surface)" : "#fff", cursor: "pointer", border: "none" }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => setExpandedConvId(isOpen ? null : conv.id)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-left"
-                      style={{ background: isOpen ? "var(--gl-surface)" : "#fff", cursor: "pointer", border: "none" }}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="text-[11.5px] font-semibold shrink-0" style={{ color: "var(--gl-olive)" }}>
-                          {fecha} · {hora}
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-[11.5px] font-semibold shrink-0" style={{ color: "var(--gl-olive)" }}>
+                        {fecha} · {hora}
+                      </span>
+                      {!isOpen && (
+                        <span className="text-[11px] truncate" style={{ color: "var(--gl-ink-3)" }}>
+                          {preview}…
                         </span>
-                        {!isOpen && (
-                          <span className="text-[11px] truncate" style={{ color: "var(--gl-ink-3)" }}>
-                            {preview}…
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ color: "var(--gl-ink-3)", fontSize: 12, flexShrink: 0 }}>
-                        {isOpen ? "▲" : "▼"}
-                      </span>
-                    </button>
-                    {isOpen && (
-                      <pre
-                        className="px-4 pb-4 text-xs leading-relaxed whitespace-pre-wrap font-sans"
-                        style={{
-                          color: "var(--gl-ink)",
-                          borderTop: "1px solid var(--gl-border)",
-                          margin: 0,
-                          paddingTop: 12,
-                          background: "var(--gl-surface)",
-                          maxHeight: 320,
-                          overflowY: "auto",
-                        }}
-                      >
-                        {conv.texto}
-                      </pre>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <>
-      {updatePending && <CVOverlay estado="cargando" />}
-      {updateOk      && <CVOverlay estado="ok" />}
-      <div className="rounded-2xl border p-6" style={CARD}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
-              Mensaje WhatsApp
-            </h2>
-            <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-              Editá las preguntas y generá el mensaje para enviar
-            </p>
-          </div>
-          {fechaFormateada && (
-            <span
-              className="text-[10.5px] font-semibold px-2.5 py-1 rounded-full shrink-0"
-              style={{ background: "#dafbe1", color: "#1a7f37" }}
-            >
-              Consultado el {fechaFormateada}
-            </span>
-          )}
-        </div>
-
-        {/* Mensaje enviado colapsable */}
-        {fecha_consultado && mensaje_whatsapp && (
-          <>
-            <button
-              type="button"
-              onClick={() => setShowOriginal((v) => !v)}
-              className="flex items-center gap-1.5 text-[11px] font-medium mb-4"
-              style={{ color: "var(--gl-ink-3)" }}
-            >
-              {showOriginal ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-              {showOriginal ? "Ocultar mensaje enviado" : "Ver mensaje que se envio"}
-            </button>
-            {showOriginal && (
-              <pre
-                className="text-xs rounded-xl p-4 mb-5 whitespace-pre-wrap font-sans leading-relaxed"
-                style={{
-                  background: "var(--gl-surface)",
-                  border: "1px solid var(--gl-border)",
-                  color: "var(--gl-ink-3)",
-                }}
-              >
-                {mensaje_whatsapp}
-              </pre>
-            )}
-          </>
-        )}
-
-        {/* Lista de preguntas editable */}
-        <div className="space-y-2 mb-5">
-          {preguntas.map((p, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span
-                className="text-[11px] font-bold tabular-nums mt-2.5 shrink-0 w-5 text-right"
-                style={{ color: "var(--gl-ink-3)" }}
-              >
-                {i + 1}.
-              </span>
-              <input
-                value={p}
-                onChange={(e) => updatePregunta(i, e.target.value)}
-                placeholder="Escribi la pregunta..."
-                className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
-                style={{
-                  background: "var(--gl-surface)",
-                  border: "1px solid var(--gl-border)",
-                  color: "var(--gl-ink)",
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => removePregunta(i)}
-                className="mt-1.5 p-1.5 rounded-lg transition-opacity hover:opacity-70 shrink-0"
-                style={{ color: "var(--gl-ink-3)" }}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Respuestas del candidato ── */}
-        {preguntas_sugeridas.length > 0 && (
-          <div
-            style={{
-              marginBottom: "1.25rem",
-              borderTop: "1px solid var(--gl-border)",
-              paddingTop: "1.25rem",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setShowRespuestas((v) => !v)}
-              className="flex items-center gap-2 w-full text-left mb-3"
-              style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-            >
-              <MessageSquare className="h-3.5 w-3.5" style={{ color: "var(--gl-olive)", flexShrink: 0 }} />
-              <span className="text-[12px] font-semibold" style={{ color: "var(--gl-ink)", flex: 1 }}>
-                Respuestas del candidato
-              </span>
-              {hasRespuestas && (
-                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}>
-                  {initialRespuestas!.filter((r) => r.respuesta.trim()).length} cargadas
-                </span>
-              )}
-              {showRespuestas
-                ? <ChevronUp className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)", flexShrink: 0 }} />
-                : <ChevronDown className="h-3.5 w-3.5" style={{ color: "var(--gl-ink-3)", flexShrink: 0 }} />
-              }
-            </button>
-
-            {showRespuestas && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.875rem" }}>
-
-                {/* Pegar conversación completa */}
-                <div>
-                  <textarea
-                    value={convTexto}
-                    onChange={(e) => setConvTexto(e.target.value)}
-                    rows={6}
-                    placeholder="Pegá acá el chat de WhatsApp y se extraen las respuestas automáticamente..."
-                    className="w-full rounded-xl px-3 py-2 text-sm outline-none"
-                    style={{
-                      background: "var(--gl-surface)",
-                      border: "1px solid var(--gl-border)",
-                      color: "var(--gl-ink)",
-                      fontFamily: "inherit",
-                      lineHeight: 1.5,
-                      resize: "vertical",
-                    }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
-                  />
-                  <div className="flex items-center justify-between mt-2">
-                    {parseOk ? (
-                      <span className="text-xs font-semibold flex items-center gap-1.5" style={{ color: "#1a7f37" }}>
-                        <CheckCircle className="h-3.5 w-3.5" />
-                        Respuestas cargadas — revisalas antes de guardar
-                      </span>
-                    ) : <span />}
-                    <button
-                      type="button"
-                      onClick={handleAnalizarConversacion}
-                      disabled={parsePending || !convTexto.trim()}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold"
+                      )}
+                    </div>
+                    <span style={{ color: "var(--gl-ink-3)", fontSize: 12, flexShrink: 0 }}>
+                      {isOpen ? "▲" : "▼"}
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <pre
+                      className="px-4 pb-4 text-xs leading-relaxed whitespace-pre-wrap font-sans"
                       style={{
-                        background: "var(--gl-olive)",
-                        color: "#fff",
-                        border: "none",
-                        opacity: parsePending || !convTexto.trim() ? 0.5 : 1,
-                        cursor: parsePending || !convTexto.trim() ? "not-allowed" : "pointer",
+                        color: "var(--gl-ink)", borderTop: "1px solid var(--gl-border)",
+                        margin: 0, paddingTop: 12, background: "var(--gl-surface)",
+                        maxHeight: 320, overflowY: "auto",
                       }}
                     >
-                      <Wand2 className="h-3.5 w-3.5" />
-                      {parsePending ? "Extrayendo…" : "Extraer respuestas"}
-                    </button>
-                  </div>
+                      {conv.texto}
+                    </pre>
+                  )}
                 </div>
-
-                {/* Respuestas extraídas — solo si hay alguna */}
-                {answers.some((a) => a.trim()) && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem", borderTop: "1px solid var(--gl-border)", paddingTop: "0.875rem" }}>
-                    {preguntas_sugeridas.map((pregunta, i) => (
-                      <div key={i}>
-                        <div className="text-[11px] font-semibold mb-1" style={{ color: "var(--gl-olive)" }}>
-                          {i + 1}. {pregunta}
-                        </div>
-                        <textarea
-                          value={answers[i] ?? ""}
-                          onChange={(e) => {
-                            const next = [...answers]
-                            next[i] = e.target.value
-                            setAnswers(next)
-                          }}
-                          rows={2}
-                          placeholder="Sin respuesta"
-                          className="w-full rounded-xl px-3 py-2 text-sm outline-none resize-none"
-                          style={{
-                            background: "var(--gl-surface)",
-                            border: "1px solid var(--gl-border)",
-                            color: "var(--gl-ink)",
-                            lineHeight: 1.5,
-                            fontFamily: "inherit",
-                            transition: "border-color 0.15s",
-                          }}
-                          onFocus={(e) => (e.currentTarget.style.borderColor = "var(--gl-olive)")}
-                          onBlur={(e) => (e.currentTarget.style.borderColor = "var(--gl-border)")}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {respErr && (
-                  <div className="rounded-xl px-3 py-2 text-xs" style={{ background: "#ffebe9", color: "#cf222e", border: "1px solid #f1aeb5" }}>
-                    {respErr}
-                  </div>
-                )}
-
-                {answers.some((a) => a.trim()) && (
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      onClick={handleGuardar}
-                      disabled={savePending || updatePending}
-                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[12px] font-semibold transition-opacity"
-                      style={{
-                        background: saveOk ? "#dafbe1" : "var(--gl-surface)",
-                        border: `1px solid ${saveOk ? "#1a7f37" : "var(--gl-border)"}`,
-                        color: saveOk ? "#1a7f37" : "var(--gl-ink-3)",
-                        opacity: savePending ? 0.7 : 1,
-                        cursor: savePending ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {saveOk ? <CheckCircle className="h-3.5 w-3.5" /> : <Save className="h-3.5 w-3.5" />}
-                      {saveOk ? "Guardado" : savePending ? "Guardando…" : "Guardar"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleActualizarCV}
-                      disabled={savePending || updatePending}
-                      className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[12px] font-semibold transition-opacity"
-                      style={{
-                        background: updateOk ? "#1a7f37" : "var(--gl-olive)",
-                        color: "#fff",
-                        border: "none",
-                        opacity: updatePending ? 0.8 : 1,
-                        cursor: updatePending ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      <RefreshCw className="h-3.5 w-3.5" style={{ animation: updatePending ? "spin 1s linear infinite" : "none" }} />
-                      {updateOk ? "CV actualizado ✓" : updatePending ? "Actualizando…" : "Actualizar CV"}
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Acciones */}
-        <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={addPregunta}
-            className="flex items-center gap-1.5 text-[12px] font-medium px-3 py-2 rounded-xl transition-opacity hover:opacity-70"
-            style={{
-              background: "var(--gl-surface)",
-              border: "1px solid var(--gl-border)",
-              color: "var(--gl-ink-3)",
-            }}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            Agregar pregunta
-          </button>
-
-          <button
-            type="button"
-            onClick={handleGenerarMensaje}
-            disabled={preguntas.filter((p) => p.trim()).length === 0}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-opacity"
-            style={{
-              background: "var(--gl-olive)",
-              color: "#fff",
-              opacity: preguntas.filter((p) => p.trim()).length === 0 ? 0.4 : 1,
-              cursor: preguntas.filter((p) => p.trim()).length === 0 ? "not-allowed" : "pointer",
-            }}
-          >
-            <MessageCircle className="h-4 w-4" />
-            Generar mensaje
-          </button>
-        </div>
-      </div>
-
-      {/* Modal */}
-      {modalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(13,17,23,0.5)" }}
-          onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false) }}
-        >
-          <div
-            className="w-full rounded-2xl p-8 flex flex-col gap-4"
-            style={{ background: "#ffffff", boxShadow: "0 8px 32px rgba(13,17,23,0.18)", width: "min(860px, 94vw)", height: "88vh", overflowY: "auto" }}
-          >
-            {/* Modal header */}
-            <div className="flex items-center justify-between">
-              <h3 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
-                Mensaje para {nombre}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="p-1.5 rounded-lg hover:opacity-70"
-                style={{ color: "var(--gl-ink-3)" }}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Aviso nota */}
-            <div
-              className="rounded-xl px-3 py-2.5"
-              style={{ background: "#fff8c5", border: "1px solid #f0c000" }}
-            >
-              <span style={{ color: "#7d4e00", fontSize: "11px", lineHeight: 1.5 }}>
-                Recorda borrar la nota al pie antes de enviar.
-              </span>
-            </div>
-
-            {/* Textarea editable */}
-            <textarea
-              value={mensajeEnModal}
-              onChange={(e) => setMensajeEnModal(e.target.value)}
-              rows={24}
-              className="w-full rounded-xl px-4 py-3 text-sm font-mono resize-y outline-none"
-              style={{
-                background: "var(--gl-surface)",
-                border: "1px solid var(--gl-border)",
-                color: "var(--gl-ink)",
-                lineHeight: 1.6,
-              }}
-            />
-
-            {/* Botones */}
-            <div className="flex flex-col gap-2">
-              {/* Acción principal: abrir + marcar */}
-              <button
-                type="button"
-                onClick={handleEnviarYMarcar}
-                disabled={sinTelefono || isPending}
-                title={sinTelefono ? "El candidato no tiene teléfono registrado" : undefined}
-                className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl text-sm font-semibold"
-                style={{
-                  background: sinTelefono ? "var(--gl-surface)" : "#25D366",
-                  color: sinTelefono ? "var(--gl-ink-3)" : "#fff",
-                  border: sinTelefono ? "1px solid var(--gl-border)" : "none",
-                  opacity: isPending ? 0.7 : 1,
-                  cursor: sinTelefono ? "not-allowed" : "pointer",
-                }}
-              >
-                <MessageCircle className="h-4 w-4" />
-                {isPending ? "Abriendo..." : "Abrir en WhatsApp y marcar como enviado"}
-              </button>
-
-              {/* Secundario: solo abrir */}
-              <button
-                type="button"
-                onClick={handleSoloAbrir}
-                disabled={sinTelefono || isPending}
-                className="flex items-center justify-center gap-2 w-full py-2 rounded-xl text-[12.5px] font-medium"
-                style={{
-                  background: "transparent",
-                  color: "var(--gl-ink-3)",
-                  border: "1px solid var(--gl-border)",
-                  cursor: sinTelefono ? "not-allowed" : "pointer",
-                }}
-              >
-                Solo abrir (sin marcar como enviado)
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setModalOpen(false)}
-                className="text-[12px] text-center py-1"
-                style={{ color: "var(--gl-ink-3)", background: "none", border: "none", cursor: "pointer" }}
-              >
-                Cancelar
-              </button>
-            </div>
+              )
+            })}
           </div>
         </div>
       )}
-    </>
+
+      {/* Contactado pero sin respuestas ni conversaciones aún */}
+      {fecha_consultado && !hasRespuestas && conversaciones.length === 0 && (
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div className="flex items-center justify-between">
+            <p className="text-sm" style={{ color: "var(--gl-ink-3)" }}>
+              Consultado el {fechaFormateada} — sin respuestas registradas todavía.
+            </p>
+            <button
+              type="button"
+              onClick={() => setModoCiclo(true)}
+              className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg shrink-0"
+              style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
+            >
+              + Agregar conversación
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
