@@ -128,14 +128,21 @@ const TIPO: Record<
 export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: SidebarProps) {
   const pathname  = usePathname()
   const router    = useRouter()
-  const [open, setOpen]       = useState(false)
-  const [pending, startTransition] = useTransition()
-  const [notifs, setNotifs]   = useState(initialNotificaciones)
+  const [open, setOpen]             = useState(false)
+  const [pending, startTransition]  = useTransition()
+  const [navPending, startNav]      = useTransition()
+  const [notifs, setNotifs]         = useState(initialNotificaciones)
   const count = notifs.length
 
   function dismiss(id: string) {
     setNotifs((prev) => prev.filter((n) => n.id !== id))
     startTransition(async () => { await marcarLeida(id) })
+  }
+
+  function navegarNotif(href: string, notifId: string) {
+    dismiss(notifId)
+    setOpen(false)
+    startNav(() => { router.push(href) })
   }
 
   function handleMarcarLeidas() {
@@ -149,6 +156,23 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: Si
 
   return (
     <>
+      {/* Overlay de carga durante navegación desde notificaciones */}
+      {navPending && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 99999,
+          background: "rgba(255,255,255,0.75)", backdropFilter: "blur(2px)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14,
+        }}>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{
+            width: 36, height: 36, borderRadius: "50%",
+            border: "3px solid #e2e8d9", borderTopColor: "#45602a",
+            animation: "spin 0.8s linear infinite",
+          }} />
+          <span style={{ fontSize: 13, color: "#45602a", fontWeight: 600 }}>Cargando…</span>
+        </div>
+      )}
+
       {/* ── Sidebar ── */}
       <aside
         className="hidden lg:flex shrink-0 flex-col py-6 px-3"
@@ -387,17 +411,16 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: Si
                       ) : (
                         <>
                           {href && (
-                            <Link
-                              href={href}
-                              onClick={() => { dismiss(n.id); setOpen(false) }}
+                            <button
+                              onClick={() => navegarNotif(href, n.id)}
                               className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold rounded-lg px-3 py-1.5 transition-all duration-150"
-                              style={{ background: cfg.actionBg, color: cfg.actionColor, border: `1px solid ${cfg.actionBorder}` }}
+                              style={{ background: cfg.actionBg, color: cfg.actionColor, border: `1px solid ${cfg.actionBorder}`, cursor: "pointer" }}
                               onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.85")}
                               onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
                             >
                               {cfg.actionLabel}
                               <ArrowRight className="h-3 w-3" />
-                            </Link>
+                            </button>
                           )}
                           {cfg.actionType === "navigate+dismiss" && (
                             <button
