@@ -143,10 +143,13 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: Si
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "notificaciones" },
         (payload) => {
+          console.log("[realtime] notificación recibida:", payload.new)
           setNotifs((prev) => [payload.new as Notificacion, ...prev])
         },
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log("[realtime] estado:", status)
+      })
     return () => { void supabase.removeChannel(channel) }
   }, [])
 
