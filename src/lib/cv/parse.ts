@@ -196,6 +196,7 @@ export async function parsearCV(
 ): Promise<CVParseado> {
   type Parte =
     | { type: "text"; text: string }
+    | { type: "image"; image: Buffer; mimeType: string }
     | { type: "file"; data: Uint8Array; mediaType: string };
 
   let partes: Parte[];
@@ -214,6 +215,8 @@ export async function parsearCV(
         `El archivo "${nombreArchivo}" está en formato .doc (Word 97-2003) que no se puede procesar. Por favor convertilo a .docx o .pdf y reenvialo.`,
       );
     }
+  } else if (mimeType.startsWith("image/")) {
+    partes = [{ type: "image", image: buffer, mimeType }];
   } else {
     partes = [{ type: "file", data: buffer, mediaType: mimeType }];
   }
