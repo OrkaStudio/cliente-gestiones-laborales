@@ -188,7 +188,7 @@ export async function POST(req: NextRequest) {
 
       let candidatoParseado;
       try {
-        const parseSignal = AbortSignal.timeout(50_000);
+        const parseSignal = AbortSignal.timeout(55_000);
         candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre, parseSignal);
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
@@ -198,6 +198,11 @@ export async function POST(req: NextRequest) {
           detalle: `parse_failed: ${detail}`,
           archivo_nombre: body.archivo_nombre,
           remitente_email: body.remitente_email,
+        });
+        await supabase.from("notificaciones").insert({
+          tipo: "cv_error",
+          titulo: `No se pudo procesar un CV`,
+          cuerpo: `El archivo "${body.archivo_nombre}" de ${body.remitente_nombre || body.remitente_email} no pudo ser procesado. Revisalo manualmente.`,
         });
         return;
       }
