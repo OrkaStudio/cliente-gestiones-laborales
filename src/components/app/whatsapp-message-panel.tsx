@@ -2,7 +2,14 @@
 
 import { useState, useTransition } from "react"
 import { RefreshCw, CheckCircle } from "lucide-react"
-import { actualizarCVDesdeConversacion, type ConversacionEntry, type RespuestaItem } from "@/lib/actions/candidatos"
+import { useRouter } from "next/navigation"
+import {
+  actualizarCVDesdeConversacion,
+  extraerYGuardarRespuestas,
+  type ConversacionEntry,
+  type RespuestaItem,
+  type PreguntaEnviada,
+} from "@/lib/actions/candidatos"
 
 // ─── Overlay de carga / éxito ─────────────────────────────────────────────────
 
@@ -53,6 +60,7 @@ interface Props {
   fecha_consultado:      string | null
   initialRespuestas?:    RespuestaItem[] | null
   initialConversaciones?: ConversacionEntry[] | null
+  preguntasEnviadasDb?:  PreguntaEnviada[] | null
 }
 
 const CARD = {
@@ -66,7 +74,9 @@ export function WhatsappMessagePanel({
   fecha_consultado,
   initialRespuestas,
   initialConversaciones,
+  preguntasEnviadasDb,
 }: Props) {
+  const router = useRouter()
   const [conversaciones, setConversaciones]   = useState<ConversacionEntry[]>(initialConversaciones ?? [])
   const [expandedConvId, setExpandedConvId]   = useState<string | null>(null)
   const [modoCiclo, setModoCiclo]             = useState(false)
@@ -74,6 +84,28 @@ export function WhatsappMessagePanel({
   const [cicloOk, setCicloOk]                 = useState(false)
   const [cicloErr, setCicloErr]               = useState<string | null>(null)
   const [cicloPending, startCiclo]            = useTransition()
+  const [respuestaTexto, setRespuestaTexto]   = useState("")
+  const [extractando, setExtractando]         = useState(false)
+  const [extractOk, setExtractOk]             = useState(false)
+  const [extractErr, setExtractErr]           = useState<string | null>(null)
+
+  const hasPreguntasPendientes = (preguntasEnviadasDb?.length ?? 0) > 0
+
+  async function handleExtraer() {
+    if (!respuestaTexto.trim() || extractando || !preguntasEnviadasDb?.length) return
+    setExtractando(true)
+    setExtractErr(null)
+    const result = await extraerYGuardarRespuestas(candidatoId, preguntasEnviadasDb, respuestaTexto)
+    setExtractando(false)
+    if (result.success) {
+      setExtractOk(true)
+      setRespuestaTexto("")
+      router.refresh()
+      setTimeout(() => setExtractOk(false), 3000)
+    } else {
+      setExtractErr(result.error)
+    }
+  }
 
   const fechaFormateada = fecha_consultado
     ? new Date(fecha_consultado).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })
@@ -164,7 +196,7 @@ export function WhatsappMessagePanel({
   // ── Historial (Q&A + conversations) ────────────────────────────────────────
 
   // Empty state
-  if (!fecha_consultado && !hasRespuestas && conversaciones.length === 0) {
+  if (!fecha_consultado && !hasRespuestas && conversaciones.length === 0 && !hasPreguntasPendientes) {
     return (
       <div className="rounded-2xl border p-6" style={CARD}>
         <p className="text-sm text-center py-4" style={{ color: "var(--gl-ink-3)" }}>
@@ -176,6 +208,57 @@ export function WhatsappMessagePanel({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Respuestas pendientes */}
+      {hasPreguntasPendientes && (
+        <div className="rounded-2xl border p-5" style={CARD}>
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Respuestas pendientes</h2>
+              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                Se preguntó: {preguntasEnviadasDb!.map((p) => p.label).join(" · ")}
+              </p>
+            </div>
+            {extractOk && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <CheckCircle className="h-4 w-4" style={{ color: "#1a7f37" }} />
+                <span className="text-[12px] font-semibold" style={{ color: "#1a7f37" }}>Guardado</span>
+              </div>
+            )}
+          </div>
+
+          <textarea
+            value={respuestaTexto}
+            onChange={(e) => setRespuestaTexto(e.target.value)}
+            rows={5}
+            placeholder={"Pegá la respuesta del candidato aquí…"}
+            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
+            style={{
+              background: "var(--gl-surface)", border: "1.5px solid var(--gl-olive)",
+              color: "var(--gl-ink)", fontFamily: "inherit", lineHeight: 1.6, resize: "vertical",
+            }}
+          />
+
+          {extractErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{extractErr}</p>}
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => { void handleExtraer() }}
+              disabled={extractando || !respuestaTexto.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+              style={{
+                background: "var(--gl-olive)", color: "#fff", border: "none",
+                cursor: extractando || !respuestaTexto.trim() ? "default" : "pointer",
+                opacity: extractando || !respuestaTexto.trim() ? 0.6 : 1,
+              }}
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              {extractando ? "Extrayendo…" : "Extraer y guardar →"}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Q&A read-only */}
       {hasRespuestas && (
         <div className="rounded-2xl border p-5" style={CARD}>

@@ -332,6 +332,7 @@ export default async function CandidatoDetailPage({
         nombre={candidato.nombre}
         telefono={candidato.telefono ?? null}
         pregunasMapeadasDb={((candidato as unknown as Record<string, unknown>).preguntas_mapeadas as import("@/lib/cv/generar-preguntas-mapeadas").PreguntaMapeada[] | null) ?? null}
+        preguntasEnviadasDb={((candidato as unknown as Record<string, unknown>).preguntas_enviadas as import("@/lib/actions/candidatos").PreguntaEnviada[] | null) ?? null}
         fecha_consultado={candidato.fecha_consultado ?? null}
       />
 
@@ -542,6 +543,7 @@ export default async function CandidatoDetailPage({
           fecha_consultado={candidato.fecha_consultado ?? null}
           initialRespuestas={(candidato as { respuestas_candidato?: unknown }).respuestas_candidato as import("@/lib/actions/candidatos").RespuestaItem[] | null}
           initialConversaciones={(candidato as { conversaciones_historial?: unknown }).conversaciones_historial as import("@/lib/actions/candidatos").ConversacionEntry[] | null}
+          preguntasEnviadasDb={((candidato as unknown as Record<string, unknown>).preguntas_enviadas as import("@/lib/actions/candidatos").PreguntaEnviada[] | null) ?? null}
         />
       </section>
     </div>

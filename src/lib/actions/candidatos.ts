@@ -191,18 +191,42 @@ export async function updateCVProcesado(candidatoId: string, texto: string) {
   revalidatePath(`/candidatos/${candidatoId}`);
 }
 
+export type PreguntaEnviada = {
+  campo: string
+  expId?: string
+  label: string
+  pregunta: string
+  enviado_at: string
+}
+
 export async function registrarEnvioWhatsapp(
   candidatoId: string,
   mensajeEnviado: string,
   preguntasActuales?: string[],
+  preguntasConCampo?: PreguntaEnviada[],
 ): Promise<ActionResult> {
   const supabase = createServiceClient()
-  const { error } = await supabase
-    .from("candidatos")
+
+  let preguntasEnviadasUpdate: PreguntaEnviada[] | undefined
+  if (preguntasConCampo?.length) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from("candidatos") as any)
+      .select("preguntas_enviadas")
+      .eq("id", candidatoId)
+      .single()
+    const actuales = (data?.preguntas_enviadas as PreguntaEnviada[] | null) ?? []
+    const byKey = new Map(actuales.map((p: PreguntaEnviada) => [p.campo, p]))
+    for (const p of preguntasConCampo) byKey.set(p.campo, p)
+    preguntasEnviadasUpdate = Array.from(byKey.values())
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase.from("candidatos") as any)
     .update({
       fecha_consultado: new Date().toISOString(),
       mensaje_whatsapp: mensajeEnviado,
       ...(preguntasActuales ? { preguntas_sugeridas: preguntasActuales } : {}),
+      ...(preguntasEnviadasUpdate ? { preguntas_enviadas: preguntasEnviadasUpdate } : {}),
     })
     .eq("id", candidatoId)
 
@@ -211,6 +235,133 @@ export async function registrarEnvioWhatsapp(
   revalidatePath("/candidatos")
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath("/")
+  return { success: true, id: candidatoId }
+}
+
+const CANDIDATO_BOOL_CAMPOS = new Set(["movilidad", "vehiculo_propio", "licencia_conducir"])
+const CANDIDATO_NUM_CAMPOS  = new Set(["hectareas_max", "personal_a_cargo_max"])
+
+function parseCampoValue(campo: string, valorStr: string): string | boolean | number {
+  const isBool =
+    campo.endsWith(":en_blanco") ||
+    (campo.startsWith("candidato:") && CANDIDATO_BOOL_CAMPOS.has(campo.split(":")[1] ?? ""))
+  const isNum =
+    campo.endsWith(":personal_a_cargo") ||
+    (campo.startsWith("candidato:") && CANDIDATO_NUM_CAMPOS.has(campo.split(":")[1] ?? ""))
+
+  if (isBool) {
+    const v = valorStr.toLowerCase().trim()
+    return v === "true" || v.startsWith("sí") || v === "si" || v === "yes"
+  }
+  if (isNum) {
+    const n = Number.parseInt(valorStr.replace(/[^\d]/g, ""), 10)
+    return Number.isNaN(n) ? 0 : n
+  }
+  return valorStr.trim()
+}
+
+export async function extraerYGuardarRespuestas(
+  candidatoId: string,
+  preguntasEnviadas: PreguntaEnviada[],
+  textoRespuesta: string,
+): Promise<ActionResult> {
+  if (!textoRespuesta.trim()) return { success: false, error: "La respuesta está vacía" }
+  if (!preguntasEnviadas.length) return { success: false, error: "No hay preguntas enviadas" }
+
+  const supabase = createServiceClient()
+
+  const listaPreguntas = preguntasEnviadas
+    .map((p, i) => `${i + 1}. [${p.campo}] ${p.label}: "${p.pregunta}"`)
+    .join("\n")
+
+  const { text } = await generateText({
+    model: anthropic("claude-haiku-4-5-20251001"),
+    prompt: `Se le enviaron estas preguntas a un candidato laboral y respondió por WhatsApp.
+Extraé la respuesta a cada pregunta del texto de respuesta.
+
+Preguntas enviadas (formato: número. [id_campo] label: "pregunta"):
+${listaPreguntas}
+
+Texto de respuesta del candidato:
+${textoRespuesta}
+
+Devolvé ÚNICAMENTE un JSON object donde las claves son los id_campo y los valores son las respuestas extraídas.
+Solo incluí campos donde encontraste una respuesta clara.
+Para campos booleanos (en_blanco, movilidad, vehiculo_propio, licencia_conducir), devolvé "true" o "false".
+Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
+  })
+
+  let extraido: Record<string, string> = {}
+  try {
+    const match = text.match(/\{[\s\S]*\}/)
+    if (match) extraido = JSON.parse(match[0]) as Record<string, string>
+  } catch {
+    return { success: false, error: "No se pudo interpretar la respuesta de Claude" }
+  }
+
+  if (!Object.keys(extraido).length) {
+    return { success: false, error: "No se encontraron respuestas claras en el texto" }
+  }
+
+  const candidatoUpdates: Record<string, unknown> = {}
+  const expUpdates = new Map<string, Record<string, unknown>>()
+  const camposCompletados: string[] = []
+
+  for (const [campo, valorStr] of Object.entries(extraido)) {
+    if (!valorStr?.trim()) continue
+    const valor = parseCampoValue(campo, valorStr)
+
+    if (campo.startsWith("candidato:")) {
+      const column = campo.slice("candidato:".length)
+      candidatoUpdates[column] = valor
+      camposCompletados.push(campo)
+    } else if (campo.startsWith("exp:")) {
+      const parts = campo.split(":")
+      const column = parts[2]
+      if (!column) continue
+      const pregEnviada = preguntasEnviadas.find((p) => p.campo === campo)
+      const expId = pregEnviada?.expId
+      if (!expId) continue
+      if (!expUpdates.has(expId)) expUpdates.set(expId, {})
+      expUpdates.get(expId)![column] = valor
+      camposCompletados.push(campo)
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: candidatoData } = await (supabase.from("candidatos") as any)
+    .select("respuestas_candidato, preguntas_enviadas")
+    .eq("id", candidatoId)
+    .single()
+
+  const respuestasActuales = (candidatoData?.respuestas_candidato as RespuestaItem[] | null) ?? []
+  const nuevasRespuestas: RespuestaItem[] = preguntasEnviadas
+    .filter((p) => extraido[p.campo])
+    .map((p) => ({ pregunta: p.pregunta, respuesta: String(extraido[p.campo] ?? "") }))
+
+  const preguntasEnviadasActuales = (candidatoData?.preguntas_enviadas as PreguntaEnviada[] | null) ?? []
+  const preguntasRestantes = preguntasEnviadasActuales.filter(
+    (p: PreguntaEnviada) => !camposCompletados.includes(p.campo),
+  )
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase.from("candidatos") as any)
+    .update({
+      ...candidatoUpdates,
+      respuestas_candidato: [...respuestasActuales, ...nuevasRespuestas],
+      preguntas_enviadas: preguntasRestantes,
+    })
+    .eq("id", candidatoId)
+
+  for (const [expId, updates] of expUpdates) {
+    await supabase
+      .from("experiencia_laboral")
+      .update(updates as import("@/lib/supabase/types").TablesUpdate<"experiencia_laboral">)
+      .eq("id", expId)
+  }
+
+  revalidatePath("/candidatos")
+  revalidatePath(`/candidatos/${candidatoId}`)
   return { success: true, id: candidatoId }
 }
 

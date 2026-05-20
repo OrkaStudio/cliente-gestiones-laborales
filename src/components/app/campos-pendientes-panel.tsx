@@ -8,6 +8,7 @@ import {
   generarPreguntasParaCampos,
   registrarEnvioWhatsapp,
   type CampoPendiente,
+  type PreguntaEnviada,
 } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
 import type { PreguntaMapeada } from "@/lib/cv/generar-preguntas-mapeadas"
@@ -44,6 +45,10 @@ function isMissing(val: unknown): boolean {
   return val === null || val === undefined || val === ""
 }
 
+const CHIP_AMBER: React.CSSProperties = {
+  background: "#fff7e6", border: "1px solid #f59e0b", color: "#92400e",
+}
+
 type ExpCampo = { id: string; label: string }
 
 function getExpCampos(exp: Experiencia): ExpCampo[] {
@@ -71,6 +76,7 @@ interface ItemActivo {
   label: string
   pregunta: string
   grupo?: string
+  expId?: string
 }
 
 interface Props {
@@ -80,6 +86,7 @@ interface Props {
   nombre:                 string
   telefono:               string | null
   pregunasMapeadasDb:     PreguntaMapeada[] | null
+  preguntasEnviadasDb:    PreguntaEnviada[] | null
   fecha_consultado:       string | null
 }
 
@@ -99,17 +106,17 @@ const CHIP_SEL: React.CSSProperties = {
 
 export function CamposPendientesPanel({
   candidato, experiencia, candidatoId, nombre, telefono,
-  pregunasMapeadasDb, fecha_consultado,
+  pregunasMapeadasDb, preguntasEnviadasDb, fecha_consultado,
 }: Props) {
   const router = useRouter()
 
   // ── Pending campo computation ───────────────────────────────────────────────
 
   const pendientes = CAMPOS.filter((c) => isMissing(candidato[c.key]))
-  const expPendientes: { expIndex: number; empresa: string; campo: ExpCampo }[] = []
+  const expPendientes: { expIndex: number; expId: string; empresa: string; campo: ExpCampo }[] = []
   experiencia.forEach((exp, i) => {
     getExpCampos(exp).forEach((campo) => {
-      expPendientes.push({ expIndex: i, empresa: exp.empresa ?? `Exp ${i + 1}`, campo })
+      expPendientes.push({ expIndex: i, expId: exp.id, empresa: exp.empresa ?? `Exp ${i + 1}`, campo })
     })
   })
   const total = pendientes.length + expPendientes.length
@@ -176,7 +183,7 @@ export function CamposPendientesPanel({
         const key = `exp:${ep.expIndex}:${ep.campo.id}`
         const pregunta = pregByKey.get(key)
         if (!pregunta) return []
-        return [{ key, label: `${ep.empresa}: ${ep.campo.label}`, pregunta, grupo: "Experiencia laboral" }]
+        return [{ key, label: `${ep.empresa}: ${ep.campo.label}`, pregunta, grupo: "Experiencia laboral", expId: ep.expId }]
       }),
     ]
   }
@@ -204,7 +211,15 @@ export function CamposPendientesPanel({
     const preguntasTexto = [...seleccionados]
       .map((k) => items.find((it) => it.key === k)?.pregunta)
       .filter((p): p is string => !!p)
-    await registrarEnvioWhatsapp(candidatoId, mensajeTexto, preguntasTexto)
+    const preguntasConCampo: PreguntaEnviada[] = [...seleccionados]
+      .flatMap((k) => {
+        const item = items.find((it) => it.key === k)
+        if (!item) return []
+        const p: PreguntaEnviada = { campo: item.key, label: item.label, pregunta: item.pregunta, enviado_at: new Date().toISOString() }
+        if (item.expId) p.expId = item.expId
+        return [p]
+      })
+    await registrarEnvioWhatsapp(candidatoId, mensajeTexto, preguntasTexto, preguntasConCampo)
     window.open(`${waUrl(telefono)}?text=${encodeURIComponent(mensajeTexto)}`, "_blank")
     setSendPending(false)
     setEnviado(true)
@@ -550,28 +565,53 @@ export function CamposPendientesPanel({
                 {grupo}
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-                {grupoCampos.map((c) => (
-                  <span key={c.key as string} style={{ ...CHIP_BASE, cursor: "default" }}>{c.label}</span>
-                ))}
+                {grupoCampos.map((c) => {
+                  const campoKey = `candidato:${c.key as string}`
+                  const isEnviado = preguntasEnviadasDb?.some((p) => p.campo === campoKey) ?? false
+                  return (
+                    <span key={c.key as string} style={{ ...CHIP_BASE, cursor: "default", ...(isEnviado ? CHIP_AMBER : {}) }}>
+                      {isEnviado ? "⏳ " : ""}{c.label}
+                    </span>
+                  )
+                })}
               </div>
             </div>
           )
         })}
 
-        {expPendientes.length > 0 && (
-          <div>
-            <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 5 }}>
-              Experiencia laboral
+        {expPendientes.length > 0 && (() => {
+          const empresas = Array.from(new Set(expPendientes.map((ep) => ep.empresa)))
+          return (
+            <div>
+              <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+                Experiencia laboral
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {empresas.map((empresa) => {
+                  const campos = expPendientes.filter((ep) => ep.empresa === empresa)
+                  return (
+                    <div key={empresa}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7c5a", marginBottom: 5 }}>
+                        {empresa}
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+                        {campos.map((ep) => {
+                          const campoKey = `exp:${ep.expIndex}:${ep.campo.id}`
+                          const isEnviado = preguntasEnviadasDb?.some((p) => p.campo === campoKey) ?? false
+                          return (
+                            <span key={campoKey} style={{ ...CHIP_BASE, cursor: "default", ...(isEnviado ? CHIP_AMBER : {}) }}>
+                              {isEnviado ? "⏳ " : ""}{ep.campo.label}
+                            </span>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
-              {expPendientes.map((ep) => (
-                <span key={`${ep.expIndex}:${ep.campo.id}`} style={{ ...CHIP_BASE, cursor: "default" }}>
-                  {ep.empresa}: {ep.campo.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       {error && (
