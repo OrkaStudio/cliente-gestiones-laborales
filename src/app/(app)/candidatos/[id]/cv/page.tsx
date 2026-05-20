@@ -88,6 +88,23 @@ export default async function CVPage({
             experiencia={experiencia ?? []}
           />
         )}
+
+        {candidato.informacion_adicional && (
+          <div style={{
+            marginTop: "2rem",
+            padding: "1.25rem 1.5rem",
+            background: "#fffbeb",
+            border: "1px solid #fde68a",
+            borderRadius: 12,
+          }}>
+            <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#92400e", marginBottom: "0.625rem" }}>
+              Información adicional del CV
+            </div>
+            <pre style={{ fontSize: 13, color: "#1c1917", lineHeight: 1.7, whiteSpace: "pre-wrap", fontFamily: "inherit", margin: 0 }}>
+              {candidato.informacion_adicional}
+            </pre>
+          </div>
+        )}
       </div>
     </div>
   )

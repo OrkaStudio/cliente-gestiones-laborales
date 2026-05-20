@@ -122,6 +122,8 @@ export type Database = {
           campos_faltantes: string[] | null
           categorias: string[]
           conversaciones_historial: Json | null
+          informacion_adicional: string | null
+          preguntas_enviadas: Json | null
         }
         Insert: {
           apellido: string
@@ -167,6 +169,8 @@ export type Database = {
           campos_faltantes?: string[] | null
           categorias?: string[]
           conversaciones_historial?: Json | null
+          informacion_adicional?: string | null
+          preguntas_enviadas?: Json | null
         }
         Update: {
           apellido?: string
@@ -212,6 +216,8 @@ export type Database = {
           campos_faltantes?: string[] | null
           categorias?: string[]
           conversaciones_historial?: Json | null
+          informacion_adicional?: string | null
+          preguntas_enviadas?: Json | null
         }
         Relationships: []
       }

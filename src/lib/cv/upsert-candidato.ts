@@ -74,6 +74,7 @@ export async function upsertCandidato(
     idiomas: data.idiomas,
     referencias: data.referencias.length > 0 ? data.referencias : null,
     campos_faltantes: data.campos_faltantes.length > 0 ? data.campos_faltantes : null,
+    informacion_adicional: data.informacion_adicional || null,
     ...(cvCrudoPath !== null && { cv_crudo_url: cvCrudoPath }),
   };
 

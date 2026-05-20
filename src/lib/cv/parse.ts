@@ -6,10 +6,10 @@ import { z } from "zod";
 // Strings usan "" como sentinel de "desconocido" para no superar el límite de
 // 16 union types de Anthropic. Solo boolean/number/hasta quedan como nullable.
 const ExperienciaSchema = z.object({
-  empresa: z.string().describe("Nombre del establecimiento o empresa"),
+  empresa: z.string().describe("Nombre del establecimiento o empresa. Si no está nombrado, usar descripción aproximada como 'Campo en Coronel Suárez' o 'Establecimiento familiar en Balcarce'. Vacío solo si no hay ninguna referencia posible."),
   nombre_propietario: z.string().describe("Nombre del propietario o empleador. Vacío si no se menciona"),
-  rol: z.string().describe("Cargo o puesto desempeñado"),
-  desde: z.string().describe('Fecha de inicio. Ej: "2020", "03/2022", "2020-03"'),
+  rol: z.string().describe("Cargo o puesto desempeñado. Si no está explícito, inferirlo de las tareas descriptas. Guía: ordeñe/tambo → 'Tambero'; tractores/siembra/cosecha → 'Tractorista'; arreo/rodeo/hacienda sin supervisión → 'Peón General'; supervisión de personal + manejo general → 'Encargado General' o 'Capataz'; cría/cuidado de animales en puesto → 'Puestero'. Dejar vacío solo si es absolutamente imposible inferirlo."),
+  desde: z.string().describe('Fecha de inicio. Ej: "2020", "03/2022", "2020-03". Si es narrativo ("hace 3 años", "desde 2018 aproximadamente"), convertir a año estimado.'),
   hasta: z.string().nullable().describe("Fecha de fin. null si es el trabajo actual"),
   ubicacion: z.string().describe("Localidad y provincia del establecimiento. Vacío si no se menciona"),
   descripcion: z.string().describe("Descripción de tareas. Vacío si no se menciona"),
@@ -115,6 +115,19 @@ Por cada trabajo: ubicación del establecimiento, tamaño (hectáreas/cabezas), 
 motivo de salida (o ingresos actuales + beneficios si es el trabajo actual). Referencias laborales con contacto.`,
   ),
   campos_faltantes: z.array(z.string()).describe("Nombres de los campos que no se pudieron determinar del CV"),
+  informacion_adicional: z.string().describe(
+    `Todo lo que está en el CV y no tiene campo propio. Nunca tirar información — si algo no encaja en los campos anteriores, va acá.
+Incluir si el CV menciona:
+- Aptitudes y habilidades técnicas (ordeñe mecánico, inseminación artificial, vacunación, castración, alambrado, herrería, soldadura)
+- Maquinaria específica que maneja (marcas, modelos, implementos)
+- Cursos, capacitaciones y habilitaciones (ej: "Curso de agroquímicos 2021", "Habilitación categoría E para maquinaria vial", "Curso de inseminación artificial")
+- Software o sistemas de gestión (InfoGan, SiGGA, Haras, Excel ganadero)
+- Categorías específicas del carnet de conducir más allá del booleano
+- Objetivos personales, perfil o presentación escrita por el candidato
+- Logros, reconocimientos, membresías
+- Cualquier otro dato relevante sin campo propio
+Formatear en texto libre agrupado por categoría. Vacío solo si realmente no hay nada más allá de lo capturado.`
+  ),
 });
 
 export type CVParseado = z.infer<typeof CVParseadoSchema>;
@@ -134,13 +147,22 @@ PARTE 1 — EXTRACCIÓN
 Extraé toda la información disponible en el CV y mapeala a los campos del schema.
 Para campos que no podés determinar, usá null.
 
-Reglas:
+Reglas generales:
 - Entendé expresiones variadas del español rioplatense rural: "gurises de 5 y 8" → hijos: "2 hijos, 5 y 8 años"
 - Inferí lo razonable: menciona que vive en campo → movilidad: true
 - tipos_ganaderia: solo los que el candidato mencione explícita o implícitamente (crianza de vacas → bovina, tambo → tambo)
 - hectareas_max: la mayor cifra mencionada en cualquier trabajo
 - personal_a_cargo_max: el mayor número de personas a cargo en cualquier trabajo
 - Si el domicilio es parcial (solo ciudad): ponelo en ubicacion, dejá domicilio_completo null
+
+Reglas para CVs en formatos no estándar:
+- CV narrativo (párrafos sin estructura): igualmente extraé cada trabajo como item separado de experiencia
+- CV sin secciones claras: inferí las secciones desde el contenido
+- Sin cargo explícito: inferir desde las tareas es OBLIGATORIO — nunca dejar rol vacío si hay descripción de tareas
+- Empresa sin nombre: usar ubicación o descripción ("campo en Balcarce", "establecimiento familiar")
+- Fechas narrativas ("hace 3 años", "desde que salí del colegio"): estimá el año aproximado
+- NUNCA omitir un trabajo — si hay evidencia de actividad laboral, crear el item de experiencia
+- Toda información del CV que no tenga campo propio va en informacion_adicional — no tirar nada
 
 ═══════════════════════════════════════════
 PARTE 2 — PREGUNTAS PARA EL CANDIDATO
