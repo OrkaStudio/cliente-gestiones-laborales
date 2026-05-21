@@ -43,25 +43,38 @@ async function agregarConversacion(
 
 // ─── Sync campos estructurados desde cv_procesado_texto ────────────────────────
 
-type CampoCV = { label: string; field: string; type: "string" | "bool" | "num" }
+type CampoCV = { label: string; field: string; type: "string" | "bool" | "num" | "date" }
 
 const CAMPOS_CV_MAP: CampoCV[] = [
-  { label: "lugar de nacimiento", field: "lugar_nacimiento",     type: "string" },
-  { label: "estado civil",        field: "estado_civil",         type: "string" },
-  { label: "hijos",               field: "hijos",                type: "string" },
-  { label: "disponibilidad",      field: "disponibilidad",       type: "string" },
-  { label: "pretensión salarial", field: "pretension_salarial",  type: "string" },
-  { label: "pretension salarial", field: "pretension_salarial",  type: "string" },
-  { label: "movilidad",           field: "movilidad",            type: "bool"   },
-  { label: "vehículo propio",     field: "vehiculo_propio",      type: "bool"   },
-  { label: "vehiculo propio",     field: "vehiculo_propio",      type: "bool"   },
-  { label: "licencia de conducir",field: "licencia_conducir",    type: "bool"   },
-  { label: "muebles propios",     field: "muebles_propios",      type: "string" },
-  { label: "animales",            field: "animales",             type: "string" },
-  { label: "hectáreas máx",       field: "hectareas_max",        type: "num"    },
-  { label: "hectareas max",       field: "hectareas_max",        type: "num"    },
-  { label: "personal a cargo",    field: "personal_a_cargo_max", type: "num"    },
+  { label: "dni",                  field: "dni",                 type: "string" },
+  { label: "domicilio completo",   field: "domicilio_completo",  type: "string" },
+  { label: "domicilio",            field: "domicilio_completo",  type: "string" },
+  { label: "fecha de nacimiento",  field: "fecha_nacimiento",    type: "date"   },
+  { label: "lugar de nacimiento",  field: "lugar_nacimiento",    type: "string" },
+  { label: "estado civil",         field: "estado_civil",        type: "string" },
+  { label: "hijos",                field: "hijos",               type: "string" },
+  { label: "disponibilidad",       field: "disponibilidad",      type: "string" },
+  { label: "pretensión salarial",  field: "pretension_salarial", type: "string" },
+  { label: "pretension salarial",  field: "pretension_salarial", type: "string" },
+  { label: "movilidad",            field: "movilidad",           type: "bool"   },
+  { label: "vehículo propio",      field: "vehiculo_propio",     type: "bool"   },
+  { label: "vehiculo propio",      field: "vehiculo_propio",     type: "bool"   },
+  { label: "licencia de conducir", field: "licencia_conducir",   type: "bool"   },
+  { label: "muebles propios",      field: "muebles_propios",     type: "string" },
+  { label: "animales",             field: "animales",            type: "string" },
+  { label: "hectáreas máx",        field: "hectareas_max",       type: "num"    },
+  { label: "hectareas max",        field: "hectareas_max",       type: "num"    },
+  { label: "personal a cargo",     field: "personal_a_cargo_max",type: "num"    },
 ]
+
+function parseDateFromCV(val: string): string | null {
+  // DD/MM/YYYY o D/M/YYYY
+  const mDMY = val.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/)
+  if (mDMY) return `${mDMY[3]}-${mDMY[2].padStart(2, "0")}-${mDMY[1].padStart(2, "0")}`
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}/.test(val)) return val.slice(0, 10)
+  return null
+}
 
 function parseBoolFromCV(val: string): boolean | null {
   const v = val.toLowerCase().trim()
@@ -82,7 +95,7 @@ async function sincronizarCamposDesdeCV(
 ): Promise<void> {
   const { data: row } = await supabase
     .from("candidatos")
-    .select("lugar_nacimiento, estado_civil, hijos, disponibilidad, pretension_salarial, movilidad, vehiculo_propio, licencia_conducir, muebles_propios, animales, hectareas_max, personal_a_cargo_max")
+    .select("dni, domicilio_completo, fecha_nacimiento, lugar_nacimiento, estado_civil, hijos, disponibilidad, pretension_salarial, movilidad, vehiculo_propio, licencia_conducir, muebles_propios, animales, hectareas_max, personal_a_cargo_max")
     .eq("id", candidatoId)
     .single()
 
@@ -108,6 +121,9 @@ async function sincronizarCamposDesdeCV(
     } else if (type === "bool") {
       const b = parseBoolFromCV(match.value)
       if (b !== null) { update[field] = b; filled.add(field) }
+    } else if (type === "date") {
+      const d = parseDateFromCV(match.value)
+      if (d !== null) { update[field] = d; filled.add(field) }
     } else {
       const n = parseNumFromCV(match.value)
       if (n !== null) { update[field] = n; filled.add(field) }
@@ -256,6 +272,9 @@ function parseCampoValue(campo: string, valorStr: string): string | boolean | nu
   if (isNum) {
     const n = Number.parseInt(valorStr.replace(/[^\d]/g, ""), 10)
     return Number.isNaN(n) ? 0 : n
+  }
+  if (campo === "candidato:fecha_nacimiento") {
+    return parseDateFromCV(valorStr) ?? valorStr.trim()
   }
   return valorStr.trim()
 }

@@ -5,6 +5,7 @@ import { RefreshCw, CheckCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   actualizarCVDesdeConversacion,
+  actualizarCVConRespuestas,
   extraerYGuardarRespuestas,
   type ConversacionEntry,
   type RespuestaItem,
@@ -88,6 +89,9 @@ export function WhatsappMessagePanel({
   const [extractando, setExtractando]         = useState(false)
   const [extractOk, setExtractOk]             = useState(false)
   const [extractErr, setExtractErr]           = useState<string | null>(null)
+  const [cvPending, startCvUpdate]            = useTransition()
+  const [cvOk, setCvOk]                       = useState(false)
+  const [cvErr, setCvErr]                     = useState<string | null>(null)
 
   const hasPreguntasPendientes = (preguntasEnviadasDb?.length ?? 0) > 0
 
@@ -101,10 +105,23 @@ export function WhatsappMessagePanel({
       setExtractOk(true)
       setRespuestaTexto("")
       router.refresh()
-      setTimeout(() => setExtractOk(false), 3000)
     } else {
       setExtractErr(result.error)
     }
+  }
+
+  function handleActualizarCV() {
+    setCvErr(null)
+    setCvOk(false)
+    startCvUpdate(async () => {
+      const result = await actualizarCVConRespuestas(candidatoId)
+      if (result.success) {
+        setCvOk(true)
+        router.refresh()
+      } else {
+        setCvErr(result.error)
+      }
+    })
   }
 
   const fechaFormateada = fecha_consultado
@@ -219,9 +236,27 @@ export function WhatsappMessagePanel({
               </p>
             </div>
             {extractOk && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <CheckCircle className="h-4 w-4" style={{ color: "#1a7f37" }} />
-                <span className="text-[12px] font-semibold" style={{ color: "#1a7f37" }}>Guardado</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <CheckCircle className="h-4 w-4" style={{ color: "#1a7f37" }} />
+                  <span className="text-[12px] font-semibold" style={{ color: "#1a7f37" }}>Perfil actualizado</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleActualizarCV}
+                  disabled={cvPending || cvOk}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold"
+                  style={{
+                    background: cvOk ? "#dafbe1" : "var(--gl-olive-bg)",
+                    color: cvOk ? "#1a7f37" : "var(--gl-olive)",
+                    border: "none", cursor: cvPending || cvOk ? "default" : "pointer",
+                    opacity: cvPending ? 0.7 : 1,
+                  }}
+                >
+                  <RefreshCw className="h-3 w-3" style={{ animation: cvPending ? "spin 1s linear infinite" : "none" }} />
+                  {cvOk ? "CV actualizado" : cvPending ? "Actualizando…" : "Actualizar CV →"}
+                </button>
+                {cvErr && <span className="text-[11px]" style={{ color: "#c0392b" }}>{cvErr}</span>}
               </div>
             )}
           </div>
