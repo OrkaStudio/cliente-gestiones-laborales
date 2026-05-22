@@ -835,5 +835,5 @@ export async function regenerarCVTextoDesdeDatos(candidatoId: string): Promise<A
 
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
-  return { success: true }
+  return { success: true, id: candidatoId }
 }
