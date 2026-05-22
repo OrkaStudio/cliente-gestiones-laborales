@@ -20,6 +20,69 @@ export type CvSection = { title: string; content: string }
 export type KVPair    = { label: string; value: string }
 export type JobBlock  = { periodo: string; titulo: string; empresa: string; desc: string }
 
+// ─── Formato B: ▸ + KV ────────────────────────────────────────────────────────
+
+export type JobBlockB = {
+  header:         string   // "TRABAJO ACTUAL" | "TRABAJO ANTERIOR 1" etc.
+  cargo:          string
+  establecimiento: string
+  periodo:        string
+  ubicacion:      string
+  tareas:         string
+  metadata:       string[] // resto de KV (Propietario, Hectáreas, etc.)
+}
+
+const PRIMARY_JOB_FIELDS_B = new Set([
+  "cargo", "establecimiento",
+  "período", "periodo",
+  "ubicación", "ubicacion",
+  "tareas",
+  "ingresos actuales", "beneficios",
+  "motivo de salida", "motivo de cambio",
+])
+
+export function parseJobBlocksB(content: string): JobBlockB[] {
+  const raw: Array<{ header: string; lines: string[] }> = []
+  let cur: { header: string; lines: string[] } | null = null
+
+  for (const line of content.split("\n")) {
+    const t = line.trim()
+    if (t.startsWith("▸")) {
+      if (cur) raw.push(cur)
+      cur = { header: t.replace(/^▸\s*/, ""), lines: [] }
+    } else if (cur && t) {
+      cur.lines.push(t)
+    }
+  }
+  if (cur) raw.push(cur)
+
+  return raw.map(b => {
+    const fields: Record<string, string> = {}
+    const metadata: string[] = []
+
+    for (const line of b.lines) {
+      const kv = line.match(/^([^:]+?):\s*(.+)$/)
+      if (!kv || kv[1].length >= 50) { if (line.trim()) metadata.push(line.trim()); continue }
+      const key = kv[1].trim().toLowerCase()
+      if (PRIMARY_JOB_FIELDS_B.has(key)) {
+        fields[key] = kv[2].trim()
+      } else {
+        metadata.push(`${kv[1]}: ${kv[2]}`)
+      }
+    }
+
+    return {
+      header:          b.header,
+      cargo:           fields["cargo"]            ?? "",
+      establecimiento: fields["establecimiento"]  ?? "",
+      periodo:         fields["período"]  ?? fields["periodo"]  ?? "",
+      ubicacion:       fields["ubicación"] ?? fields["ubicacion"] ?? "",
+      tareas:          fields["tareas"]           ?? "",
+      metadata,
+    }
+  })
+}
+
 export function assembleSections(sections: CvSection[]): string {
   return sections
     .map((s) => `${s.title}\n${"─".repeat(49)}\n${s.content}`)

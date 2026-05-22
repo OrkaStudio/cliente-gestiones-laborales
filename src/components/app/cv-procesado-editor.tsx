@@ -2,11 +2,11 @@
 
 import { useState, useRef, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, Check, X, Download, FileText, Save } from "lucide-react"
-import { updateCVProcesado } from "@/lib/actions/candidatos"
+import { Pencil, Check, X, Download, FileText, Save, RefreshCw } from "lucide-react"
+import { updateCVProcesado, regenerarCVTextoDesdeDatos } from "@/lib/actions/candidatos"
 import {
   parseSections, assembleSections,
-  parseKV, parseJobs, parseBullets, parseRefs,
+  parseKV, parseJobs, parseBullets, parseRefs, parseJobBlocksB,
   type CvSection,
 } from "@/lib/cv/utils"
 
@@ -41,19 +41,94 @@ function KVContent({ content }: { content: string }) {
   )
 }
 
+function SinDatoTag() {
+  return <span style={{ color: "var(--gl-ink-3)", fontStyle: "italic", fontWeight: 400 }}>sin dato</span>
+}
+
 function ExperienceContent({ content }: { content: string }) {
-  const jobs = parseJobs(content)
-  if (!jobs.length) return <DefaultContent content={content} />
+  const blocks = parseJobBlocksB(content)
+  // Fallback al parser viejo si el contenido no tiene marcadores ▸
+  if (!blocks.length) {
+    const jobs = parseJobs(content)
+    if (!jobs.length) return <DefaultContent content={content} />
+    return (
+      <div className="space-y-5">
+        {jobs.map((job, i) => (
+          <div key={i} className="pl-3.5" style={{ borderLeft: "2px solid var(--gl-border)" }}>
+            <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 3 }}>{job.periodo}</div>
+            {job.titulo  && <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.35 }}>{job.titulo}</div>}
+            {job.empresa && <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 2, marginBottom: 5 }}>{job.empresa}</div>}
+            {job.desc    && <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.7, margin: 0 }}>{job.desc}</p>}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
-      {jobs.map((job, i) => (
-        <div key={i} className="pl-3.5" style={{ borderLeft: "2px solid var(--gl-border)" }}>
-          <div style={{ fontSize: 11, color: "var(--gl-olive)", fontWeight: 600, marginBottom: 3 }}>{job.periodo}</div>
-          {job.titulo  && <div style={{ fontSize: 13.5, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.35 }}>{job.titulo}</div>}
-          {job.empresa && <div style={{ fontSize: 12.5, color: "var(--gl-ink-2)", marginTop: 2, marginBottom: 5 }}>{job.empresa}</div>}
-          {job.desc    && <p style={{ fontSize: 12.5, color: "var(--gl-ink-3)", lineHeight: 1.7, margin: 0 }}>{job.desc}</p>}
-        </div>
-      ))}
+      {blocks.map((b, i) => {
+        const isSinDato = (v: string) => !v || v === "sin dato"
+
+        // Metadata: filtrar los que son "sin dato" excepto los que tienen dato real
+        const metadataConDato    = b.metadata.filter(m => !m.endsWith("sin dato"))
+        const metadataSinDato    = b.metadata.filter(m => m.endsWith("sin dato"))
+
+        return (
+          <div key={i} className="pl-3.5" style={{ borderLeft: "2px solid var(--gl-border)" }}>
+            {/* Tipo: TRABAJO ACTUAL / TRABAJO ANTERIOR N */}
+            <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--gl-olive)", opacity: 0.65, marginBottom: 5 }}>
+              {b.header}
+            </div>
+
+            {/* Cargo + Período — misma fila */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 3 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.3 }}>
+                {isSinDato(b.cargo) ? <SinDatoTag /> : b.cargo}
+              </span>
+              {!isSinDato(b.periodo) && (
+                <span style={{ fontSize: 11, color: "var(--gl-ink-3)", flexShrink: 0 }}>{b.periodo}</span>
+              )}
+            </div>
+
+            {/* Establecimiento · Ubicación */}
+            {(!isSinDato(b.establecimiento) || !isSinDato(b.ubicacion)) && (
+              <div style={{ fontSize: 12.5, marginBottom: 7, lineHeight: 1.4 }}>
+                {!isSinDato(b.establecimiento) && (
+                  <span style={{ fontWeight: 600, color: "var(--gl-olive)" }}>{b.establecimiento}</span>
+                )}
+                {!isSinDato(b.ubicacion) && (
+                  <span style={{ color: "var(--gl-ink-3)" }}>
+                    {!isSinDato(b.establecimiento) ? " · " : ""}{b.ubicacion}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Metadata con dato */}
+            {metadataConDato.length > 0 && (
+              <div style={{ fontSize: 11, color: "var(--gl-ink-3)", marginBottom: 6, lineHeight: 1.6 }}>
+                {metadataConDato.join("  ·  ")}
+              </div>
+            )}
+
+            {/* Tareas */}
+            {!isSinDato(b.tareas) && (
+              <p style={{ fontSize: 12.5, color: "var(--gl-ink-2)", lineHeight: 1.7, margin: "0 0 4px" }}>{b.tareas}</p>
+            )}
+
+            {/* Campos sin dato — agrupados al final en gris */}
+            {(isSinDato(b.tareas) || metadataSinDato.length > 0) && (
+              <div style={{ fontSize: 10.5, color: "var(--gl-ink-3)", fontStyle: "italic", lineHeight: 1.6, opacity: 0.7, marginTop: 4 }}>
+                {[
+                  isSinDato(b.tareas) ? "Tareas: sin dato" : null,
+                  ...metadataSinDato,
+                ].filter(Boolean).join("  ·  ")}
+              </div>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -117,14 +192,15 @@ function SectionContentWeb({ title, content }: { title: string; content: string 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto, hideDownload = false }: Props) {
-  const [sections,    setSections]    = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
-  const [editMode,    setEditMode]    = useState(false)
-  const [activeIdx,   setActiveIdx]   = useState<number | null>(null)
-  const [drafts,      setDrafts]      = useState<Record<number, string>>({})
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [pendingHref, setPendingHref] = useState<string | null>(null)
-  const [saved,       setSaved]       = useState(false)
-  const [isPending,   start]          = useTransition()
+  const [sections,     setSections]     = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
+  const [editMode,     setEditMode]     = useState(false)
+  const [activeIdx,    setActiveIdx]    = useState<number | null>(null)
+  const [drafts,       setDrafts]       = useState<Record<number, string>>({})
+  const [showConfirm,  setShowConfirm]  = useState(false)
+  const [pendingHref,  setPendingHref]  = useState<string | null>(null)
+  const [saved,        setSaved]        = useState(false)
+  const [regenerando,  setRegenerando]  = useState(false)
+  const [isPending,    start]           = useTransition()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
 
@@ -285,6 +361,21 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
                     <Check className="h-3.5 w-3.5" /> Guardado
                   </span>
                 )}
+                <button
+                  onClick={async () => {
+                    setRegenerando(true)
+                    await regenerarCVTextoDesdeDatos(candidatoId)
+                    router.refresh()
+                    setRegenerando(false)
+                  }}
+                  disabled={regenerando}
+                  title="Regenera el CV en el nuevo formato a partir de los datos del perfil"
+                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-medium transition-colors disabled:opacity-50"
+                  style={{ background: "var(--gl-gray-bg)", color: "var(--gl-ink-3)", border: "1px solid var(--gl-border)" }}
+                >
+                  <RefreshCw className={`h-3 w-3 ${regenerando ? "animate-spin" : ""}`} />
+                  {regenerando ? "Regenerando…" : "Regenerar formato"}
+                </button>
                 <button
                   onClick={enterEditMode}
                   className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors"

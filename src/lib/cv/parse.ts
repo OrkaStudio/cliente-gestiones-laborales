@@ -66,13 +66,17 @@ DATOS PERSONALES
 ─────────────────────────────────────────────────
 Nombre y Apellido: Juan García
 Fecha de nacimiento: 15/05/1986
-DNI: 12345678
+DNI: sin dato
 Domicilio: Calle Mitre 259, Maciá, Entre Ríos
 Teléfono: 3445-535086
-Email: juan@gmail.com
+Email: sin dato
 Estado civil: Soltero
 Hijos: 2 hijos, 5 y 8 años
 Estudios: Secundaria completa
+Vehículo propio: Sí
+Licencia de conducir: sin dato
+Disponibilidad: Disponible para mudarse
+Pretensión salarial: sin dato
 
 PERFIL LABORAL
 ─────────────────────────────────────────────────
@@ -80,22 +84,34 @@ Trabajador rural con experiencia en ganadería bovina y tambo...
 
 EXPERIENCIA LABORAL
 ─────────────────────────────────────────────────
-2022 – Actualidad
-Encargado — Estancia La Pampa
-Coronel Suárez, Buenos Aires. Establecimiento de 1.200 hectáreas. 3 personas a cargo. En blanco.
-Conducción general del establecimiento. Manejo de rodeo bovino.
-Ingresos actuales: $450.000. Beneficios: carne, vivienda.
-Motivo de cambio: búsqueda de nuevas oportunidades.
+▸ TRABAJO ACTUAL
+Cargo: Encargado General
+Establecimiento: Estancia La Pampa
+Período: 2022 – Actualidad
+Ubicación: Coronel Suárez, Buenos Aires
+Propietario: Juan Pérez
+Hectáreas: 1.200
+Personal a cargo: 3 personas
+En blanco: Sí
+Tareas: Conducción general del establecimiento. Manejo de rodeo bovino.
+Ingresos actuales: $450.000
+Beneficios: carne, vivienda
 
-2018 – 2022
-Peón ganadero — Estancia San Juan
-General Villegas, Buenos Aires. 800 hectáreas. Trabajo individual.
-Tareas de campo: rodeo, alambrado, mantenimiento general.
-Motivo de salida: fin de contrato.
+▸ TRABAJO ANTERIOR 1
+Cargo: Peón General
+Establecimiento: Estancia San Juan
+Período: 2018 – 2022
+Ubicación: General Villegas, Buenos Aires
+Propietario: sin dato
+Hectáreas: 800
+Personal a cargo: sin dato
+En blanco: sin dato
+Tareas: Tareas de campo: rodeo, alambrado, mantenimiento general.
+Motivo de salida: fin de contrato
 
 FORMACIÓN
 ─────────────────────────────────────────────────
-Secundaria completa — Escuela Agrotécnica N°1
+• Secundaria completa — Escuela Agrotécnica N°1
 
 REFERENCIAS
 ─────────────────────────────────────────────────
@@ -104,10 +120,13 @@ Tel: 1234-5678
 Propietario — Estancia La Pampa
 
 Reglas:
-- Separar secciones SIEMPRE con ─────────────────────────────────────────────────── (guiones, no ═══ ni ***)
-- Para experiencia: fecha primero (ej: "2020 – Actualidad"), luego "Cargo — Empresa" en la línea siguiente, luego descripción
-- Omitir completamente los campos desconocidos — NO escribir "(a confirmar)", "desconocido" ni "N/D"
-- Solo incluir la información que efectivamente está en el CV`,
+- Separar secciones SIEMPRE con ─────────────────────────────────────────────────── (49 guiones, no ═══ ni ***)
+- EXPERIENCIA LABORAL: usar marcadores ▸ TRABAJO ACTUAL y ▸ TRABAJO ANTERIOR N (N = 1, 2, 3...). El trabajo actual va primero.
+- Cada trabajo tiene EXACTAMENTE los campos: Cargo, Establecimiento, Período, Ubicación, Propietario, Hectáreas, Personal a cargo, En blanco, Tareas. Más Ingresos actuales + Beneficios si es actual, o Motivo de salida si es anterior.
+- Si un campo no está disponible, escribir "sin dato" (no omitir la línea).
+- DATOS PERSONALES: incluir todos los campos del ejemplo. Si falta, escribir "sin dato".
+- FORMACIÓN: usar viñetas "• " al inicio de cada ítem.
+- Solo incluir las secciones que correspondan al candidato (si no tiene FORMACIÓN o CONOCIMIENTOS, no incluir esa sección).`,
   ),
   preguntas_sugeridas: z.array(z.string()).describe(
     `Preguntas para hacerle al candidato para completar los datos faltantes de la planilla de Gestiones Laborales.

@@ -421,28 +421,28 @@ REGLAS ABSOLUTAS:
 2. Si una respuesta no agrega nada nuevo, dejá el CV exactamente igual en esa parte.
 3. Respondé ÚNICAMENTE con el CV actualizado, sin explicaciones ni comentarios.
 
-FORMATO OBLIGATORIO — respetá la estructura exacta de cada sección:
+FORMATO OBLIGATORIO — el CV usa este formato estricto:
 
-SECCIONES EN MAYÚSCULAS
-─────────────────────────────────────────────────── (49 guiones)
+Secciones en MAYÚSCULAS seguidas de ─────────────────────────────────────────────────── (49 guiones)
 
-Para DATOS PERSONALES: un campo por línea con formato "Label: Valor"
-  Nombre y Apellido: Juan García
-  Fecha de nacimiento: 15/05/1986
-  DNI: 12345678
+EXPERIENCIA LABORAL: cada trabajo tiene marcador ▸ y los siguientes campos en este orden exacto:
+▸ TRABAJO ACTUAL
+Cargo: [cargo]
+Establecimiento: [empresa]
+Período: [inicio] – [fin o "Actualidad"]
+Ubicación: [localidad, provincia]
+Propietario: [nombre o "sin dato"]
+Hectáreas: [número o "sin dato"]
+Personal a cargo: [número o "sin dato"]
+En blanco: [Sí / No / sin dato]
+Tareas: [descripción en prosa]
+Ingresos actuales: [monto o "sin dato"]
+Beneficios: [lista o "sin dato"]
 
-Para EXPERIENCIA LABORAL — cada trabajo tiene EXACTAMENTE este orden de líneas:
-  Línea 1 → período: "2022 – Actualidad"  (solo fechas, nada más)
-  Línea 2 → cargo y empresa: "Encargado — Estancia La Pampa"  (formato CARGO — EMPRESA, con " — ")
-  Línea 3 → contexto: "Coronel Suárez, Buenos Aires. 1.200 hectáreas. Propietario: Juan Pérez. 3 personas a cargo. En blanco."
-  Línea 4 → tareas: descripción de lo que hacía
-  Línea 5 → (si trabajo actual) "Ingresos actuales: $X. Beneficios: Y."
-  Línea 6 → (si trabajo anterior) "Motivo de salida: Z."
+Para trabajos anteriores: mismo formato con ▸ TRABAJO ANTERIOR N, y Motivo de salida en vez de Ingresos/Beneficios.
 
-CRÍTICO: La línea 2 de cada trabajo SIEMPRE es "CARGO — EMPRESA". Nunca pongas ubicación, propietario ni otros datos en la línea 2. Esos van en la línea 3 (contexto).
-
-Si una respuesta aporta datos de contexto (ubicación, propietario, tamaño, personal a cargo), incorporalos en la línea 3 del trabajo correspondiente.
-Si aporta datos personales (DNI, domicilio, etc.), incorporalos en DATOS PERSONALES con el formato "Label: Valor".`,
+CRÍTICO: Si una respuesta aporta datos de un campo que dice "sin dato", reemplazá "sin dato" por el dato real. No agregues campos nuevos fuera del formato.
+DATOS PERSONALES: formato "Label: Valor" por línea. Si falta, escribir "sin dato".`,
     prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nRespuestas del candidato a preguntas de preselección:\n${qaTexto}`,
   })
 
@@ -726,5 +726,114 @@ export async function eliminarCandidato(id: string): Promise<{ success: boolean;
 
   revalidatePath("/candidatos")
   revalidatePath("/")
+  return { success: true }
+}
+
+// ─── Migración: regenerar cv_procesado_texto en Formato B desde datos estructurados ──
+
+export async function regenerarCVTextoDesdeDatos(candidatoId: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+
+  const { data: c, error } = await supabase
+    .from("candidatos")
+    .select("*, experiencia_laboral(*), referencias(*)")
+    .eq("id", candidatoId)
+    .single()
+
+  if (error || !c) return { success: false, error: "Candidato no encontrado" }
+
+  const experiencias = (c.experiencia_laboral ?? []) as any[]
+  const referencias  = (c.referencias ?? []) as any[]
+
+  function val(v: unknown) { return v && String(v).trim() ? String(v).trim() : "sin dato" }
+  function bool(v: boolean | null) { return v === true ? "Sí" : v === false ? "No" : "sin dato" }
+
+  // DATOS PERSONALES
+  const datosPersonales = [
+    `Nombre y Apellido: ${c.nombre ?? ""} ${c.apellido ?? ""}`.trim(),
+    `Fecha de nacimiento: ${val(c.fecha_nacimiento)}`,
+    `DNI: ${val(c.dni)}`,
+    `Domicilio: ${val(c.domicilio_completo ?? c.ubicacion)}`,
+    `Teléfono: ${val(c.telefono)}`,
+    `Email: ${val(c.email)}`,
+    `Estado civil: ${val(c.estado_civil)}`,
+    `Hijos: ${val(c.hijos)}`,
+    `Estudios: ${val(c.educacion)}`,
+    `Vehículo propio: ${bool(c.vehiculo_propio)}`,
+    `Licencia de conducir: ${bool(c.licencia_conducir)}`,
+    `Disponibilidad: ${val(c.disponibilidad)}`,
+    `Pretensión salarial: ${val(c.pretension_salarial)}`,
+  ].join("\n")
+
+  // EXPERIENCIA LABORAL
+  const sorted = [...experiencias].sort((a, b) => {
+    if (!a.hasta) return -1
+    if (!b.hasta) return  1
+    return (b.desde ?? "").localeCompare(a.desde ?? "")
+  })
+
+  function formatFechaSimple(d: string | null) {
+    if (!d) return "Actualidad"
+    const [y, m] = d.split("-")
+    return m && m !== "01" ? `${m}/${y}` : y
+  }
+
+  let anteriorIdx = 0
+  const expBlocks = sorted.map((exp: any) => {
+    const esActual = !exp.hasta
+    const label    = esActual ? "TRABAJO ACTUAL" : `TRABAJO ANTERIOR ${++anteriorIdx}`
+    const periodo  = `${formatFechaSimple(exp.desde)} – ${formatFechaSimple(exp.hasta)}`
+    const lines = [
+      `▸ ${label}`,
+      `Cargo: ${val(exp.rol)}`,
+      `Establecimiento: ${val(exp.empresa)}`,
+      `Período: ${periodo}`,
+      `Ubicación: ${val(exp.ubicacion)}`,
+      `Propietario: ${val(exp.nombre_propietario)}`,
+      `Hectáreas: ${val(exp.dimension_establecimiento)}`,
+      `Personal a cargo: ${val(exp.personal_a_cargo)}`,
+      `En blanco: ${bool(exp.en_blanco)}`,
+      `Tareas: ${val(exp.descripcion)}`,
+    ]
+    if (esActual) {
+      lines.push(`Ingresos actuales: ${val(exp.ingresos_actuales)}`)
+      lines.push(`Beneficios: ${val(exp.beneficios)}`)
+    } else if (exp.motivo_cambio_o_salida) {
+      lines.push(`Motivo de salida: ${exp.motivo_cambio_o_salida}`)
+    }
+    return lines.join("\n")
+  }).join("\n\n")
+
+  // REFERENCIAS
+  const refsLines = referencias.map((r: any) =>
+    [r.nombre, r.relacion, r.contacto ? `Tel: ${r.contacto}` : null].filter(Boolean).join(" — ")
+  ).join("\n")
+
+  // Armar texto completo
+  const sep = "─".repeat(49)
+  const secciones: string[] = [
+    `DATOS PERSONALES\n${sep}\n${datosPersonales}`,
+  ]
+  if (c.perfil_laboral?.trim()) {
+    secciones.push(`PERFIL LABORAL\n${sep}\n${c.perfil_laboral.trim()}`)
+  }
+  if (expBlocks.trim()) {
+    secciones.push(`EXPERIENCIA LABORAL\n${sep}\n${expBlocks}`)
+  }
+  if (refsLines.trim()) {
+    secciones.push(`REFERENCIAS\n${sep}\n${refsLines}`)
+  }
+
+  const texto = secciones.join("\n\n")
+
+  const { error: upErr } = await supabase
+    .from("candidatos")
+    .update({ cv_procesado_texto: texto })
+    .eq("id", candidatoId)
+
+  if (upErr) return { success: false, error: upErr.message }
+
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true }
 }

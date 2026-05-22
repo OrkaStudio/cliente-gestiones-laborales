@@ -120,45 +120,66 @@ function DatosPersonalesPDF({ c }: { c: Candidato }) {
 
 function ExperienciaPDF({ experiencia }: { experiencia: Experiencia[] }) {
   if (!experiencia.length) return null
+  const sorted = [...experiencia].sort((a, b) => {
+    if (a.hasta === null) return -1
+    if (b.hasta === null) return  1
+    return (b.desde ?? "").localeCompare(a.desde ?? "")
+  })
   return (
     <View style={s.section}>
       <Text style={s.sectionTitle}>Experiencia Laboral</Text>
-      {experiencia.map((exp) => (
-        <View key={exp.id} style={s.jobBlock} wrap={false}>
-          <Text style={s.jobPeriod}>{formatFecha(exp.desde)} — {formatFecha(exp.hasta)}</Text>
-          <Text style={s.jobTitle}>{exp.rol} — {exp.empresa}</Text>
+      {sorted.map((exp, idx) => {
+        const label = exp.hasta === null ? "TRABAJO ACTUAL" : `TRABAJO ANTERIOR ${sorted.filter(e => e.hasta !== null).indexOf(exp) + 1}`
+        const periodo = `${formatFecha(exp.desde)} – ${formatFecha(exp.hasta)}`
+        return (
+          <View key={exp.id} style={s.jobBlock} wrap={false}>
+            {/* Label pequeño */}
+            <Text style={s.jobPeriod}>{label}</Text>
 
-          {/* Meta info */}
-          <View style={s.jobMeta}>
-            {exp.nombre_propietario  && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Propietario: </Text><Text style={s.jobMetaValue}>{exp.nombre_propietario}</Text></View>}
-            {exp.ubicacion           && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Ubicación: </Text><Text style={s.jobMetaValue}>{exp.ubicacion}</Text></View>}
-            {exp.dimension_establecimiento && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Establecimiento: </Text><Text style={s.jobMetaValue}>{exp.dimension_establecimiento}</Text></View>}
-            {exp.personal_a_cargo    && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Personal a cargo: </Text><Text style={s.jobMetaValue}>{exp.personal_a_cargo}</Text></View>}
-            {exp.en_blanco !== null  && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>En blanco: </Text><Text style={s.jobMetaValue}>{exp.en_blanco ? "Sí" : "No"}</Text></View>}
+            {/* Cargo + Período — misma fila */}
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 3 }}>
+              <Text style={[s.jobTitle, { flex: 1, marginBottom: 0 }]}>
+                {exp.rol || "sin dato"}
+              </Text>
+              <Text style={{ fontSize: 8.5, color: C.ink3, fontFamily: "Helvetica" }}>{periodo}</Text>
+            </View>
+
+            {/* Establecimiento · Ubicación */}
+            {(exp.empresa || exp.ubicacion) && (
+              <Text style={{ fontSize: 9.5, color: C.ink2, marginBottom: 5, fontFamily: "Helvetica-Bold" }}>
+                {[exp.empresa, exp.ubicacion].filter(Boolean).join("  ·  ")}
+              </Text>
+            )}
+
+            {/* Meta: Propietario, Hectáreas, Personal, En blanco */}
+            <View style={s.jobMeta}>
+              {exp.nombre_propietario       && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Propietario: </Text><Text style={s.jobMetaValue}>{exp.nombre_propietario}</Text></View>}
+              {exp.dimension_establecimiento && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Hectáreas: </Text><Text style={s.jobMetaValue}>{exp.dimension_establecimiento}</Text></View>}
+              {exp.personal_a_cargo          && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Personal: </Text><Text style={s.jobMetaValue}>{exp.personal_a_cargo}</Text></View>}
+              {exp.en_blanco !== null         && <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>En blanco: </Text><Text style={s.jobMetaValue}>{exp.en_blanco ? "Sí" : "No"}</Text></View>}
+            </View>
+
+            {/* Tareas */}
+            {exp.descripcion && <Text style={s.jobDesc}>{exp.descripcion}</Text>}
+
+            {/* Ingresos / Beneficios / Motivo */}
+            <View style={s.jobMeta}>
+              {exp.hasta === null && exp.ingresos_actuales && (
+                <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Ingresos actuales: </Text><Text style={s.jobMetaValue}>{exp.ingresos_actuales}</Text></View>
+              )}
+              {exp.hasta === null && exp.beneficios && (
+                <View style={s.jobMetaItem}><Text style={s.jobMetaLabel}>Beneficios: </Text><Text style={s.jobMetaValue}>{exp.beneficios}</Text></View>
+              )}
+              {exp.motivo_cambio_o_salida && (
+                <View style={s.jobMetaItem}>
+                  <Text style={s.jobMetaLabel}>Motivo de {exp.hasta === null ? "cambio" : "salida"}: </Text>
+                  <Text style={s.jobMetaValue}>{exp.motivo_cambio_o_salida}</Text>
+                </View>
+              )}
+            </View>
           </View>
-
-          {exp.descripcion && <Text style={s.jobDesc}>{exp.descripcion}</Text>}
-
-          {exp.hasta === null && exp.ingresos_actuales && (
-            <View style={s.jobMetaItem}>
-              <Text style={s.jobMetaLabel}>Ingresos actuales: </Text>
-              <Text style={s.jobMetaValue}>{exp.ingresos_actuales}</Text>
-            </View>
-          )}
-          {exp.hasta === null && exp.beneficios && (
-            <View style={s.jobMetaItem}>
-              <Text style={s.jobMetaLabel}>Beneficios: </Text>
-              <Text style={s.jobMetaValue}>{exp.beneficios}</Text>
-            </View>
-          )}
-          {exp.motivo_cambio_o_salida && (
-            <View style={s.jobMetaItem}>
-              <Text style={s.jobMetaLabel}>Motivo de {exp.hasta === null ? "cambio" : "salida"}: </Text>
-              <Text style={s.jobMetaValue}>{exp.motivo_cambio_o_salida}</Text>
-            </View>
-          )}
-        </View>
-      ))}
+        )
+      })}
     </View>
   )
 }

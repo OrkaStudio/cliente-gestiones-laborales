@@ -63,14 +63,20 @@ function splitJobBlocks(lines: string[]): { preLines: string[]; blocks: JobBlock
 // ─── Extracción semántica de campos de trabajo ────────────────────────────────
 
 interface JobFields {
-  cargo:          string
+  cargo:           string
   establecimiento: string
-  periodo:        string
-  tareas:         string
-  metadata:       string[]   // los demás KV que no son los 4 primarios
+  periodo:         string
+  ubicacion:       string
+  tareas:          string
+  metadata:        string[]   // los demás KV que no son los primarios
 }
 
-const PRIMARY_KEYS = new Set(["cargo", "establecimiento", "período", "periodo", "tareas", "descripción", "descripcion"])
+const PRIMARY_KEYS = new Set([
+  "cargo", "establecimiento",
+  "período", "periodo",
+  "ubicación", "ubicacion",
+  "tareas", "descripción", "descripcion",
+])
 
 function extractJobFields(lines: string[]): JobFields {
   const fields: Record<string, string> = {}
@@ -95,9 +101,10 @@ function extractJobFields(lines: string[]): JobFields {
   }
 
   return {
-    cargo:           fields["cargo"] ?? "",
-    establecimiento: fields["establecimiento"] ?? "",
-    periodo:         fields["período"] ?? fields["periodo"] ?? "",
+    cargo:           fields["cargo"]             ?? "",
+    establecimiento: fields["establecimiento"]   ?? "",
+    periodo:         fields["período"]  ?? fields["periodo"]  ?? "",
+    ubicacion:       fields["ubicación"] ?? fields["ubicacion"] ?? "",
     tareas:          fields["tareas"] ?? fields["descripción"] ?? fields["descripcion"] ?? "",
     metadata:        rest,
   }
@@ -105,59 +112,83 @@ function extractJobFields(lines: string[]): JobFields {
 
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 
+function SinDatoSpan() {
+  return <span style={{ color: INK3, fontStyle: "italic", fontWeight: 400 }}>sin dato</span>
+}
+
 function JobCard({ block }: { block: JobBlock }) {
   const f = extractJobFields(block.lines)
 
-  const hasHeader = f.cargo || f.establecimiento || f.periodo
-  const hasTareas = !!f.tareas
-  const hasMeta   = f.metadata.length > 0
+  const isSinDato = (v: string) => !v || v === "sin dato"
+  const metaConDato  = f.metadata.filter(m => !m.endsWith("sin dato"))
+  const metaSinDato  = f.metadata.filter(m => m.endsWith("sin dato"))
 
   return (
     <div style={{
-      background:    "#f7f9f5",
-      borderRadius:  8,
-      borderLeft:    `3px solid ${OLIVE}`,
-      padding:       "14px 18px",
-      marginBottom:  14,
+      background:   "#f7f9f5",
+      borderRadius: 8,
+      borderLeft:   `3px solid ${OLIVE}`,
+      padding:      "14px 18px",
+      marginBottom: 14,
     }}>
-      {/* Tipo (TRABAJO ACTUAL / TRABAJO ANTERIOR) — pequeño */}
+      {/* Tipo: TRABAJO ACTUAL / TRABAJO ANTERIOR N */}
       <div style={{
-        fontSize:      10,
+        fontSize:      9.5,
         fontWeight:    700,
-        letterSpacing: "0.12em",
+        letterSpacing: "0.14em",
         textTransform: "uppercase",
         color:         OLIVE,
-        marginBottom:  hasHeader ? 8 : 0,
-        opacity:       0.8,
+        opacity:       0.7,
+        marginBottom:  7,
       }}>
         {block.header}
       </div>
 
-      {/* Cargo */}
-      {f.cargo && (
-        <div style={{ fontSize: 15, fontWeight: 700, color: INK, lineHeight: 1.3, marginBottom: 3 }}>
-          {f.cargo}
+      {/* Cargo + Período — misma fila */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: INK, lineHeight: 1.3 }}>
+          {isSinDato(f.cargo) ? <SinDatoSpan /> : f.cargo}
+        </div>
+        {!isSinDato(f.periodo) && (
+          <div style={{ fontSize: 11, color: INK3, flexShrink: 0 }}>{f.periodo}</div>
+        )}
+      </div>
+
+      {/* Establecimiento · Ubicación */}
+      {(!isSinDato(f.establecimiento) || !isSinDato(f.ubicacion)) && (
+        <div style={{ fontSize: 13, marginBottom: 8, lineHeight: 1.4 }}>
+          {!isSinDato(f.establecimiento) && (
+            <span style={{ fontWeight: 600, color: OLIVE }}>{f.establecimiento}</span>
+          )}
+          {!isSinDato(f.ubicacion) && (
+            <span style={{ color: INK2 }}>
+              {!isSinDato(f.establecimiento) ? " · " : ""}{f.ubicacion}
+            </span>
+          )}
         </div>
       )}
 
-      {/* Empresa · Período */}
-      {(f.establecimiento || f.periodo) && (
-        <div style={{ fontSize: 13, color: INK2, marginBottom: hasTareas || hasMeta ? 10 : 0 }}>
-          {[f.establecimiento, f.periodo].filter(Boolean).join("  ·  ")}
+      {/* Metadata con dato */}
+      {metaConDato.length > 0 && (
+        <div style={{ fontSize: 11.5, color: INK3, lineHeight: 1.6, marginBottom: f.tareas ? 8 : 0 }}>
+          {metaConDato.join("  ·  ")}
         </div>
       )}
 
       {/* Tareas */}
-      {hasTareas && (
-        <p style={{ fontSize: 13, color: INK2, lineHeight: 1.65, margin: hasMeta ? "0 0 10px" : 0 }}>
+      {!isSinDato(f.tareas) && (
+        <p style={{ fontSize: 13, color: INK2, lineHeight: 1.65, margin: metaSinDato.length ? "0 0 8px" : 0 }}>
           {f.tareas}
         </p>
       )}
 
-      {/* Metadata en línea */}
-      {hasMeta && (
-        <div style={{ fontSize: 11.5, color: INK3, lineHeight: 1.6 }}>
-          {f.metadata.join("  ·  ")}
+      {/* Campos sin dato — agrupados al fondo en gris itálica */}
+      {(isSinDato(f.tareas) || metaSinDato.length > 0) && (
+        <div style={{ fontSize: 10.5, color: INK3, fontStyle: "italic", lineHeight: 1.6, opacity: 0.75 }}>
+          {[
+            isSinDato(f.tareas) ? "Tareas: sin dato" : null,
+            ...metaSinDato,
+          ].filter(Boolean).join("  ·  ")}
         </div>
       )}
     </div>
