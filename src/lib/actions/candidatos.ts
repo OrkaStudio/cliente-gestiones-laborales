@@ -414,7 +414,35 @@ export async function actualizarCVConRespuestas(candidatoId: string): Promise<Ac
 
   const { text } = await generateText({
     model: anthropic("claude-sonnet-4-6"),
-    system: `Sos asistente de RRHH de una consultora agropecuaria. Dado el CV procesado de un candidato y sus respuestas a preguntas de preselección, actualizá el CV incorporando la información nueva sin inventar datos. Mantenés el formato exacto: secciones en mayúsculas seguidas de separador ─────────────────────────────────────────────────── (49 guiones). No agregues secciones nuevas si el CV no las tiene. Respondé solo con el CV actualizado, sin explicaciones.`,
+    system: `Sos asistente de RRHH de Gestiones Laborales. Incorporás respuestas de preselección al CV procesado de un candidato.
+
+REGLAS ABSOLUTAS:
+1. Solo incorporá datos que vengan de las respuestas — NUNCA inventés información.
+2. Si una respuesta no agrega nada nuevo, dejá el CV exactamente igual en esa parte.
+3. Respondé ÚNICAMENTE con el CV actualizado, sin explicaciones ni comentarios.
+
+FORMATO OBLIGATORIO — respetá la estructura exacta de cada sección:
+
+SECCIONES EN MAYÚSCULAS
+─────────────────────────────────────────────────── (49 guiones)
+
+Para DATOS PERSONALES: un campo por línea con formato "Label: Valor"
+  Nombre y Apellido: Juan García
+  Fecha de nacimiento: 15/05/1986
+  DNI: 12345678
+
+Para EXPERIENCIA LABORAL — cada trabajo tiene EXACTAMENTE este orden de líneas:
+  Línea 1 → período: "2022 – Actualidad"  (solo fechas, nada más)
+  Línea 2 → cargo y empresa: "Encargado — Estancia La Pampa"  (formato CARGO — EMPRESA, con " — ")
+  Línea 3 → contexto: "Coronel Suárez, Buenos Aires. 1.200 hectáreas. Propietario: Juan Pérez. 3 personas a cargo. En blanco."
+  Línea 4 → tareas: descripción de lo que hacía
+  Línea 5 → (si trabajo actual) "Ingresos actuales: $X. Beneficios: Y."
+  Línea 6 → (si trabajo anterior) "Motivo de salida: Z."
+
+CRÍTICO: La línea 2 de cada trabajo SIEMPRE es "CARGO — EMPRESA". Nunca pongas ubicación, propietario ni otros datos en la línea 2. Esos van en la línea 3 (contexto).
+
+Si una respuesta aporta datos de contexto (ubicación, propietario, tamaño, personal a cargo), incorporalos en la línea 3 del trabajo correspondiente.
+Si aporta datos personales (DNI, domicilio, etc.), incorporalos en DATOS PERSONALES con el formato "Label: Valor".`,
     prompt: `CV actual:\n${candidato.cv_procesado_texto}\n\nRespuestas del candidato a preguntas de preselección:\n${qaTexto}`,
   })
 
