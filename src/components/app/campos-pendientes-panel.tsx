@@ -144,14 +144,16 @@ export function CamposPendientesPanel({
   const [sendPending, setSendPending]         = useState(false)
   const [error, setError]                     = useState<string | null>(null)
 
-  // ── Fallback: si no hay preguntas en DB, generar en background al montar ───
+  // ── Fallback: si no hay preguntas en DB, generar en background ──────────────
+  // Re-corre cuando cambia preguntasEnviadasDb (post-envío de tanda) para
+  // pre-generar solo los campos restantes, no los ya enviados.
 
   useEffect(() => {
-    if (dbItems) return // ya tenemos datos del DB
+    if (dbItems) return // ya tenemos preguntas mapeadas del DB → no necesitamos generar
 
-    const campos: CampoPendiente[] = [
-      ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
-      ...expPendientes.map((ep) => ({
+    const camposPendientes: CampoPendiente[] = [
+      ...pendientesNoEnviados.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
+      ...expPendientesNoEnviados.map((ep) => ({
         tipo: "experiencia" as const,
         expIndex: ep.expIndex,
         empresa: ep.empresa,
@@ -159,16 +161,16 @@ export function CamposPendientesPanel({
         label: ep.campo.label,
       })),
     ]
-    if (!campos.length) return
+    if (!camposPendientes.length) return
 
     setPreGenerating(true)
-    generarPreguntasParaCampos(candidatoId, campos).then((result) => {
+    generarPreguntasParaCampos(candidatoId, camposPendientes).then((result) => {
       if (result.success) {
         setBackgroundItems(buildItems(result.preguntas.map((p) => [p.campo, p.pregunta])))
       }
       setPreGenerating(false)
     })
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [preguntasEnviadasDb]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── helpers ─────────────────────────────────────────────────────────────────
 
@@ -234,8 +236,7 @@ export function CamposPendientesPanel({
     setEstado("idle")
     setItems([])
     setSeleccionados(new Set())
-    setBackgroundItems(null)  // forzar regeneración fresca la próxima vez
-    router.refresh()
+    router.refresh() // actualiza preguntasEnviadasDb → dispara el useEffect para regenerar
   }
 
   function handleCopiar() {
