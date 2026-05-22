@@ -16,6 +16,7 @@ import { NotasRecruiterInline } from "@/components/app/notas-recruiter-inline"
 import { CategoriasInlinePanel } from "@/components/app/categorias-inline-panel"
 import { CamposPendientesPanel } from "@/components/app/campos-pendientes-panel"
 import { marcarVisto } from "@/lib/actions/candidatos"
+import { Gauge } from "@/components/ui/gauge-1"
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -55,12 +56,28 @@ function calcYearsExp(exp: Array<{ desde: string | null }>) {
   return new Date().getFullYear() - Math.min(...years);
 }
 
-function calcCompleteness(c: Record<string, unknown>, exp: unknown[]) {
+function calcCompleteness(c: Record<string, unknown>, exp: unknown[], refs: unknown[]) {
   const checks = [
-    !!c.email, !!c.telefono, !!c.educacion, !!c.disponibilidad,
-    !!c.fecha_nacimiento, !!c.pretension_salarial,
-    Array.isArray(c.idiomas) && (c.idiomas as unknown[]).length > 0,
-    !!c.notas_recruiter, exp?.length > 0,
+    // Contacto
+    !!c.telefono,
+    !!c.email,
+    // Datos personales
+    !!c.fecha_nacimiento,
+    !!(c.domicilio_completo ?? c.ubicacion),
+    !!c.estado_civil,
+    c.hijos !== null && c.hijos !== undefined,
+    // Formación y disponibilidad
+    !!c.educacion,
+    !!c.disponibilidad,
+    !!c.pretension_salarial,
+    // Movilidad (planilla GL)
+    c.vehiculo_propio !== null && c.vehiculo_propio !== undefined,
+    c.licencia_conducir !== null && c.licencia_conducir !== undefined,
+    !!(c.movilidad),
+    // Trayectoria
+    !!c.perfil_laboral,
+    exp?.length > 0,
+    refs?.length > 0,
   ];
   return Math.round((checks.filter(Boolean).length / checks.length) * 100);
 }
@@ -94,7 +111,8 @@ export default async function CandidatoDetailPage({
   if (!candidato) notFound();
 
   const yearsExp         = calcYearsExp(experiencia ?? []);
-  const completeness     = calcCompleteness(candidato, experiencia ?? []);
+  const referencias      = (candidato.referencias as unknown[] | null) ?? [];
+  const completeness     = calcCompleteness(candidato, experiencia ?? [], referencias);
   const inBaseSince      = candidato.fecha_ingreso?.substring(0, 7) ?? "—";
   const edad             = candidato.fecha_nacimiento ? calcAge(candidato.fecha_nacimiento) : null;
   const gestionesActivas = gestionesData?.filter(
@@ -268,7 +286,7 @@ export default async function CandidatoDetailPage({
         </div>
 
         {/* Stats strip + completeness */}
-        <div className="mt-6 pt-5 space-y-4" style={{ borderTop: "1px solid var(--gl-border)" }}>
+        <div className="mt-6 pt-5 flex items-end justify-between gap-4" style={{ borderTop: "1px solid var(--gl-border)" }}>
 
           {/* Stats en fila */}
           <div className="flex items-center gap-6 flex-wrap">
@@ -287,19 +305,16 @@ export default async function CandidatoDetailPage({
             ))}
           </div>
 
-          {/* Completeness bar */}
-          <div className="flex items-center gap-3">
-            <span className="text-[10.5px] font-semibold uppercase tracking-wide shrink-0 w-28" style={{ color: "var(--gl-ink-3)" }}>
-              Perfil completo
-            </span>
-            <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--gl-border)" }}>
-              <div
-                className="h-full rounded-full transition-all"
-                style={{ width: `${completeness}%`, background: "var(--gl-olive)" }}
-              />
-            </div>
-            <span className="text-xs font-bold tabular-nums shrink-0" style={{ color: "var(--gl-olive)" }}>
-              {completeness}%
+          {/* Gauge de completeness */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <Gauge
+              size="medium"
+              value={completeness}
+              showValue
+              colors={{ "0": "#dc2626", "40": "#f59e0b", "70": "#2a4a18" }}
+            />
+            <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+              Perfil
             </span>
           </div>
         </div>

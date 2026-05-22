@@ -570,6 +570,20 @@ export async function updateCandidatoFields(
   return { success: true, id }
 }
 
+async function maybeSyncCV(
+  candidatoId: string,
+  supabase: ReturnType<typeof createServiceClient>,
+) {
+  const { data } = await supabase
+    .from("candidatos")
+    .select("cv_procesado_texto")
+    .eq("id", candidatoId)
+    .single()
+  if (data?.cv_procesado_texto) {
+    await regenerarCVTextoDesdeDatos(candidatoId)
+  }
+}
+
 export async function updateExperienciaFields(
   expId: string,
   candidatoId: string,
@@ -578,6 +592,7 @@ export async function updateExperienciaFields(
   const supabase = createServiceClient()
   const { error } = await supabase.from("experiencia_laboral").update(fields).eq("id", expId)
   if (error) return { success: false, error: error.message }
+  await maybeSyncCV(candidatoId, supabase)
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: expId }
@@ -594,6 +609,7 @@ export async function addExperiencia(
     .select("id")
     .single()
   if (error) return { success: false, error: error.message }
+  await maybeSyncCV(candidatoId, supabase)
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: data.id }
@@ -603,6 +619,7 @@ export async function deleteExperiencia(expId: string, candidatoId: string): Pro
   const supabase = createServiceClient()
   const { error } = await supabase.from("experiencia_laboral").delete().eq("id", expId)
   if (error) return { success: false, error: error.message }
+  await maybeSyncCV(candidatoId, supabase)
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: expId }
@@ -671,7 +688,7 @@ export async function updateCandidato(id: string, data: CandidatoData): Promise<
 
   if (error) return { success: false, error: error.message }
 
-  // Sincronizar DATOS PERSONALES del CV con los valores del perfil
+  // Regenerar cv_procesado_texto desde datos estructurados (si ya tiene CV)
   const { data: row } = await supabase
     .from("candidatos")
     .select("cv_procesado_texto")
@@ -679,13 +696,7 @@ export async function updateCandidato(id: string, data: CandidatoData): Promise<
     .single()
 
   if (row?.cv_procesado_texto) {
-    const synced = syncDatosPersonales(row.cv_procesado_texto, data)
-    if (synced !== row.cv_procesado_texto) {
-      await supabase
-        .from("candidatos")
-        .update({ cv_procesado_texto: synced })
-        .eq("id", id)
-    }
+    await regenerarCVTextoDesdeDatos(id)
   }
 
   revalidatePath("/candidatos")
