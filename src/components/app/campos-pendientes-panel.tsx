@@ -123,25 +123,24 @@ export function CamposPendientesPanel({
 
   // ── Inicializar desde DB (ya generadas al parsear el CV) ────────────────────
 
-  const initialItems = pregunasMapeadasDb
-    ? buildItemsFromDb(pregunasMapeadasDb)
-    : null
+  // Derivado en cada render para que refleje preguntasEnviadasDb actualizado post-envío
+  const dbItems = pregunasMapeadasDb ? buildItemsFromDb(pregunasMapeadasDb) : null
+  const [backgroundItems, setBackgroundItems] = useState<ItemActivo[] | null>(null)
+  const pregeneratedItems = dbItems ?? backgroundItems
 
   const [estado, setEstado]                   = useState<Estado>("idle")
   const [items, setItems]                     = useState<ItemActivo[]>([])
-  const [pregeneratedItems, setPregeneratedItems] = useState<ItemActivo[] | null>(initialItems)
   const [preGenerating, setPreGenerating]     = useState(false)
   const [seleccionados, setSeleccionados]     = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen]             = useState(false)
   const [mensajeTexto, setMensajeTexto]       = useState("")
-  const [enviado, setEnviado]                 = useState(false)
   const [sendPending, setSendPending]         = useState(false)
   const [error, setError]                     = useState<string | null>(null)
 
   // ── Fallback: si no hay preguntas en DB, generar en background al montar ───
 
   useEffect(() => {
-    if (initialItems) return // ya tenemos datos del DB
+    if (dbItems) return // ya tenemos datos del DB
 
     const campos: CampoPendiente[] = [
       ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
@@ -158,7 +157,7 @@ export function CamposPendientesPanel({
     setPreGenerating(true)
     generarPreguntasParaCampos(candidatoId, campos).then((result) => {
       if (result.success) {
-        setPregeneratedItems(buildItems(result.preguntas.map((p) => [p.campo, p.pregunta])))
+        setBackgroundItems(buildItems(result.preguntas.map((p) => [p.campo, p.pregunta])))
       }
       setPreGenerating(false)
     })
@@ -222,8 +221,10 @@ export function CamposPendientesPanel({
     await registrarEnvioWhatsapp(candidatoId, mensajeTexto, preguntasTexto, preguntasConCampo)
     window.open(`${waUrl(telefono)}?text=${encodeURIComponent(mensajeTexto)}`, "_blank")
     setSendPending(false)
-    setEnviado(true)
     setModalOpen(false)
+    setEstado("idle")
+    setItems([])
+    setSeleccionados(new Set())
     router.refresh()
   }
 
@@ -423,7 +424,7 @@ export function CamposPendientesPanel({
             {headerLabel}
             <button
               type="button"
-              onClick={() => { setEstado("idle"); setItems([]); setSeleccionados(new Set()); setEnviado(false) }}
+              onClick={() => { setEstado("idle"); setItems([]); setSeleccionados(new Set()) }}
               style={{ fontSize: 11, color: "#8b9e73", background: "none", border: "none", cursor: "pointer", padding: "2px 6px" }}
             >
               ← volver
@@ -505,23 +506,11 @@ export function CamposPendientesPanel({
 
           {/* Footer */}
           <div style={{ marginTop: 12, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-            {enviado ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ width: 22, height: 22, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <CheckCircle style={{ width: 14, height: 14, color: "#1a7f37" }} />
-                </div>
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#1a7f37" }}>
-                  Enviado — {new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
-            ) : (
-              <span style={{ fontSize: 11.5, color: nSel > 0 ? "#5a6e48" : "#8b9e73", fontWeight: nSel > 0 ? 600 : 400 }}>
-                {nSel === 0 ? "Seleccioná los campos que querés preguntar" : `${nSel} pregunta${nSel !== 1 ? "s" : ""}`}
-              </span>
-            )}
+            <span style={{ fontSize: 11.5, color: nSel > 0 ? "#5a6e48" : "#8b9e73", fontWeight: nSel > 0 ? 600 : 400 }}>
+              {nSel === 0 ? "Seleccioná los campos que querés preguntar" : `${nSel} pregunta${nSel !== 1 ? "s" : ""}`}
+            </span>
 
-            {!enviado && (
-              <button
+            <button
                 type="button"
                 onClick={() => handleAbrirModal(items)}
                 disabled={nSel === 0}
@@ -538,7 +527,6 @@ export function CamposPendientesPanel({
                 <MessageCircle style={{ width: 13, height: 13 }} />
                 Armar mensaje →
               </button>
-            )}
           </div>
         </div>
       </>

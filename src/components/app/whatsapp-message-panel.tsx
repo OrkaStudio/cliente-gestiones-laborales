@@ -261,6 +261,19 @@ export function WhatsappMessagePanel({
             )}
           </div>
 
+          {/* Lista de preguntas enviadas como referencia */}
+          <div className="flex flex-col gap-1 mb-3 rounded-xl p-3" style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}>
+            <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
+              Preguntas realizadas
+            </div>
+            {preguntasEnviadasDb!.map((p, i) => (
+              <div key={p.campo} className="flex gap-2 text-[12px]" style={{ color: "var(--gl-ink-2, #4a5c38)" }}>
+                <span className="shrink-0 font-semibold">{i + 1}.</span>
+                <span>{p.pregunta}</span>
+              </div>
+            ))}
+          </div>
+
           <textarea
             value={respuestaTexto}
             onChange={(e) => setRespuestaTexto(e.target.value)}
