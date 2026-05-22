@@ -77,6 +77,7 @@ interface ItemActivo {
   pregunta: string
   grupo?: string
   expId?: string
+  empresa?: string
 }
 
 interface Props {
@@ -120,6 +121,12 @@ export function CamposPendientesPanel({
     })
   })
   const total = pendientes.length + expPendientes.length
+
+  const sentCampos = new Set<string>(preguntasEnviadasDb?.map((p) => p.campo) ?? [])
+  const pendientesNoEnviados = pendientes.filter((c) => !sentCampos.has(`candidato:${c.key as string}`))
+  const expPendientesNoEnviados = expPendientes.filter(
+    (ep) => !sentCampos.has(`exp:${ep.expIndex}:${ep.campo.id}`)
+  )
 
   // ── Inicializar desde DB (ya generadas al parsear el CV) ────────────────────
 
@@ -182,7 +189,7 @@ export function CamposPendientesPanel({
         const key = `exp:${ep.expIndex}:${ep.campo.id}`
         const pregunta = pregByKey.get(key)
         if (!pregunta) return []
-        return [{ key, label: `${ep.empresa}: ${ep.campo.label}`, pregunta, grupo: "Experiencia laboral", expId: ep.expId }]
+        return [{ key, label: ep.campo.label, pregunta, grupo: "Experiencia laboral", expId: ep.expId, empresa: ep.empresa }]
       }),
     ]
   }
@@ -239,8 +246,9 @@ export function CamposPendientesPanel({
 
   async function handlePreparar() {
     if (pregeneratedItems) {
-      // Already ready — instant
-      setItems(pregeneratedItems)
+      // Already ready — instant; filter out campos already sent in a previous tanda
+      const filtered = pregeneratedItems.filter((it) => !sentCampos.has(it.key))
+      setItems(filtered)
       setSeleccionados(new Set())
       setEstado("activo")
       return
@@ -250,8 +258,8 @@ export function CamposPendientesPanel({
     setError(null)
     setEstado("cargando")
     const campos: CampoPendiente[] = [
-      ...pendientes.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
-      ...expPendientes.map((ep) => ({
+      ...pendientesNoEnviados.map((c) => ({ tipo: "candidato" as const, campo: c.key as string, label: c.label })),
+      ...expPendientesNoEnviados.map((ep) => ({
         tipo: "experiencia" as const, expIndex: ep.expIndex, empresa: ep.empresa,
         campo: ep.campo.id, label: ep.campo.label,
       })),
@@ -444,6 +452,26 @@ export function CamposPendientesPanel({
             {grupos.map((grupo) => {
               const grupoItems = items.filter((it) => it.grupo === grupo)
               if (!grupoItems.length) return null
+              if (grupo === "Experiencia laboral") {
+                const empresas = Array.from(new Set(grupoItems.map((it) => it.empresa ?? "")))
+                return (
+                  <div key={grupo}>
+                    <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 }}>
+                      {grupo}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {empresas.map((empresa) => (
+                        <div key={empresa}>
+                          <div style={{ fontSize: 10, fontWeight: 600, color: "#6b7c5a", marginBottom: 5 }}>{empresa}</div>
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                            {grupoItems.filter((it) => (it.empresa ?? "") === empresa).map((item) => <Chip key={item.key} item={item} />)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              }
               return (
                 <div key={grupo}>
                   <div style={{ fontSize: 9.5, fontWeight: 600, color: "#8b9e73", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 6 }}>

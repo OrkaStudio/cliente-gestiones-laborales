@@ -136,6 +136,7 @@ export function WhatsappMessagePanel({
       if (result.success) {
         setCvOk(true)
         router.refresh()
+        setTimeout(() => setCvOk(false), 2500)
       } else {
         setCvErr(result.error)
       }

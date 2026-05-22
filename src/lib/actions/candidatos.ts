@@ -348,7 +348,7 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: candidatoData } = await (supabase.from("candidatos") as any)
-    .select("respuestas_candidato, preguntas_enviadas")
+    .select("respuestas_candidato")
     .eq("id", candidatoId)
     .single()
 
@@ -357,17 +357,13 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
     .filter((p) => extraido[p.campo])
     .map((p) => ({ pregunta: p.pregunta, respuesta: String(extraido[p.campo] ?? "") }))
 
-  const preguntasEnviadasActuales = (candidatoData?.preguntas_enviadas as PreguntaEnviada[] | null) ?? []
-  const preguntasRestantes = preguntasEnviadasActuales.filter(
-    (p: PreguntaEnviada) => !camposCompletados.includes(p.campo),
-  )
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase.from("candidatos") as any)
     .update({
       ...candidatoUpdates,
       respuestas_candidato: [...respuestasActuales, ...nuevasRespuestas],
-      preguntas_enviadas: preguntasRestantes,
+      // preguntas_enviadas intencionalmente NO se modifica: la card de tanda debe
+      // seguir visible después del refresh para que el usuario pueda hacer "Actualizar CV"
     })
     .eq("id", candidatoId)
 
