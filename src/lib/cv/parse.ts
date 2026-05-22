@@ -1,12 +1,12 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import mammoth from "mammoth";
-import * as pdfParseMod from "pdf-parse";
 import { z } from "zod";
 
-// pdf-parse v1 — importar como default-safe (v2 rompe la API, lección 2026-05-gl-pdf-parse-v2-api-incompatible)
+// pdf-parse v1 — importar desde lib/ directamente para evitar que el módulo lea
+// ./test/data/05-versions-space.pdf al inicializarse (rompe el build en Vercel/Next.js)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pdfParse: (buf: Buffer) => Promise<{ text: string }> = (pdfParseMod as any).default ?? pdfParseMod;
+const pdfParse: (buf: Buffer) => Promise<{ text: string }> = require("pdf-parse/lib/pdf-parse.js");
 
 // Strings usan "" como sentinel de "desconocido" para no superar el límite de
 // 16 union types de Anthropic. Solo boolean/number/hasta quedan como nullable.
