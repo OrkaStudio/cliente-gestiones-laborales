@@ -2,8 +2,8 @@
 
 import { useState, useRef, useTransition, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, Check, X, Download, FileText, Save, RefreshCw } from "lucide-react"
-import { updateCVProcesado, regenerarCVTextoDesdeDatos } from "@/lib/actions/candidatos"
+import { Pencil, Check, X, Download, FileText, Save } from "lucide-react"
+import { updateCVProcesado } from "@/lib/actions/candidatos"
 import {
   parseSections, assembleSections,
   parseKV, parseJobs, parseBullets, parseRefs, parseJobBlocksB,
@@ -30,13 +30,22 @@ interface Props {
 function KVContent({ content }: { content: string }) {
   const pairs = parseKV(content)
   return (
-    <div className="space-y-2.5">
-      {pairs.map(({ label, value }, i) => (
-        <div key={i} className="grid items-baseline" style={{ gridTemplateColumns: "155px 1fr", columnGap: 16 }}>
-          {label && <span style={{ fontSize: 12, color: "var(--gl-ink-3)", lineHeight: 1.5 }}>{label}</span>}
-          <span style={{ fontSize: 13, color: "var(--gl-ink)", lineHeight: 1.5, gridColumn: label ? "auto" : "1 / -1" }}>{value}</span>
-        </div>
-      ))}
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px 32px" }}>
+      {pairs.map(({ label, value }, i) => {
+        const sinDato = !value || value === "sin dato"
+        return (
+          <div key={i} style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {label && (
+              <span style={{ fontSize: 10, fontWeight: 600, letterSpacing: "0.05em", textTransform: "uppercase", color: "var(--gl-ink-3)" }}>
+                {label}
+              </span>
+            )}
+            <span style={{ fontSize: 13, color: sinDato ? "var(--gl-ink-3)" : "var(--gl-ink)", fontStyle: sinDato ? "italic" : "normal", lineHeight: 1.4 }}>
+              {value || "sin dato"}
+            </span>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -70,10 +79,6 @@ function ExperienceContent({ content }: { content: string }) {
       {blocks.map((b, i) => {
         const isSinDato = (v: string) => !v || v === "sin dato"
 
-        // Metadata: filtrar los que son "sin dato" excepto los que tienen dato real
-        const metadataConDato    = b.metadata.filter(m => !m.endsWith("sin dato"))
-        const metadataSinDato    = b.metadata.filter(m => m.endsWith("sin dato"))
-
         return (
           <div key={i} className="pl-3.5" style={{ borderLeft: "2px solid var(--gl-border)" }}>
             {/* Tipo: TRABAJO ACTUAL / TRABAJO ANTERIOR N */}
@@ -83,8 +88,8 @@ function ExperienceContent({ content }: { content: string }) {
 
             {/* Cargo + Período — misma fila */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 3 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--gl-ink)", lineHeight: 1.3 }}>
-                {isSinDato(b.cargo) ? <SinDatoTag /> : b.cargo}
+              <span style={{ fontSize: 14, fontWeight: 700, color: isSinDato(b.cargo) ? "var(--gl-ink-3)" : "var(--gl-ink)", fontStyle: isSinDato(b.cargo) ? "italic" : "normal", lineHeight: 1.3 }}>
+                {isSinDato(b.cargo) ? "sin dato" : b.cargo}
               </span>
               {!isSinDato(b.periodo) && (
                 <span style={{ fontSize: 11, color: "var(--gl-ink-3)", flexShrink: 0 }}>{b.periodo}</span>
@@ -92,40 +97,45 @@ function ExperienceContent({ content }: { content: string }) {
             </div>
 
             {/* Establecimiento · Ubicación */}
-            {(!isSinDato(b.establecimiento) || !isSinDato(b.ubicacion)) && (
-              <div style={{ fontSize: 12.5, marginBottom: 7, lineHeight: 1.4 }}>
-                {!isSinDato(b.establecimiento) && (
-                  <span style={{ fontWeight: 600, color: "var(--gl-olive)" }}>{b.establecimiento}</span>
-                )}
-                {!isSinDato(b.ubicacion) && (
-                  <span style={{ color: "var(--gl-ink-3)" }}>
-                    {!isSinDato(b.establecimiento) ? " · " : ""}{b.ubicacion}
-                  </span>
-                )}
-              </div>
-            )}
+            <div style={{ fontSize: 12.5, marginBottom: 8, lineHeight: 1.4 }}>
+              {!isSinDato(b.establecimiento)
+                ? <span style={{ fontWeight: 600, color: "var(--gl-olive)" }}>{b.establecimiento}</span>
+                : <span style={{ color: "var(--gl-ink-3)", fontStyle: "italic" }}>sin dato</span>
+              }
+              {!isSinDato(b.ubicacion) && (
+                <span style={{ color: "var(--gl-ink-3)" }}> · {b.ubicacion}</span>
+              )}
+            </div>
 
-            {/* Metadata con dato */}
-            {metadataConDato.length > 0 && (
-              <div style={{ fontSize: 11, color: "var(--gl-ink-3)", marginBottom: 6, lineHeight: 1.6 }}>
-                {metadataConDato.join("  ·  ")}
+            {/* Metadata — grilla 2 columnas, siempre visible */}
+            {b.metadata.length > 0 && (
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr",
+                gap: "5px 16px", marginBottom: 8,
+                background: "rgba(42,74,24,0.04)", borderRadius: 6, padding: "8px 10px",
+              }}>
+                {b.metadata.map((m, j) => {
+                  const kv = m.match(/^([^:]+):\s*(.+)$/)
+                  if (!kv) return null
+                  const sinD = kv[2].trim() === "sin dato"
+                  return (
+                    <div key={j} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                      <span style={{ fontSize: 9.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em", color: "var(--gl-ink-3)" }}>
+                        {kv[1].trim()}
+                      </span>
+                      <span style={{ fontSize: 12, color: sinD ? "var(--gl-ink-3)" : "var(--gl-ink-2)", fontStyle: sinD ? "italic" : "normal" }}>
+                        {kv[2].trim()}
+                      </span>
+                    </div>
+                  )
+                })}
               </div>
             )}
 
             {/* Tareas */}
-            {!isSinDato(b.tareas) && (
-              <p style={{ fontSize: 12.5, color: "var(--gl-ink-2)", lineHeight: 1.7, margin: "0 0 4px" }}>{b.tareas}</p>
-            )}
-
-            {/* Campos sin dato — agrupados al final en gris */}
-            {(isSinDato(b.tareas) || metadataSinDato.length > 0) && (
-              <div style={{ fontSize: 10.5, color: "var(--gl-ink-3)", fontStyle: "italic", lineHeight: 1.6, opacity: 0.7, marginTop: 4 }}>
-                {[
-                  isSinDato(b.tareas) ? "Tareas: sin dato" : null,
-                  ...metadataSinDato,
-                ].filter(Boolean).join("  ·  ")}
-              </div>
-            )}
+            <p style={{ fontSize: 12.5, color: isSinDato(b.tareas) ? "var(--gl-ink-3)" : "var(--gl-ink-2)", fontStyle: isSinDato(b.tareas) ? "italic" : "normal", lineHeight: 1.7, margin: 0 }}>
+              {isSinDato(b.tareas) ? "Tareas: sin dato" : b.tareas}
+            </p>
           </div>
         )
       })}
@@ -192,15 +202,14 @@ function SectionContentWeb({ title, content }: { title: string; content: string 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto, hideDownload = false }: Props) {
-  const [sections,     setSections]     = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
-  const [editMode,     setEditMode]     = useState(false)
-  const [activeIdx,    setActiveIdx]    = useState<number | null>(null)
-  const [drafts,       setDrafts]       = useState<Record<number, string>>({})
-  const [showConfirm,  setShowConfirm]  = useState(false)
-  const [pendingHref,  setPendingHref]  = useState<string | null>(null)
-  const [saved,        setSaved]        = useState(false)
-  const [regenerando,  setRegenerando]  = useState(false)
-  const [isPending,    start]           = useTransition()
+  const [sections,    setSections]    = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
+  const [editMode,    setEditMode]    = useState(false)
+  const [activeIdx,   setActiveIdx]   = useState<number | null>(null)
+  const [drafts,      setDrafts]      = useState<Record<number, string>>({})
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [pendingHref, setPendingHref] = useState<string | null>(null)
+  const [saved,       setSaved]       = useState(false)
+  const [isPending,   start]          = useTransition()
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const router = useRouter()
 
@@ -361,21 +370,6 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
                     <Check className="h-3.5 w-3.5" /> Guardado
                   </span>
                 )}
-                <button
-                  onClick={async () => {
-                    setRegenerando(true)
-                    await regenerarCVTextoDesdeDatos(candidatoId)
-                    router.refresh()
-                    setRegenerando(false)
-                  }}
-                  disabled={regenerando}
-                  title="Regenera el CV en el nuevo formato a partir de los datos del perfil"
-                  className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[11px] font-medium transition-colors disabled:opacity-50"
-                  style={{ background: "var(--gl-gray-bg)", color: "var(--gl-ink-3)", border: "1px solid var(--gl-border)" }}
-                >
-                  <RefreshCw className={`h-3 w-3 ${regenerando ? "animate-spin" : ""}`} />
-                  {regenerando ? "Regenerando…" : "Regenerar formato"}
-                </button>
                 <button
                   onClick={enterEditMode}
                   className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors"

@@ -13,7 +13,7 @@ const pdfParse: (buf: Buffer) => Promise<{ text: string }> = require("pdf-parse/
 const ExperienciaSchema = z.object({
   empresa: z.string().describe("Nombre del establecimiento o empresa. Si no está nombrado, usar descripción aproximada como 'Campo en Coronel Suárez' o 'Establecimiento familiar en Balcarce'. Vacío solo si no hay ninguna referencia posible."),
   nombre_propietario: z.string().describe("Nombre del propietario o empleador. Vacío si no se menciona"),
-  rol: z.string().describe("Cargo o puesto desempeñado. Si no está explícito, inferirlo de las tareas descriptas. Guía: ordeñe/tambo → 'Tambero'; tractores/siembra/cosecha → 'Tractorista'; arreo/rodeo/hacienda sin supervisión → 'Peón General'; supervisión de personal + manejo general → 'Encargado General' o 'Capataz'; cría/cuidado de animales en puesto → 'Puestero'. Dejar vacío solo si es absolutamente imposible inferirlo."),
+  rol: z.string().describe("Cargo o puesto tal como figura escrito en el CV. Si el CV solo lista tareas sin nombrar el cargo, dejar vacío — NO inferir ni inventar. Se le preguntará al candidato."),
   desde: z.string().describe('Fecha de inicio. Ej: "2020", "03/2022", "2020-03". Si es narrativo ("hace 3 años", "desde 2018 aproximadamente"), convertir a año estimado.'),
   hasta: z.string().nullable().describe("Fecha de fin. null si es el trabajo actual"),
   ubicacion: z.string().describe("Localidad y provincia del establecimiento. Vacío si no se menciona"),
@@ -179,11 +179,13 @@ Reglas generales:
 - personal_a_cargo_max: el mayor número de personas a cargo en cualquier trabajo
 - Si el domicilio es parcial (solo ciudad): ponelo en ubicacion, dejá domicilio_completo null
 
+REGLA FUNDAMENTAL: Solo extraé información que esté escrita en el CV. NUNCA inventar, asumir ni completar datos que no están. Si algo no figura → campo vacío.
+
 Reglas para CVs en formatos no estándar:
 - CV narrativo (párrafos sin estructura): igualmente extraé cada trabajo como item separado de experiencia
 - CV sin secciones claras: inferí las secciones desde el contenido
-- Sin cargo explícito: inferir desde las tareas es OBLIGATORIO — nunca dejar rol vacío si hay descripción de tareas
-- Empresa sin nombre: usar ubicación o descripción ("campo en Balcarce", "establecimiento familiar")
+- Sin cargo explícito: dejar rol vacío — NO inventar ni inferir. Se preguntará al candidato.
+- Empresa sin nombre: usar lo que haya ("Establecimiento Santa María", "campo en Balcarce"). Vacío solo si no hay ninguna referencia.
 - Fechas narrativas ("hace 3 años", "desde que salí del colegio"): estimá el año aproximado
 - NUNCA omitir un trabajo — si hay evidencia de actividad laboral, crear el item de experiencia
 - Toda información del CV que no tenga campo propio va en informacion_adicional — no tirar nada
@@ -228,9 +230,11 @@ REFERENCIAS:
 Reglas para las preguntas:
 • Máximo 10, priorizando: DNI y domicilio > situación familiar > datos laborales > referencias
 • Solo preguntá lo que NO está en el CV — si ya lo sabés, no lo preguntes
+• ESPECÍFICAS: mencioná el establecimiento real por nombre. No preguntes "¿cuál era tu cargo?" sino "¿Cuál era tu cargo en [Establecimiento Santa María]?"
+• CONTEXTUALES: adaptá cada pregunta al tipo de trabajo. Para alguien que manejó hacienda, preguntá "¿Cuántas cabezas manejabas en [Estancia X]?" o "¿Cuántas hectáreas tiene [Establecimiento Y]?", no preguntas genéricas.
+• PERSONAL A CARGO: solo preguntá si tiene sentido según el rol. Para tareas básicas de campo, formulalo naturalmente: "¿Trabajabas solo en [establecimiento] o había más personal?"
 • Si tiene la ciudad pero no la dirección: preguntá solo calle y número
 • Si ya mencionó hijos: no preguntes si tiene hijos, preguntá solo las edades si no las dijo
-• Si el CV dice que trabaja solo: no preguntes personal a cargo
 • Agrupar cuando tiene sentido: "¿Cuál es tu estado civil? ¿Tenés hijos?" es una pregunta`;
 }
 
