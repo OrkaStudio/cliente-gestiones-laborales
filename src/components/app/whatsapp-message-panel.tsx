@@ -14,7 +14,7 @@ import {
 
 // ─── Overlay de carga / éxito ─────────────────────────────────────────────────
 
-function CVOverlay({ estado }: { estado: "cargando" | "ok" }) {
+function LoadingOverlay({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
   return (
     <div style={{
       position: "fixed", inset: 0, zIndex: 9999,
@@ -27,30 +27,41 @@ function CVOverlay({ estado }: { estado: "cargando" | "ok" }) {
         display: "flex", flexDirection: "column", alignItems: "center",
         gap: 16, minWidth: 260,
       }}>
-        {estado === "cargando" ? (
-          <>
-            <div style={{
-              width: 44, height: 44, borderRadius: "50%",
-              border: "3px solid #e2e8d9", borderTopColor: "#2a4a18",
-              animation: "spin 0.9s linear infinite",
-            }} />
-            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>Actualizando CV…</div>
-              <div style={{ fontSize: 12, color: "#8b949e" }}>Procesando la conversación…</div>
-            </div>
-          </>
-        ) : (
-          <>
-            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <CheckCircle style={{ width: 26, height: 26, color: "#1a7f37" }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>CV actualizado</div>
-              <div style={{ fontSize: 12, color: "#8b949e" }}>Los cambios ya están guardados</div>
-            </div>
-          </>
-        )}
+        <div style={{
+          width: 44, height: 44, borderRadius: "50%",
+          border: "3px solid #e2e8d9", borderTopColor: "#2a4a18",
+          animation: "spin 0.9s linear infinite",
+        }} />
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>{titulo}</div>
+          <div style={{ fontSize: 12, color: "#8b949e" }}>{subtitulo}</div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SuccessOverlay({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
+  return (
+    <div style={{
+      position: "fixed", inset: 0, zIndex: 9999,
+      background: "rgba(13,17,23,0.55)", backdropFilter: "blur(3px)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <div style={{
+        background: "#fff", borderRadius: 20, padding: "40px 52px",
+        textAlign: "center", boxShadow: "0 24px 64px rgba(13,17,23,0.22)",
+        display: "flex", flexDirection: "column", alignItems: "center",
+        gap: 16, minWidth: 260,
+      }}>
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#dafbe1", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <CheckCircle style={{ width: 26, height: 26, color: "#1a7f37" }} />
+        </div>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#0d1117", marginBottom: 4 }}>{titulo}</div>
+          <div style={{ fontSize: 12, color: "#8b949e" }}>{subtitulo}</div>
+        </div>
       </div>
     </div>
   )
@@ -175,8 +186,8 @@ export function WhatsappMessagePanel({
 
     return (
       <>
-        {cicloPending && <CVOverlay estado="cargando" />}
-        {cicloOk      && <CVOverlay estado="ok" />}
+        {cicloPending && <LoadingOverlay titulo="Actualizando CV…" subtitulo="Procesando la conversación…" />}
+        {cicloOk      && <SuccessOverlay titulo="CV actualizado" subtitulo="Los cambios ya están guardados" />}
         <div className="rounded-2xl border p-5" style={CARD}>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -244,6 +255,12 @@ export function WhatsappMessagePanel({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Overlays globales */}
+      {extractandoPor !== null && <LoadingOverlay titulo="Extrayendo respuestas…" subtitulo="Claude está procesando el texto del candidato…" />}
+      {cvPending && <LoadingOverlay titulo="Actualizando CV…" subtitulo="Claude está reescribiendo el perfil con las respuestas…" />}
+      {cvOk      && <SuccessOverlay titulo="CV actualizado" subtitulo="El perfil ya refleja las respuestas del candidato" />}
+      {cvErr     && null /* el error se muestra inline en la card */}
+
       {/* Una card por tanda */}
       {tandas.map((tanda) => {
         const extraida         = isTandaExtraida(tanda)
@@ -349,8 +366,8 @@ export function WhatsappMessagePanel({
         )
       })}
 
-      {/* Q&A read-only */}
-      {hasRespuestas && (
+      {/* Q&A read-only — solo se muestra cuando no hay sistema de tandas (candidatos legacy) */}
+      {hasRespuestas && tandas.length === 0 && (
         <div className="rounded-2xl border p-5" style={CARD}>
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -382,6 +399,20 @@ export function WhatsappMessagePanel({
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Botón para agregar conversación manual — siempre visible cuando hay tandas */}
+      {tandas.length > 0 && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setModoCiclo(true)}
+            className="text-[11.5px] font-semibold px-3 py-1.5 rounded-lg"
+            style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "none", cursor: "pointer" }}
+          >
+            + Agregar conversación libre
+          </button>
         </div>
       )}
 
