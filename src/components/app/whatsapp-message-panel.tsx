@@ -85,28 +85,46 @@ export function WhatsappMessagePanel({
   const [cicloOk, setCicloOk]                 = useState(false)
   const [cicloErr, setCicloErr]               = useState<string | null>(null)
   const [cicloPending, startCiclo]            = useTransition()
-  const [respuestaTexto, setRespuestaTexto]   = useState("")
-  const [extractando, setExtractando]         = useState(false)
-  const [extractOk, setExtractOk]             = useState(false)
-  const [extractErr, setExtractErr]           = useState<string | null>(null)
-  const [cvPending, startCvUpdate]            = useTransition()
-  const [cvOk, setCvOk]                       = useState(false)
-  const [cvErr, setCvErr]                     = useState<string | null>(null)
+  const [respuestasPorTanda, setRespuestasPorTanda] = useState<Map<string, string>>(new Map())
+  const [extractandoPor, setExtractandoPor]         = useState<string | null>(null)
+  const [erroresPorTanda, setErroresPorTanda]       = useState<Map<string, string>>(new Map())
+  const [cvPending, startCvUpdate]                  = useTransition()
+  const [cvOk, setCvOk]                             = useState(false)
+  const [cvErr, setCvErr]                           = useState<string | null>(null)
 
-  const hasPreguntasPendientes = (preguntasEnviadasDb?.length ?? 0) > 0
+  // Agrupar preguntas enviadas por tanda_id
+  type TandaGroup = { id: string; preguntas: PreguntaEnviada[]; enviado_at: string; numero: number }
+  const tandas: TandaGroup[] = (() => {
+    if (!preguntasEnviadasDb?.length) return []
+    const map = new Map<string, PreguntaEnviada[]>()
+    for (const p of preguntasEnviadasDb) {
+      const key = p.tanda_id ?? "legacy"
+      if (!map.has(key)) map.set(key, [])
+      map.get(key)!.push(p)
+    }
+    return Array.from(map.entries())
+      .map(([id, preguntas], i) => ({ id, preguntas, enviado_at: preguntas[0]!.enviado_at, numero: i + 1 }))
+      .sort((a, b) => a.enviado_at.localeCompare(b.enviado_at))
+  })()
 
-  async function handleExtraer() {
-    if (!respuestaTexto.trim() || extractando || !preguntasEnviadasDb?.length) return
-    setExtractando(true)
-    setExtractErr(null)
-    const result = await extraerYGuardarRespuestas(candidatoId, preguntasEnviadasDb, respuestaTexto)
-    setExtractando(false)
+  function isTandaExtraida(tanda: TandaGroup): boolean {
+    return tanda.preguntas.every((p) =>
+      initialRespuestas?.some((r) => r.pregunta === p.pregunta && r.respuesta.trim())
+    )
+  }
+
+  async function handleExtraerTanda(tanda: TandaGroup) {
+    const texto = respuestasPorTanda.get(tanda.id) ?? ""
+    if (!texto.trim() || extractandoPor === tanda.id) return
+    setExtractandoPor(tanda.id)
+    setErroresPorTanda((prev) => { const m = new Map(prev); m.delete(tanda.id); return m })
+    const result = await extraerYGuardarRespuestas(candidatoId, tanda.preguntas, texto)
+    setExtractandoPor(null)
     if (result.success) {
-      setExtractOk(true)
-      setRespuestaTexto("")
+      setRespuestasPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, ""); return m })
       router.refresh()
     } else {
-      setExtractErr(result.error)
+      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, result.error ?? "Error"); return m })
     }
   }
 
@@ -213,7 +231,7 @@ export function WhatsappMessagePanel({
   // ── Historial (Q&A + conversations) ────────────────────────────────────────
 
   // Empty state
-  if (!fecha_consultado && !hasRespuestas && conversaciones.length === 0 && !hasPreguntasPendientes) {
+  if (!fecha_consultado && !hasRespuestas && conversaciones.length === 0 && tandas.length === 0) {
     return (
       <div className="rounded-2xl border p-6" style={CARD}>
         <p className="text-sm text-center py-4" style={{ color: "var(--gl-ink-3)" }}>
@@ -225,22 +243,28 @@ export function WhatsappMessagePanel({
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Respuestas pendientes */}
-      {hasPreguntasPendientes && (
-        <div className="rounded-2xl border p-5" style={CARD}>
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>Respuestas pendientes</h2>
-              <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                Se preguntó: {preguntasEnviadasDb!.map((p) => p.label).join(" · ")}
-              </p>
-            </div>
-            {extractOk && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                  <CheckCircle className="h-4 w-4" style={{ color: "#1a7f37" }} />
-                  <span className="text-[12px] font-semibold" style={{ color: "#1a7f37" }}>Perfil actualizado</span>
-                </div>
+      {/* Una card por tanda */}
+      {tandas.map((tanda) => {
+        const extraida         = isTandaExtraida(tanda)
+        const textoRespuesta   = respuestasPorTanda.get(tanda.id) ?? ""
+        const estaExtractando  = extractandoPor === tanda.id
+        const error            = erroresPorTanda.get(tanda.id)
+        const fechaTanda       = new Date(tanda.enviado_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })
+        const horaTanda        = new Date(tanda.enviado_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+        return (
+          <div key={tanda.id} className="rounded-2xl border p-5" style={CARD}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-[14px] font-bold flex items-center gap-1.5" style={{ color: "var(--gl-ink)" }}>
+                  Tanda {tanda.numero}
+                  {extraida && <CheckCircle className="h-3.5 w-3.5" style={{ color: "#1a7f37" }} />}
+                </h2>
+                <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                  {fechaTanda} · {horaTanda} · {tanda.preguntas.length} pregunta{tanda.preguntas.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              {extraida && (
                 <button
                   type="button"
                   onClick={handleActualizarCV}
@@ -256,56 +280,73 @@ export function WhatsappMessagePanel({
                   <RefreshCw className="h-3 w-3" style={{ animation: cvPending ? "spin 1s linear infinite" : "none" }} />
                   {cvOk ? "CV actualizado" : cvPending ? "Actualizando…" : "Actualizar CV →"}
                 </button>
-                {cvErr && <span className="text-[11px]" style={{ color: "#c0392b" }}>{cvErr}</span>}
+              )}
+              {cvErr && <span className="text-[11px]" style={{ color: "#c0392b" }}>{cvErr}</span>}
+            </div>
+
+            {/* Preguntas de esta tanda */}
+            <div className="flex flex-col gap-1 mb-3 rounded-xl p-3" style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}>
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                Preguntas realizadas
               </div>
+              {tanda.preguntas.map((p, i) => (
+                <div key={p.campo} className="flex gap-2 text-[12px]" style={{ color: "var(--gl-ink-2, #4a5c38)" }}>
+                  <span className="shrink-0 font-semibold">{i + 1}.</span>
+                  <span>{p.pregunta}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Si fue extraída: Q&A read-only. Si no: textarea + botón */}
+            {extraida ? (
+              <div className="space-y-2.5">
+                {tanda.preguntas.map((p) => {
+                  const resp = initialRespuestas?.find((r) => r.pregunta === p.pregunta)
+                  return (
+                    <div key={p.campo} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 10 }}>
+                      <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>{p.pregunta}</div>
+                      <div className="text-[12.5px]" style={{ color: resp?.respuesta?.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
+                        {resp?.respuesta?.trim() || "— sin respuesta"}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={textoRespuesta}
+                  onChange={(e) => setRespuestasPorTanda((prev) => new Map(prev).set(tanda.id, e.target.value))}
+                  rows={5}
+                  placeholder="Pegá la respuesta del candidato aquí…"
+                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
+                  style={{
+                    background: "var(--gl-surface)", border: "1.5px solid var(--gl-olive)",
+                    color: "var(--gl-ink)", fontFamily: "inherit", lineHeight: 1.6, resize: "vertical",
+                  }}
+                />
+                {error && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{error}</p>}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => { void handleExtraerTanda(tanda) }}
+                    disabled={estaExtractando || !textoRespuesta.trim()}
+                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+                    style={{
+                      background: "var(--gl-olive)", color: "#fff", border: "none",
+                      cursor: estaExtractando || !textoRespuesta.trim() ? "default" : "pointer",
+                      opacity: estaExtractando || !textoRespuesta.trim() ? 0.6 : 1,
+                    }}
+                  >
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    {estaExtractando ? "Extrayendo…" : "Extraer y guardar →"}
+                  </button>
+                </div>
+              </>
             )}
           </div>
-
-          {/* Lista de preguntas enviadas como referencia */}
-          <div className="flex flex-col gap-1 mb-3 rounded-xl p-3" style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}>
-            <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
-              Preguntas realizadas
-            </div>
-            {preguntasEnviadasDb!.map((p, i) => (
-              <div key={p.campo} className="flex gap-2 text-[12px]" style={{ color: "var(--gl-ink-2, #4a5c38)" }}>
-                <span className="shrink-0 font-semibold">{i + 1}.</span>
-                <span>{p.pregunta}</span>
-              </div>
-            ))}
-          </div>
-
-          <textarea
-            value={respuestaTexto}
-            onChange={(e) => setRespuestaTexto(e.target.value)}
-            rows={5}
-            placeholder={"Pegá la respuesta del candidato aquí…"}
-            className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
-            style={{
-              background: "var(--gl-surface)", border: "1.5px solid var(--gl-olive)",
-              color: "var(--gl-ink)", fontFamily: "inherit", lineHeight: 1.6, resize: "vertical",
-            }}
-          />
-
-          {extractErr && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{extractErr}</p>}
-
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => { void handleExtraer() }}
-              disabled={extractando || !respuestaTexto.trim()}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
-              style={{
-                background: "var(--gl-olive)", color: "#fff", border: "none",
-                cursor: extractando || !respuestaTexto.trim() ? "default" : "pointer",
-                opacity: extractando || !respuestaTexto.trim() ? 0.6 : 1,
-              }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              {extractando ? "Extrayendo…" : "Extraer y guardar →"}
-            </button>
-          </div>
-        </div>
-      )}
+        )
+      })}
 
       {/* Q&A read-only */}
       {hasRespuestas && (

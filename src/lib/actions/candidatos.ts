@@ -213,6 +213,7 @@ export type PreguntaEnviada = {
   label: string
   pregunta: string
   enviado_at: string
+  tanda_id?: string
 }
 
 export async function registrarEnvioWhatsapp(
@@ -231,9 +232,7 @@ export async function registrarEnvioWhatsapp(
       .eq("id", candidatoId)
       .single()
     const actuales = (data?.preguntas_enviadas as PreguntaEnviada[] | null) ?? []
-    const byKey = new Map(actuales.map((p: PreguntaEnviada) => [p.campo, p]))
-    for (const p of preguntasConCampo) byKey.set(p.campo, p)
-    preguntasEnviadasUpdate = Array.from(byKey.values())
+    preguntasEnviadasUpdate = [...actuales, ...preguntasConCampo]
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

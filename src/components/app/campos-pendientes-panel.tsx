@@ -210,11 +210,13 @@ export function CamposPendientesPanel({
     const preguntasTexto = [...seleccionados]
       .map((k) => items.find((it) => it.key === k)?.pregunta)
       .filter((p): p is string => !!p)
+    const tandaId      = crypto.randomUUID()
+    const enviadoAt    = new Date().toISOString()
     const preguntasConCampo: PreguntaEnviada[] = [...seleccionados]
       .flatMap((k) => {
         const item = items.find((it) => it.key === k)
         if (!item) return []
-        const p: PreguntaEnviada = { campo: item.key, label: item.label, pregunta: item.pregunta, enviado_at: new Date().toISOString() }
+        const p: PreguntaEnviada = { campo: item.key, label: item.label, pregunta: item.pregunta, enviado_at: enviadoAt, tanda_id: tandaId }
         if (item.expId) p.expId = item.expId
         return [p]
       })
@@ -225,6 +227,7 @@ export function CamposPendientesPanel({
     setEstado("idle")
     setItems([])
     setSeleccionados(new Set())
+    setBackgroundItems(null)  // forzar regeneración fresca la próxima vez
     router.refresh()
   }
 
