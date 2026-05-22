@@ -1,7 +1,12 @@
 import { anthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import mammoth from "mammoth";
+import * as pdfParseMod from "pdf-parse";
 import { z } from "zod";
+
+// pdf-parse v1 — importar como default-safe (v2 rompe la API, lección 2026-05-gl-pdf-parse-v2-api-incompatible)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pdfParse: (buf: Buffer) => Promise<{ text: string }> = (pdfParseMod as any).default ?? pdfParseMod;
 
 // Strings usan "" como sentinel de "desconocido" para no superar el límite de
 // 16 union types de Anthropic. Solo boolean/number/hasta quedan como nullable.
@@ -236,6 +241,22 @@ export async function parsearCV(
       throw new Error(
         `El archivo "${nombreArchivo}" está en formato .doc (Word 97-2003) que no se puede procesar. Por favor convertilo a .docx o .pdf y reenvialo.`,
       );
+    }
+  } else if (mimeType === "application/pdf") {
+    // Pre-extraer texto con pdf-parse → Claude recibe texto plano en vez del archivo binario.
+    // Esto reduce el tiempo de respuesta de ~55s a ~5-10s en el plan Hobby de Vercel (límite 60s).
+    // Fallback a file nativo si pdf-parse no extrae nada (PDF escaneado/imagen).
+    try {
+      const { text: pdfTexto } = await pdfParse(buffer);
+      if (pdfTexto.trim().length > 50) {
+        partes = [{ type: "text", text: `Archivo: ${nombreArchivo}\n\nContenido extraído del PDF:\n${pdfTexto}` }];
+      } else {
+        // PDF escaneado — sin texto extraíble, mandar como file nativo
+        partes = [{ type: "file", data: buffer, mediaType: mimeType }];
+      }
+    } catch {
+      // pdf-parse falló — fallback a file nativo
+      partes = [{ type: "file", data: buffer, mediaType: mimeType }];
     }
   } else if (mimeType.startsWith("image/")) {
     partes = [{ type: "image", image: buffer, mimeType }];
