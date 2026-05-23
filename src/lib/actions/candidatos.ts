@@ -379,6 +379,22 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
   return { success: true, id: candidatoId }
 }
 
+// Acción combinada: extrae respuestas + regenera CV en un solo round-trip
+export async function extraerYActualizarCV(
+  candidatoId: string,
+  preguntasEnviadas: PreguntaEnviada[],
+  textoRespuesta: string,
+): Promise<ActionResult> {
+  const extractResult = await extraerYGuardarRespuestas(candidatoId, preguntasEnviadas, textoRespuesta)
+  if (!extractResult.success) return extractResult
+
+  // Regenerar CV desde datos estructurados (sin IA — determinístico, ~300ms)
+  const cvResult = await regenerarCVTextoDesdeDatos(candidatoId)
+  if (!cvResult.success) return cvResult
+
+  return { success: true, id: candidatoId }
+}
+
 export type RespuestaItem = { pregunta: string; respuesta: string }
 
 export async function guardarRespuestas(candidatoId: string, respuestas: RespuestaItem[]): Promise<ActionResult> {

@@ -5,8 +5,7 @@ import { RefreshCw, CheckCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   actualizarCVDesdeConversacion,
-  actualizarCVConRespuestas,
-  extraerYGuardarRespuestas,
+  extraerYActualizarCV,
   type ConversacionEntry,
   type RespuestaItem,
   type PreguntaEnviada,
@@ -131,26 +130,20 @@ export function WhatsappMessagePanel({
     setCvOk(false)
     setErroresPorTanda((prev) => { const m = new Map(prev); m.delete(tanda.id); return m })
 
-    // Paso 1: extraer y guardar respuestas
-    const result = await extraerYGuardarRespuestas(candidatoId, tanda.preguntas, texto)
-    if (!result.success) {
+    try {
+      const result = await extraerYActualizarCV(candidatoId, tanda.preguntas, texto)
+      if (!result.success) {
+        setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, result.error ?? "Error"); return m })
+      } else {
+        setRespuestasPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, ""); return m })
+        setCvOk(true)
+        router.refresh()
+        setTimeout(() => setCvOk(false), 2500)
+      }
+    } catch {
+      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, "Error de red — intentá de nuevo"); return m })
+    } finally {
       setExtractandoPor(null)
-      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, result.error ?? "Error"); return m })
-      return
-    }
-
-    // Paso 2: actualizar CV automáticamente
-    const cvResult = await actualizarCVConRespuestas(candidatoId)
-    setExtractandoPor(null)
-    setRespuestasPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, ""); return m })
-
-    if (cvResult.success) {
-      setCvOk(true)
-      router.refresh()
-      setTimeout(() => setCvOk(false), 2500)
-    } else {
-      setCvErr(cvResult.error ?? "No se pudo actualizar el CV")
-      router.refresh()
     }
   }
 
