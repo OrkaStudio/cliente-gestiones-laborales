@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition } from "react"
-import { RefreshCw, CheckCircle } from "lucide-react"
+import { RefreshCw, CheckCircle, ChevronDown, ChevronUp } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
   actualizarCVDesdeConversacion,
@@ -88,20 +88,8 @@ export function WhatsappMessagePanel({
   preguntasEnviadasDb,
 }: Props) {
   const router = useRouter()
-  const [conversaciones, setConversaciones]   = useState<ConversacionEntry[]>(initialConversaciones ?? [])
-  const [expandedConvId, setExpandedConvId]   = useState<string | null>(null)
-  const [modoCiclo, setModoCiclo]             = useState(false)
-  const [cicloTexto, setCicloTexto]           = useState("")
-  const [cicloOk, setCicloOk]                 = useState(false)
-  const [cicloErr, setCicloErr]               = useState<string | null>(null)
-  const [cicloPending, startCiclo]            = useTransition()
-  const [respuestasPorTanda, setRespuestasPorTanda] = useState<Map<string, string>>(new Map())
-  const [extractandoPor, setExtractandoPor]         = useState<string | null>(null)
-  const [erroresPorTanda, setErroresPorTanda]       = useState<Map<string, string>>(new Map())
-  const [cvOk, setCvOk]                             = useState(false)
-  const [cvErr, setCvErr]                           = useState<string | null>(null)
 
-  // Agrupar preguntas enviadas por tanda_id
+  // ── Tandas: computar antes de los useState ────────────────────────────────
   type TandaGroup = { id: string; preguntas: PreguntaEnviada[]; enviado_at: string; numero: number }
   const tandas: TandaGroup[] = (() => {
     if (!preguntasEnviadasDb?.length) return []
@@ -116,10 +104,49 @@ export function WhatsappMessagePanel({
       .sort((a, b) => a.enviado_at.localeCompare(b.enviado_at))
   })()
 
-  function isTandaExtraida(tanda: TandaGroup): boolean {
+  // Helper: una tanda está "extraída" si todas sus preguntas tienen respuesta en DB
+  function isTandaExtraidaEnDb(tanda: TandaGroup): boolean {
     return tanda.preguntas.every((p) =>
       initialRespuestas?.some((r) => r.pregunta === p.pregunta && r.respuesta.trim())
     )
+  }
+
+  // Estado: tandas colapsadas (las ya extraídas empiezan colapsadas)
+  const [collapsedTandas, setCollapsedTandas] = useState<Set<string>>(() => {
+    const collapsed = new Set<string>()
+    for (const t of tandas) {
+      if (isTandaExtraidaEnDb(t)) collapsed.add(t.id)
+    }
+    return collapsed
+  })
+
+  // Estado: tandas procesadas localmente (override — marca como extraída aunque no todos los campos hayan respondido)
+  const [tandasProcesadas, setTandasProcesadas] = useState<Set<string>>(new Set())
+
+  const [conversaciones, setConversaciones]   = useState<ConversacionEntry[]>(initialConversaciones ?? [])
+  const [expandedConvId, setExpandedConvId]   = useState<string | null>(null)
+  const [modoCiclo, setModoCiclo]             = useState(false)
+  const [cicloTexto, setCicloTexto]           = useState("")
+  const [cicloOk, setCicloOk]                 = useState(false)
+  const [cicloErr, setCicloErr]               = useState<string | null>(null)
+  const [cicloPending, startCiclo]            = useTransition()
+  const [respuestasPorTanda, setRespuestasPorTanda] = useState<Map<string, string>>(new Map())
+  const [extractandoPor, setExtractandoPor]         = useState<string | null>(null)
+  const [erroresPorTanda, setErroresPorTanda]       = useState<Map<string, string>>(new Map())
+  const [cvOk, setCvOk]                             = useState(false)
+  const [cvErr, setCvErr]                           = useState<string | null>(null)
+
+  function isTandaExtraida(tanda: TandaGroup): boolean {
+    return tandasProcesadas.has(tanda.id) || isTandaExtraidaEnDb(tanda)
+  }
+
+  function toggleTanda(id: string) {
+    setCollapsedTandas((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
   }
 
   async function handleExtraerTanda(tanda: TandaGroup) {
@@ -136,6 +163,9 @@ export function WhatsappMessagePanel({
         setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, result.error ?? "Error"); return m })
       } else {
         setRespuestasPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, ""); return m })
+        // Marcar como procesada localmente + colapsar
+        setTandasProcesadas((prev) => new Set([...prev, tanda.id]))
+        setCollapsedTandas((prev) => new Set([...prev, tanda.id]))
         setCvOk(true)
         router.refresh()
         setTimeout(() => setCvOk(false), 2500)
@@ -252,91 +282,112 @@ export function WhatsappMessagePanel({
       {/* Overlays globales */}
       {extractandoPor !== null && <LoadingOverlay titulo="Procesando respuestas…" subtitulo="Puede tardar unos segundos." />}
       {cvOk             && <SuccessOverlay titulo="CV actualizado" subtitulo="El perfil ya refleja las respuestas del candidato" />}
-      {cvErr     && null /* el error se muestra inline en la card */}
+      {cvErr     && null}
 
       {/* Una card por tanda */}
       {tandas.map((tanda) => {
         const extraida         = isTandaExtraida(tanda)
+        const collapsed        = collapsedTandas.has(tanda.id)
         const textoRespuesta   = respuestasPorTanda.get(tanda.id) ?? ""
         const estaExtractando  = extractandoPor === tanda.id
         const error            = erroresPorTanda.get(tanda.id)
         const fechaTanda       = new Date(tanda.enviado_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })
         const horaTanda        = new Date(tanda.enviado_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+
         return (
-          <div key={tanda.id} className="rounded-2xl border p-5" style={CARD}>
-            {/* Header */}
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-[14px] font-bold flex items-center gap-1.5" style={{ color: "var(--gl-ink)" }}>
+          <div key={tanda.id} className="rounded-2xl border overflow-hidden" style={CARD}>
+            {/* Header — siempre visible, clickeable para colapsar */}
+            <button
+              type="button"
+              onClick={() => toggleTanda(tanda.id)}
+              className="w-full flex items-center justify-between px-5 py-4 text-left"
+              style={{
+                background: collapsed ? "var(--gl-surface)" : "#fff",
+                border: "none", cursor: "pointer",
+                borderBottom: collapsed ? "none" : "1px solid var(--gl-border)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-[14px] font-bold flex items-center gap-1.5" style={{ color: "var(--gl-ink)" }}>
                   Tanda {tanda.numero}
                   {extraida && <CheckCircle className="h-3.5 w-3.5" style={{ color: "#1a7f37" }} />}
-                </h2>
-                <p className="text-[11px] mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                  {fechaTanda} · {horaTanda} · {tanda.preguntas.length} pregunta{tanda.preguntas.length !== 1 ? "s" : ""}
-                </p>
+                </span>
+                <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+                  · {fechaTanda} {horaTanda} · {tanda.preguntas.length} pregunta{tanda.preguntas.length !== 1 ? "s" : ""}
+                  {extraida && <span className="ml-1.5 font-semibold" style={{ color: "#1a7f37" }}>· Guardada</span>}
+                </span>
               </div>
-              {cvErr && <span className="text-[11px]" style={{ color: "#c0392b" }}>{cvErr}</span>}
-            </div>
+              <span style={{ color: "var(--gl-ink-3)", flexShrink: 0 }}>
+                {collapsed
+                  ? <ChevronDown className="h-4 w-4" />
+                  : <ChevronUp className="h-4 w-4" />}
+              </span>
+            </button>
 
-            {/* Preguntas de esta tanda */}
-            <div className="flex flex-col gap-1 mb-3 rounded-xl p-3" style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}>
-              <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                Preguntas realizadas
-              </div>
-              {tanda.preguntas.map((p, i) => (
-                <div key={p.campo} className="flex gap-2 text-[12px]" style={{ color: "var(--gl-ink-2, #4a5c38)" }}>
-                  <span className="shrink-0 font-semibold">{i + 1}.</span>
-                  <span>{p.pregunta}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Si fue extraída: Q&A read-only. Si no: textarea + botón */}
-            {extraida ? (
-              <div className="space-y-2.5">
-                {tanda.preguntas.map((p) => {
-                  const resp = initialRespuestas?.find((r) => r.pregunta === p.pregunta)
-                  return (
-                    <div key={p.campo} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 10 }}>
-                      <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>{p.pregunta}</div>
-                      <div className="text-[12.5px]" style={{ color: resp?.respuesta?.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
-                        {resp?.respuesta?.trim() || "— sin respuesta"}
-                      </div>
+            {/* Body — colapsable */}
+            {!collapsed && (
+              <div className="px-5 pb-5 pt-4">
+                {/* Preguntas de esta tanda */}
+                <div className="flex flex-col gap-1 mb-3 rounded-xl p-3" style={{ background: "var(--gl-surface)", border: "1px solid var(--gl-border)" }}>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.12em] mb-0.5" style={{ color: "var(--gl-ink-3)" }}>
+                    Preguntas realizadas
+                  </div>
+                  {tanda.preguntas.map((p, i) => (
+                    <div key={p.campo} className="flex gap-2 text-[12px]" style={{ color: "var(--gl-ink-2, #4a5c38)" }}>
+                      <span className="shrink-0 font-semibold">{i + 1}.</span>
+                      <span>{p.pregunta}</span>
                     </div>
-                  )
-                })}
-              </div>
-            ) : (
-              <>
-                <textarea
-                  value={textoRespuesta}
-                  onChange={(e) => setRespuestasPorTanda((prev) => new Map(prev).set(tanda.id, e.target.value))}
-                  rows={5}
-                  placeholder="Pegá la respuesta del candidato aquí…"
-                  className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
-                  style={{
-                    background: "var(--gl-surface)", border: "1.5px solid var(--gl-olive)",
-                    color: "var(--gl-ink)", fontFamily: "inherit", lineHeight: 1.6, resize: "vertical",
-                  }}
-                />
-                {error && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{error}</p>}
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => { void handleExtraerTanda(tanda) }}
-                    disabled={estaExtractando || !textoRespuesta.trim()}
-                    className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
-                    style={{
-                      background: "var(--gl-olive)", color: "#fff", border: "none",
-                      cursor: estaExtractando || !textoRespuesta.trim() ? "default" : "pointer",
-                      opacity: estaExtractando || !textoRespuesta.trim() ? 0.65 : 1,
-                    }}
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5${estaExtractando ? " animate-spin" : ""}`} />
-                    {estaExtractando ? "Extrayendo…" : "Extraer y guardar →"}
-                  </button>
+                  ))}
                 </div>
-              </>
+
+                {/* Si fue extraída: Q&A read-only. Si no: textarea + botón */}
+                {extraida ? (
+                  <div className="space-y-2.5">
+                    {tanda.preguntas.map((p) => {
+                      const resp = initialRespuestas?.find((r) => r.pregunta === p.pregunta)
+                      return (
+                        <div key={p.campo} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 10 }}>
+                          <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>{p.pregunta}</div>
+                          <div className="text-[12.5px]" style={{ color: resp?.respuesta?.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
+                            {resp?.respuesta?.trim() || "— sin respuesta"}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={textoRespuesta}
+                      onChange={(e) => setRespuestasPorTanda((prev) => new Map(prev).set(tanda.id, e.target.value))}
+                      rows={5}
+                      placeholder="Pegá la respuesta del candidato aquí…"
+                      className="w-full rounded-xl px-3 py-2.5 text-sm outline-none mb-3"
+                      style={{
+                        background: "var(--gl-surface)", border: "1.5px solid var(--gl-olive)",
+                        color: "var(--gl-ink)", fontFamily: "inherit", lineHeight: 1.6, resize: "vertical",
+                      }}
+                    />
+                    {error && <p className="text-xs mb-2" style={{ color: "#c0392b" }}>{error}</p>}
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => { void handleExtraerTanda(tanda) }}
+                        disabled={estaExtractando || !textoRespuesta.trim()}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12.5px] font-semibold"
+                        style={{
+                          background: "var(--gl-olive)", color: "#fff", border: "none",
+                          cursor: estaExtractando || !textoRespuesta.trim() ? "default" : "pointer",
+                          opacity: estaExtractando || !textoRespuesta.trim() ? 0.65 : 1,
+                        }}
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5${estaExtractando ? " animate-spin" : ""}`} />
+                        {estaExtractando ? "Extrayendo…" : "Extraer y guardar →"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )
