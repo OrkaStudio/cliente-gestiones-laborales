@@ -413,7 +413,7 @@ export async function actualizarCVConRespuestas(candidatoId: string): Promise<Ac
     .join("\n\n")
 
   const { text } = await generateText({
-    model: anthropic("claude-sonnet-4-6"),
+    model: anthropic("claude-haiku-4-5-20251001"),
     system: `Sos asistente de RRHH de Gestiones Laborales. Incorporás respuestas de preselección al CV procesado de un candidato.
 
 REGLAS ABSOLUTAS:
