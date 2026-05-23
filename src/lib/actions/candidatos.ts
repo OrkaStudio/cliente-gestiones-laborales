@@ -292,9 +292,11 @@ export async function extraerYGuardarRespuestas(
     .map((p, i) => `${i + 1}. [${p.campo}] ${p.label}: "${p.pregunta}"`)
     .join("\n")
 
-  const { text } = await generateText({
-    model: anthropic("claude-haiku-4-5-20251001"),
-    prompt: `Se le enviaron estas preguntas a un candidato laboral y respondió por WhatsApp.
+  let text: string
+  try {
+    const result = await generateText({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      prompt: `Se le enviaron estas preguntas a un candidato laboral y respondió por WhatsApp.
 Extraé la respuesta a cada pregunta del texto de respuesta.
 
 Preguntas enviadas (formato: número. [id_campo] label: "pregunta"):
@@ -307,7 +309,11 @@ Devolvé ÚNICAMENTE un JSON object donde las claves son los id_campo y los valo
 Solo incluí campos donde encontraste una respuesta clara.
 Para campos booleanos (en_blanco, movilidad, vehiculo_propio, licencia_conducir), devolvé "true" o "false".
 Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
-  })
+    })
+    text = result.text
+  } catch (e) {
+    return { success: false, error: `Error al llamar a Claude: ${e instanceof Error ? e.message : String(e)}` }
+  }
 
   let extraido: Record<string, string> = {}
   try {
@@ -385,14 +391,18 @@ export async function extraerYActualizarCV(
   preguntasEnviadas: PreguntaEnviada[],
   textoRespuesta: string,
 ): Promise<ActionResult> {
-  const extractResult = await extraerYGuardarRespuestas(candidatoId, preguntasEnviadas, textoRespuesta)
-  if (!extractResult.success) return extractResult
+  try {
+    const extractResult = await extraerYGuardarRespuestas(candidatoId, preguntasEnviadas, textoRespuesta)
+    if (!extractResult.success) return extractResult
 
-  // Regenerar CV desde datos estructurados (sin IA — determinístico, ~300ms)
-  const cvResult = await regenerarCVTextoDesdeDatos(candidatoId)
-  if (!cvResult.success) return cvResult
+    // Regenerar CV desde datos estructurados (sin IA — determinístico, ~300ms)
+    const cvResult = await regenerarCVTextoDesdeDatos(candidatoId)
+    if (!cvResult.success) return cvResult
 
-  return { success: true, id: candidatoId }
+    return { success: true, id: candidatoId }
+  } catch (e) {
+    return { success: false, error: `Error inesperado: ${e instanceof Error ? e.message : String(e)}` }
+  }
 }
 
 export type RespuestaItem = { pregunta: string; respuesta: string }
