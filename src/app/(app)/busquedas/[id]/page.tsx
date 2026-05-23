@@ -360,7 +360,7 @@ export default async function BusquedaDetailPage({
                             className="h-9 w-9 rounded-full grid place-items-center text-sm font-bold shrink-0"
                             style={{ background: avatarPal.bg, color: avatarPal.color }}
                           >
-                            {c.nombre[0]}{c.apellido[0]}
+                            {(c.nombre ?? "?")[0]}{(c.apellido ?? "?")[0]}
                           </div>
                           <div className="min-w-0">
                             <div

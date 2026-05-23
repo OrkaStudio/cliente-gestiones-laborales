@@ -148,7 +148,7 @@ export function CerrarBusquedaButton({
                               flexShrink: 0, fontSize: 12, fontWeight: 700,
                               color: sel ? "#fff" : INK3,
                             }}>
-                              {candidato.nombre[0]}{candidato.apellido[0]}
+                              {(candidato.nombre ?? "?")[0]}{(candidato.apellido ?? "?")[0]}
                             </div>
                             <div>
                               <div style={{ fontSize: 13.5, fontWeight: 600, color: sel ? OLIVE : INK }}>

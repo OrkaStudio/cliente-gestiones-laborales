@@ -218,7 +218,7 @@ export default async function Home() {
                       className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
                       style={{ background: pal.bg, color: pal.color }}
                     >
-                      {c.nombre[0]}{c.apellido[0]}
+                      {(c.nombre ?? "?")[0]}{(c.apellido ?? "?")[0]}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>
@@ -273,7 +273,7 @@ export default async function Home() {
                     className="h-8 w-8 rounded-full grid place-items-center text-xs font-bold shrink-0"
                     style={{ background: pal.bg, color: pal.color }}
                   >
-                    {c.nombre[0]}{c.apellido[0]}
+                    {(c.nombre ?? "?")[0]}{(c.apellido ?? "?")[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>

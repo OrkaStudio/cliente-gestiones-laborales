@@ -165,7 +165,7 @@ export default async function CandidatoDetailPage({
               className="h-16 w-16 rounded-full grid place-items-center text-xl font-bold shrink-0"
               style={{ background: avatarPal.bg, color: avatarPal.color }}
             >
-              {candidato.nombre[0]}{candidato.apellido[0]}
+              {(candidato.nombre ?? "?")[0]}{(candidato.apellido ?? "?")[0]}
             </div>
             <div>
               <h1

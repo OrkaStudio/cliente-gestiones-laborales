@@ -53,7 +53,7 @@ export function CandidatoStickyBar({
             className="h-8 w-8 rounded-full grid place-items-center text-[11px] font-bold shrink-0"
             style={{ background: avatarBg, color: avatarColor }}
           >
-            {nombre[0]}{apellido[0]}
+            {(nombre ?? "?")[0]}{(apellido ?? "?")[0]}
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[14px] font-bold" style={{ color: "var(--gl-ink)" }}>
