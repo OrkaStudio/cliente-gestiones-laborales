@@ -235,60 +235,72 @@ export default async function CandidatoDetailPage({
             </div>
           </div>
 
-          {/* Acciones */}
-          <div className="flex items-center gap-2 shrink-0 flex-wrap">
-            <CandidatoEstadoToggle
-              candidatoId={candidato.id}
-              estadoInicial={candidato.estado as "activo" | "inactivo"}
-            />
-            <Link
-              href={`/candidatos/${candidato.id}/cv`}
-              style={{
-                display:        "inline-flex",
-                alignItems:     "center",
-                gap:            "0.375rem",
-                padding:        "0.5rem 1rem",
-                fontSize:       "13.5px",
-                fontWeight:     600,
-                color:          "var(--gl-olive)",
-                background:     "transparent",
-                border:         "1.5px solid rgba(42,74,24,0.4)",
-                borderRadius:   "0.75rem",
-                textDecoration: "none",
-                whiteSpace:     "nowrap",
-                transition:     "all 0.15s",
-              }}
-            >
-              <FileText style={{ width: 14, height: 14 }} />
-              Ver CV
-            </Link>
-            <Link
-              href={`/candidatos/${candidato.id}/editar`}
-              style={{
-                display:        "inline-flex",
-                alignItems:     "center",
-                gap:            "0.375rem",
-                padding:        "0.5rem 1rem",
-                fontSize:       "13.5px",
-                fontWeight:     600,
-                color:          "var(--gl-ink-3)",
-                background:     "transparent",
-                border:         "1.5px solid var(--gl-border)",
-                borderRadius:   "0.75rem",
-                textDecoration: "none",
-                whiteSpace:     "nowrap",
-                transition:     "all 0.15s",
-              }}
-            >
-              Datos del candidato
-            </Link>
+          {/* Acciones + Gauge */}
+          <div className="flex flex-col items-end gap-3 shrink-0">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              <CandidatoEstadoToggle
+                candidatoId={candidato.id}
+                estadoInicial={candidato.estado as "activo" | "inactivo"}
+              />
+              <Link
+                href={`/candidatos/${candidato.id}/cv`}
+                style={{
+                  display:        "inline-flex",
+                  alignItems:     "center",
+                  gap:            "0.375rem",
+                  padding:        "0.5rem 1rem",
+                  fontSize:       "13.5px",
+                  fontWeight:     600,
+                  color:          "var(--gl-olive)",
+                  background:     "transparent",
+                  border:         "1.5px solid rgba(42,74,24,0.4)",
+                  borderRadius:   "0.75rem",
+                  textDecoration: "none",
+                  whiteSpace:     "nowrap",
+                  transition:     "all 0.15s",
+                }}
+              >
+                <FileText style={{ width: 14, height: 14 }} />
+                Ver CV
+              </Link>
+              <Link
+                href={`/candidatos/${candidato.id}/editar`}
+                style={{
+                  display:        "inline-flex",
+                  alignItems:     "center",
+                  gap:            "0.375rem",
+                  padding:        "0.5rem 1rem",
+                  fontSize:       "13.5px",
+                  fontWeight:     600,
+                  color:          "var(--gl-ink-3)",
+                  background:     "transparent",
+                  border:         "1.5px solid var(--gl-border)",
+                  borderRadius:   "0.75rem",
+                  textDecoration: "none",
+                  whiteSpace:     "nowrap",
+                  transition:     "all 0.15s",
+                }}
+              >
+                Datos del candidato
+              </Link>
+            </div>
+            {/* Gauge de completeness */}
+            <div className="flex flex-col items-center gap-1">
+              <Gauge
+                size="medium"
+                value={completeness}
+                showValue
+                colors={{ "0": "#dc2626", "40": "#f59e0b", "70": "#2a4a18" }}
+              />
+              <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                Perfil
+              </span>
+            </div>
           </div>
         </div>
 
-        {/* Stats strip + completeness */}
-        <div className="mt-6 pt-5 flex items-end justify-between gap-4" style={{ borderTop: "1px solid var(--gl-border)" }}>
-
-          {/* Stats en fila */}
+        {/* Stats strip */}
+        <div className="mt-6 pt-5" style={{ borderTop: "1px solid var(--gl-border)" }}>
           <div className="flex items-center gap-6 flex-wrap">
             {headerStats.map((s, i) => (
               <div key={i} className="flex flex-col gap-0.5">
@@ -303,19 +315,6 @@ export default async function CandidatoDetailPage({
                 </span>
               </div>
             ))}
-          </div>
-
-          {/* Gauge de completeness */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
-            <Gauge
-              size="medium"
-              value={completeness}
-              showValue
-              colors={{ "0": "#dc2626", "40": "#f59e0b", "70": "#2a4a18" }}
-            />
-            <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-              Perfil
-            </span>
           </div>
         </div>
       </div>
