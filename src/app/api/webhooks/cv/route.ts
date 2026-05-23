@@ -1,10 +1,11 @@
-import { createServiceClient } from "@/lib/supabase/service";
+﻿import { createServiceClient } from "@/lib/supabase/service";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
 import { CATEGORIAS_GL } from "@/lib/cv/categorias";
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas";
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z, ZodError } from "zod";
 
 async function detectarCategorias(cvTexto: string): Promise<string[]> {
@@ -280,6 +281,7 @@ export async function POST(req: NextRequest) {
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
       });
+      revalidateTag("candidatos-list", {});
 
       // Generar preguntas mapeadas por campo — para que el panel cargue instantáneo
       try {

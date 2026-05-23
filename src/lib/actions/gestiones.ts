@@ -1,6 +1,6 @@
-"use server"
+﻿"use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
 
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
@@ -33,7 +33,9 @@ export async function createGestion(data: {
   if (error) return { success: false, error: error.message }
 
   revalidatePath(`/candidatos/${data.candidato_id}`)
+  revalidateTag(`candidato-${data.candidato_id}`, {})
   revalidatePath(`/busquedas/${data.busqueda_id}`)
+  revalidateTag(`busqueda-${data.busqueda_id}`, {})
   revalidatePath("/")
   return { success: true, id: created.id }
 }
@@ -61,8 +63,11 @@ export async function updateGestionEstado(
   if (error) return { success: false, error: error.message }
 
   revalidatePath(`/busquedas/${paths.busquedaId}`)
+  revalidateTag(`busqueda-${paths.busquedaId}`, {})
   revalidatePath(`/busquedas`)
   revalidatePath(`/candidatos/${paths.candidatoId}`)
+  revalidateTag(`candidato-${paths.candidatoId}`, {})
+  revalidateTag("candidatos-list", {})
   revalidatePath("/")
   return { success: true, id: gestionId }
 }

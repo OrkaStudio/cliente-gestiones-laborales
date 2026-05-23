@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { MessageCircle, MapPin, TrendingUp, FileText, ArrowLeft, ThumbsUp, ThumbsDown } from "lucide-react";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
 import { CandidatoStickyBar } from "@/components/app/candidato-sticky-bar";
@@ -100,10 +102,24 @@ export default async function CandidatoDetailPage({
   // Marcar como visto en background (no bloquea el render)
   void marcarVisto(id)
 
-  const [{ data: candidato }, { data: experiencia }, { data: gestionesData }, { data: busquedasActivas }] =
+  // Candidato + experiencia: datos estables → cacheados con tag por ID
+  const getCandidatoConExperiencia = unstable_cache(
+    async () => {
+      const svc = createServiceClient()
+      const [{ data: candidato }, { data: experiencia }] = await Promise.all([
+        svc.from("candidatos").select("*, respuestas_candidato").eq("id", id).single(),
+        svc.from("experiencia_laboral").select("*").eq("candidato_id", id).order("orden"),
+      ])
+      return { candidato, experiencia }
+    },
+    [`candidato-${id}`],
+    { tags: [`candidato-${id}`], revalidate: 120 },
+  )
+
+  // Gestiones y búsquedas activas: cambian frecuentemente → sin cache
+  const [{ candidato, experiencia }, { data: gestionesData }, { data: busquedasActivas }] =
     await Promise.all([
-      supabase.from("candidatos").select("*, respuestas_candidato").eq("id", id).single(),
-      supabase.from("experiencia_laboral").select("*").eq("candidato_id", id).order("orden"),
+      getCandidatoConExperiencia(),
       supabase.from("gestiones").select("*, busquedas(id, puesto, cliente)").eq("candidato_id", id),
       supabase.from("busquedas").select("id, puesto, cliente, ubicacion, fecha_apertura, estado").eq("estado", "activa").order("fecha_apertura", { ascending: false }),
     ]);

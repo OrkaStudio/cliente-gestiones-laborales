@@ -1,6 +1,6 @@
-"use server"
+﻿"use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
 
 export type ActionResult = { success: true; id: string } | { success: false; error: string }
@@ -84,6 +84,7 @@ export async function updateBusqueda(id: string, data: BusquedaData): Promise<Ac
 
   revalidatePath("/busquedas")
   revalidatePath(`/busquedas/${id}`)
+  revalidateTag(`busqueda-${id}`, {})
   revalidatePath("/")
   return { success: true, id }
 }
@@ -131,7 +132,9 @@ export async function cerrarBusqueda(
 
   revalidatePath("/busquedas")
   revalidatePath(`/busquedas/${busquedaId}`)
+  revalidateTag(`busqueda-${busquedaId}`, {})
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath("/")
   return { success: true, id: busquedaId }
 }
@@ -164,6 +167,7 @@ export async function cerrarGarantia(
 
   revalidatePath("/busquedas")
   revalidatePath(`/busquedas/${id}`)
+  revalidateTag(`busqueda-${id}`, {})
   revalidatePath("/")
   return { success: true, id }
 }

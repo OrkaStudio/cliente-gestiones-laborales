@@ -1,6 +1,6 @@
-"use server"
+﻿"use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { CVParseado } from "@/lib/cv/parse"
 import { upsertCandidato } from "@/lib/cv/upsert-candidato"
@@ -14,6 +14,7 @@ export async function marcarVisto(candidatoId: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase.from("candidatos") as any).update({ visto: true }).eq("id", candidatoId).eq("visto", false)
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
 }
 
 export type ConversacionEntry = { id: string; fecha: string; texto: string }
@@ -191,7 +192,9 @@ export async function guardarCandidatoProcesado(data: CVParseado): Promise<Actio
   if (error) return { success: false, error: error.message }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath(`/candidatos/${id}`)
+  revalidateTag(`candidato-${id}`, {})
   revalidatePath("/")
   return { success: true, id }
 }
@@ -204,7 +207,8 @@ export async function updateCVProcesado(candidatoId: string, texto: string) {
     .eq("id", candidatoId);
 
   if (error) throw new Error(error.message);
-  revalidatePath(`/candidatos/${candidatoId}`);
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {});
 }
 
 export type PreguntaEnviada = {
@@ -248,7 +252,9 @@ export async function registrarEnvioWhatsapp(
   if (error) return { success: false, error: error.message }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath("/")
   return { success: true, id: candidatoId }
 }
@@ -393,7 +399,9 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
   }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   return { success: true, id: candidatoId }
 }
 
@@ -429,6 +437,7 @@ export async function guardarRespuestas(candidatoId: string, respuestas: Respues
   if (error) return { success: false, error: error.message }
 
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   return { success: true, id: candidatoId }
 }
 
@@ -494,6 +503,7 @@ DATOS PERSONALES: formato "Label: Valor" por línea. Si falta, escribir "sin dat
   await sincronizarCamposDesdeCV(candidatoId, text, supabase)
 
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: candidatoId }
 }
@@ -532,6 +542,7 @@ export async function actualizarCVDesdeConversacion(
   ])
 
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: candidatoId }
 }
@@ -603,7 +614,9 @@ export async function updateCandidatoFields(
   const { error } = await supabase.from("candidatos").update(fields).eq("id", id)
   if (error) return { success: false, error: error.message }
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath(`/candidatos/${id}`)
+  revalidateTag(`candidato-${id}`, {})
   revalidatePath(`/candidatos/${id}/cv`)
   return { success: true, id }
 }
@@ -632,6 +645,7 @@ export async function updateExperienciaFields(
   if (error) return { success: false, error: error.message }
   await maybeSyncCV(candidatoId, supabase)
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: expId }
 }
@@ -649,6 +663,7 @@ export async function addExperiencia(
   if (error) return { success: false, error: error.message }
   await maybeSyncCV(candidatoId, supabase)
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: data.id }
 }
@@ -659,6 +674,7 @@ export async function deleteExperiencia(expId: string, candidatoId: string): Pro
   if (error) return { success: false, error: error.message }
   await maybeSyncCV(candidatoId, supabase)
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: expId }
 }
@@ -713,6 +729,7 @@ export async function createCandidato(data: CandidatoData): Promise<ActionResult
   if (error) return { success: false, error: error.message }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath("/")
   return { success: true, id: created.id }
 }
@@ -738,7 +755,9 @@ export async function updateCandidato(id: string, data: CandidatoData): Promise<
   }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath(`/candidatos/${id}`)
+  revalidateTag(`candidato-${id}`, {})
   revalidatePath(`/candidatos/${id}/cv`)
   revalidatePath("/")
   return { success: true, id }
@@ -757,7 +776,9 @@ export async function toggleEstadoCandidato(
   if (error) return { success: false, error: error.message }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath(`/candidatos/${id}`)
+  revalidateTag(`candidato-${id}`, {})
   return { success: true, id }
 }
 
@@ -774,6 +795,7 @@ export async function eliminarCandidato(id: string): Promise<{ success: boolean;
   if (error) return { success: false, error: error.message }
 
   revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
   revalidatePath("/")
   return { success: true }
 }
@@ -882,6 +904,7 @@ export async function regenerarCVTextoDesdeDatos(candidatoId: string): Promise<A
   if (upErr) return { success: false, error: upErr.message }
 
   revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: candidatoId }
 }

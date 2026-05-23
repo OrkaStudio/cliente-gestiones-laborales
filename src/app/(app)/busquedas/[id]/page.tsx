@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { unstable_cache } from "next/cache";
 import { ArrowLeft, MapPin, Calendar, Users, Target, Lock } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button";
@@ -46,9 +48,21 @@ export default async function BusquedaDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: busqueda }, { data: gestionesData }, { data: candidatosActivos }] =
+  // Datos base de la búsqueda: estables → cacheados con tag por ID
+  const getBusqueda = unstable_cache(
+    async () => {
+      const svc = createServiceClient()
+      const { data } = await svc.from("busquedas").select("*").eq("id", id).single()
+      return data
+    },
+    [`busqueda-${id}`],
+    { tags: [`busqueda-${id}`], revalidate: 120 },
+  )
+
+  // Gestiones y candidatos activos: cambian frecuentemente → sin cache
+  const [busqueda, { data: gestionesData }, { data: candidatosActivos }] =
     await Promise.all([
-      supabase.from("busquedas").select("*").eq("id", id).single(),
+      getBusqueda(),
       supabase
         .from("gestiones")
         .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
