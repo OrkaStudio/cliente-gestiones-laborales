@@ -140,8 +140,9 @@ export function WhatsappMessagePanel({
         router.refresh()
         setTimeout(() => setCvOk(false), 2500)
       }
-    } catch {
-      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, "Error de red — intentá de nuevo"); return m })
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e)
+      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, msg); return m })
     } finally {
       setExtractandoPor(null)
     }
