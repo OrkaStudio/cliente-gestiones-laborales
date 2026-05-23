@@ -99,7 +99,6 @@ export function WhatsappMessagePanel({
   const [respuestasPorTanda, setRespuestasPorTanda] = useState<Map<string, string>>(new Map())
   const [extractandoPor, setExtractandoPor]         = useState<string | null>(null)
   const [erroresPorTanda, setErroresPorTanda]       = useState<Map<string, string>>(new Map())
-  const [cvPending, startCvUpdate]                  = useTransition()
   const [cvOk, setCvOk]                             = useState(false)
   const [cvErr, setCvErr]                           = useState<string | null>(null)
 
@@ -128,30 +127,31 @@ export function WhatsappMessagePanel({
     const texto = respuestasPorTanda.get(tanda.id) ?? ""
     if (!texto.trim() || extractandoPor === tanda.id) return
     setExtractandoPor(tanda.id)
-    setErroresPorTanda((prev) => { const m = new Map(prev); m.delete(tanda.id); return m })
-    const result = await extraerYGuardarRespuestas(candidatoId, tanda.preguntas, texto)
-    setExtractandoPor(null)
-    if (result.success) {
-      setRespuestasPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, ""); return m })
-      router.refresh()
-    } else {
-      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, result.error ?? "Error"); return m })
-    }
-  }
-
-  function handleActualizarCV() {
     setCvErr(null)
     setCvOk(false)
-    startCvUpdate(async () => {
-      const result = await actualizarCVConRespuestas(candidatoId)
-      if (result.success) {
-        setCvOk(true)
-        router.refresh()
-        setTimeout(() => setCvOk(false), 2500)
-      } else {
-        setCvErr(result.error)
-      }
-    })
+    setErroresPorTanda((prev) => { const m = new Map(prev); m.delete(tanda.id); return m })
+
+    // Paso 1: extraer y guardar respuestas
+    const result = await extraerYGuardarRespuestas(candidatoId, tanda.preguntas, texto)
+    if (!result.success) {
+      setExtractandoPor(null)
+      setErroresPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, result.error ?? "Error"); return m })
+      return
+    }
+
+    // Paso 2: actualizar CV automáticamente
+    const cvResult = await actualizarCVConRespuestas(candidatoId)
+    setExtractandoPor(null)
+    setRespuestasPorTanda((prev) => { const m = new Map(prev); m.set(tanda.id, ""); return m })
+
+    if (cvResult.success) {
+      setCvOk(true)
+      router.refresh()
+      setTimeout(() => setCvOk(false), 2500)
+    } else {
+      setCvErr(cvResult.error ?? "No se pudo actualizar el CV")
+      router.refresh()
+    }
   }
 
   const fechaFormateada = fecha_consultado
@@ -256,8 +256,8 @@ export function WhatsappMessagePanel({
   return (
     <div className="flex flex-col gap-3">
       {/* Overlays globales */}
-      {cvPending && <LoadingOverlay titulo="Actualizando CV…" subtitulo="Procesando…" />}
-      {cvOk      && <SuccessOverlay titulo="CV actualizado" subtitulo="El perfil ya refleja las respuestas del candidato" />}
+      {extractandoPor !== null && <LoadingOverlay titulo="Procesando respuestas…" subtitulo="Puede tardar unos segundos." />}
+      {cvOk             && <SuccessOverlay titulo="CV actualizado" subtitulo="El perfil ya refleja las respuestas del candidato" />}
       {cvErr     && null /* el error se muestra inline en la card */}
 
       {/* Una card por tanda */}
@@ -281,23 +281,6 @@ export function WhatsappMessagePanel({
                   {fechaTanda} · {horaTanda} · {tanda.preguntas.length} pregunta{tanda.preguntas.length !== 1 ? "s" : ""}
                 </p>
               </div>
-              {extraida && (
-                <button
-                  type="button"
-                  onClick={handleActualizarCV}
-                  disabled={cvPending || cvOk}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11.5px] font-semibold"
-                  style={{
-                    background: cvOk ? "#dafbe1" : "var(--gl-olive-bg)",
-                    color: cvOk ? "#1a7f37" : "var(--gl-olive)",
-                    border: "none", cursor: cvPending || cvOk ? "default" : "pointer",
-                    opacity: cvPending ? 0.7 : 1,
-                  }}
-                >
-                  <RefreshCw className="h-3 w-3" style={{ animation: cvPending ? "spin 1s linear infinite" : "none" }} />
-                  {cvOk ? "CV actualizado" : cvPending ? "Actualizando…" : "Actualizar CV →"}
-                </button>
-              )}
               {cvErr && <span className="text-[11px]" style={{ color: "#c0392b" }}>{cvErr}</span>}
             </div>
 
