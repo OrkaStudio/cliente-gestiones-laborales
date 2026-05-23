@@ -256,8 +256,7 @@ export function WhatsappMessagePanel({
   return (
     <div className="flex flex-col gap-3">
       {/* Overlays globales */}
-      {extractandoPor !== null && <LoadingOverlay titulo="Extrayendo respuestas…" subtitulo="Claude está procesando el texto del candidato…" />}
-      {cvPending && <LoadingOverlay titulo="Actualizando CV…" subtitulo="Claude está reescribiendo el perfil con las respuestas…" />}
+      {cvPending && <LoadingOverlay titulo="Actualizando CV…" subtitulo="Procesando…" />}
       {cvOk      && <SuccessOverlay titulo="CV actualizado" subtitulo="El perfil ya refleja las respuestas del candidato" />}
       {cvErr     && null /* el error se muestra inline en la card */}
 
@@ -353,10 +352,10 @@ export function WhatsappMessagePanel({
                     style={{
                       background: "var(--gl-olive)", color: "#fff", border: "none",
                       cursor: estaExtractando || !textoRespuesta.trim() ? "default" : "pointer",
-                      opacity: estaExtractando || !textoRespuesta.trim() ? 0.6 : 1,
+                      opacity: estaExtractando || !textoRespuesta.trim() ? 0.65 : 1,
                     }}
                   >
-                    <RefreshCw className="h-3.5 w-3.5" />
+                    <RefreshCw className={`h-3.5 w-3.5${estaExtractando ? " animate-spin" : ""}`} />
                     {estaExtractando ? "Extrayendo…" : "Extraer y guardar →"}
                   </button>
                 </div>
