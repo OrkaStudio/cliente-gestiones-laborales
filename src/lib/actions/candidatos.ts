@@ -363,9 +363,17 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
     .single()
 
   const respuestasActuales = (candidatoData?.respuestas_candidato as RespuestaItem[] | null) ?? []
+  // Guardar TODAS las preguntas de la tanda (respuesta vacía si Claude no encontró nada)
+  // Así la tanda queda marcada como procesada en DB, independiente del cliente state
+  const preguntasYaProcesadas = new Set(respuestasActuales.map((r) => r.pregunta))
   const nuevasRespuestas: RespuestaItem[] = preguntasEnviadas
-    .filter((p) => extraido[p.campo])
-    .map((p) => ({ pregunta: p.pregunta, respuesta: String(extraido[p.campo] ?? "") }))
+    .filter((p) => !preguntasYaProcesadas.has(p.pregunta))
+    .map((p) => ({
+      pregunta: p.pregunta,
+      respuesta: (extraido[p.campo] !== undefined && extraido[p.campo] !== null)
+        ? String(extraido[p.campo])
+        : "",
+    }))
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase.from("candidatos") as any)

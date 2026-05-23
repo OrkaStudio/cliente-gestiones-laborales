@@ -104,10 +104,11 @@ export function WhatsappMessagePanel({
       .sort((a, b) => a.enviado_at.localeCompare(b.enviado_at))
   })()
 
-  // Helper: una tanda está "extraída" si todas sus preguntas tienen respuesta en DB
+  // Una tanda fue procesada si todas sus preguntas tienen entrada en DB
+  // (aunque la respuesta sea vacía — indica que se intentó la extracción)
   function isTandaExtraidaEnDb(tanda: TandaGroup): boolean {
     return tanda.preguntas.every((p) =>
-      initialRespuestas?.some((r) => r.pregunta === p.pregunta && r.respuesta.trim())
+      initialRespuestas?.some((r) => r.pregunta === p.pregunta)
     )
   }
 
