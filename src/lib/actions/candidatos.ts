@@ -323,8 +323,10 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
     return { success: false, error: "No se pudo interpretar la respuesta de Claude" }
   }
 
+  // Si Claude no encontró nada claro, igual retornamos success: la tanda se cierra
+  // y el usuario ve "— sin respuesta" en cada campo
   if (!Object.keys(extraido).length) {
-    return { success: false, error: "No se encontraron respuestas claras en el texto" }
+    return { success: true, id: candidatoId }
   }
 
   const candidatoUpdates: Record<string, unknown> = {}
