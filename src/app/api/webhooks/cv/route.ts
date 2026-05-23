@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
         await supabase.from("notificaciones").insert({
           tipo: "cv_error",
           titulo: `No se pudo procesar un CV`,
-          cuerpo: `El archivo "${body.archivo_nombre}" de ${body.remitente_nombre || body.remitente_email} no pudo ser procesado. Revisalo manualmente.`,
+          cuerpo: `El archivo "${body.archivo_nombre}" no pudo procesarse automáticamente. Contactá a soporte para revisarlo.`,
         });
         return;
       }
