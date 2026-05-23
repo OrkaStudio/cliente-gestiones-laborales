@@ -55,8 +55,8 @@ export function SumarCandidatoDialog({
     const q = query.toLowerCase()
     return candidatos.filter(
       (c) =>
-        c.nombre.toLowerCase().includes(q) ||
-        c.apellido.toLowerCase().includes(q) ||
+        (c.nombre ?? "").toLowerCase().includes(q) ||
+        (c.apellido ?? "").toLowerCase().includes(q) ||
         (c.ultimo_puesto ?? "").toLowerCase().includes(q) ||
         (c.ubicacion ?? "").toLowerCase().includes(q),
     )
@@ -194,7 +194,7 @@ export function SumarCandidatoDialog({
                 const yaAsignado = gestionesExistentes.includes(c.id)
                 const isSelected = selected === c.id
                 const pal = AVATAR_COLORS[i % AVATAR_COLORS.length]
-                const initials = `${c.nombre[0]}${c.apellido[0]}`
+                const initials = `${(c.nombre ?? "?")[0]}${(c.apellido ?? "?")[0]}`
 
                 return (
                   <button
