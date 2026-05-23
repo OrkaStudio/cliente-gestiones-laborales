@@ -315,10 +315,10 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
     return { success: false, error: `Error al llamar a Claude: ${e instanceof Error ? e.message : String(e)}` }
   }
 
-  let extraido: Record<string, string> = {}
+  let extraido: Record<string, unknown> = {}
   try {
     const match = text.match(/\{[\s\S]*\}/)
-    if (match) extraido = JSON.parse(match[0]) as Record<string, string>
+    if (match) extraido = JSON.parse(match[0]) as Record<string, unknown>
   } catch {
     return { success: false, error: "No se pudo interpretar la respuesta de Claude" }
   }
@@ -331,8 +331,10 @@ Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
   const expUpdates = new Map<string, Record<string, unknown>>()
   const camposCompletados: string[] = []
 
-  for (const [campo, valorStr] of Object.entries(extraido)) {
-    if (!valorStr?.trim()) continue
+  for (const [campo, valorRaw] of Object.entries(extraido)) {
+    // Claude puede devolver booleans/numbers — normalizar a string antes de procesar
+    const valorStr = (valorRaw === null || valorRaw === undefined) ? "" : String(valorRaw)
+    if (!valorStr.trim()) continue
     const valor = parseCampoValue(campo, valorStr)
 
     if (campo.startsWith("candidato:")) {
