@@ -773,16 +773,16 @@ export async function eliminarCandidato(id: string): Promise<{ success: boolean;
 export async function regenerarCVTextoDesdeDatos(candidatoId: string): Promise<ActionResult> {
   const supabase = createServiceClient()
 
-  const { data: c, error } = await supabase
-    .from("candidatos")
-    .select("*, experiencia_laboral(*), referencias(*)")
-    .eq("id", candidatoId)
-    .single()
+  const [{ data: c, error }, { data: expData }, { data: refsData }] = await Promise.all([
+    supabase.from("candidatos").select("*").eq("id", candidatoId).single(),
+    supabase.from("experiencia_laboral").select("*").eq("candidato_id", candidatoId).order("orden"),
+    supabase.from("referencias").select("*").eq("candidato_id", candidatoId),
+  ])
 
-  if (error || !c) return { success: false, error: "Candidato no encontrado" }
+  if (error || !c) return { success: false, error: `Candidato no encontrado: ${error?.message ?? "sin datos"}` }
 
-  const experiencias = (c.experiencia_laboral ?? []) as any[]
-  const referencias  = (c.referencias ?? []) as any[]
+  const experiencias = (expData ?? []) as any[]
+  const referencias  = (refsData ?? []) as any[]
 
   function val(v: unknown) { return v && String(v).trim() ? String(v).trim() : "sin dato" }
   function bool(v: boolean | null) { return v === true ? "Sí" : v === false ? "No" : "sin dato" }
