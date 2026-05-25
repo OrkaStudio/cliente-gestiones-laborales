@@ -41,6 +41,17 @@ const labelStyle: React.CSSProperties = {
   marginBottom: "0.375rem",
 }
 
+const focusHandlers = {
+  onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = OLIVE
+    e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}`
+  },
+  onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    e.currentTarget.style.borderColor = BORDER_MD
+    e.currentTarget.style.boxShadow = "none"
+  },
+}
+
 function Field({
   label, name, defaultValue, required, type = "text", placeholder,
 }: {
@@ -55,10 +66,94 @@ function Field({
       </label>
       <input
         name={name} type={type} defaultValue={defaultValue ?? ""} required={required}
-        placeholder={placeholder} style={inputStyle}
-        onFocus={(e) => { e.currentTarget.style.borderColor = OLIVE; e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}` }}
-        onBlur={(e)  => { e.currentTarget.style.borderColor = BORDER_MD; e.currentTarget.style.boxShadow = "none" }}
+        placeholder={placeholder} style={inputStyle} {...focusHandlers}
       />
+    </div>
+  )
+}
+
+function NumberField({
+  label, name, defaultValue, placeholder, min, max,
+}: {
+  label: string; name: string; defaultValue?: number | null
+  placeholder?: string; min?: number; max?: number
+}) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <input
+        name={name} type="number" min={min} max={max}
+        defaultValue={defaultValue ?? ""}
+        placeholder={placeholder} style={inputStyle} {...focusHandlers}
+      />
+    </div>
+  )
+}
+
+function SelectField({
+  label, name, defaultValue, options,
+}: {
+  label: string; name: string; defaultValue?: string | null
+  options: { value: string; label: string }[]
+}) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <select name={name} defaultValue={defaultValue ?? ""} style={inputStyle} {...focusHandlers}>
+        <option value="">— Sin especificar —</option>
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+function Toggle({
+  label, name, defaultChecked, hint,
+}: {
+  label: string; name: string; defaultChecked?: boolean | null; hint?: string
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem" }}>
+      <div>
+        <span style={{ ...labelStyle, display: "inline", marginBottom: 0 }}>{label}</span>
+        {hint && <p style={{ fontSize: "11px", color: INK3, marginTop: "0.125rem" }}>{hint}</p>}
+      </div>
+      <label style={{ position: "relative", display: "inline-flex", alignItems: "center", cursor: "pointer", flexShrink: 0 }}>
+        <input type="checkbox" name={name} defaultChecked={defaultChecked ?? false} style={{ display: "none" }}
+          onChange={(e) => {
+            const track = e.currentTarget.nextElementSibling as HTMLElement
+            if (track) {
+              track.style.background = e.currentTarget.checked ? OLIVE : BORDER_MD
+              const thumb = track.firstElementChild as HTMLElement
+              if (thumb) thumb.style.transform = e.currentTarget.checked ? "translateX(20px)" : "translateX(2px)"
+            }
+          }}
+          ref={(el) => {
+            if (el) {
+              const track = el.nextElementSibling as HTMLElement
+              if (track) {
+                track.style.background = el.checked ? OLIVE : BORDER_MD
+                const thumb = track.firstElementChild as HTMLElement
+                if (thumb) thumb.style.transform = el.checked ? "translateX(20px)" : "translateX(2px)"
+              }
+            }
+          }}
+        />
+        <div style={{
+          width: "44px", height: "24px", borderRadius: "100px",
+          background: BORDER_MD, transition: "background 0.2s", position: "relative",
+        }}>
+          <div style={{
+            position: "absolute", top: "2px", width: "20px", height: "20px",
+            borderRadius: "50%", background: "white",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+            transition: "transform 0.2s",
+            transform: "translateX(2px)",
+          }} />
+        </div>
+      </label>
     </div>
   )
 }
@@ -75,9 +170,7 @@ function TextArea({
       {hint && <p style={{ fontSize: "12px", color: INK3, marginBottom: "0.5rem", marginTop: "-0.125rem" }}>{hint}</p>}
       <textarea
         name={name} defaultValue={defaultValue ?? ""} rows={rows} placeholder={placeholder}
-        style={{ ...inputStyle, resize: "none", flex: 1 }}
-        onFocus={(e) => { e.currentTarget.style.borderColor = OLIVE; e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}` }}
-        onBlur={(e)  => { e.currentTarget.style.borderColor = BORDER_MD; e.currentTarget.style.boxShadow = "none" }}
+        style={{ ...inputStyle, resize: "none", flex: 1 }} {...focusHandlers}
       />
     </div>
   )
@@ -109,6 +202,20 @@ function Card({ children, style }: { children: React.ReactNode; style?: React.CS
   )
 }
 
+const IDIOMA_OPTIONS = [
+  { value: "Básico",     label: "Básico" },
+  { value: "Intermedio", label: "Intermedio" },
+  { value: "Avanzado",   label: "Avanzado" },
+]
+
+const EDUCACION_OPTIONS = [
+  { value: "Primario completo",       label: "Primario completo" },
+  { value: "Secundario completo",     label: "Secundario completo" },
+  { value: "Terciario / Técnico",     label: "Terciario / Técnico" },
+  { value: "Universitario completo",  label: "Universitario completo" },
+  { value: "Posgrado",                label: "Posgrado" },
+]
+
 export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
   const [pending, startTransition] = useTransition()
   const [error, setError]          = useState<string | null>(null)
@@ -119,14 +226,25 @@ export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const data = {
-      puesto:         fd.get("puesto") as string,
-      cliente:        fd.get("cliente") as string,
-      estado:         fd.get("estado") as "activa" | "pausada" | "cerrada",
-      ubicacion:      fd.get("ubicacion") as string,
-      rango_salarial: fd.get("rango_salarial") as string,
-      descripcion:    fd.get("descripcion") as string,
-      requisitos:     fd.get("requisitos") as string,
-      fecha_apertura: fd.get("fecha_apertura") as string,
+      puesto:               fd.get("puesto") as string,
+      cliente:              fd.get("cliente") as string,
+      estado:               fd.get("estado") as "activa" | "pausada" | "cerrada",
+      ubicacion:            fd.get("ubicacion") as string,
+      reporte_directo:      fd.get("reporte_directo") as string,
+      rango_salarial:       fd.get("rango_salarial") as string,
+      fecha_apertura:       fd.get("fecha_apertura") as string,
+      descripcion:          fd.get("descripcion") as string,
+      actitudes:            fd.get("actitudes") as string,
+      puestos_similares:    fd.get("puestos_similares") as string,
+      personal_a_cargo_min: fd.get("personal_a_cargo_min") as string,
+      idioma_ingles:        fd.get("idioma_ingles") as string,
+      requisitos:           fd.get("requisitos") as string,
+      edad_minima:          fd.get("edad_minima") as string,
+      edad_maxima:          fd.get("edad_maxima") as string,
+      nivel_educacion:      fd.get("nivel_educacion") as string,
+      disponibilidad_viaje: fd.get("disponibilidad_viaje") as string,
+      movilidad_requerida:  fd.get("movilidad_requerida") as string,
+      estado_civil:         fd.get("estado_civil") as string,
     }
 
     startTransition(async () => {
@@ -223,80 +341,126 @@ export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
           )}
         </div>
 
-        {/* ── Form — two-column grid ────────────────────────────────── */}
         <form
           id="busqueda-form"
           onSubmit={handleSubmit}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gridTemplateRows: "auto auto 1fr",
-            gap: "1.25rem",
-            alignItems: "start",
-          }}
+          style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
         >
-          {/* Col 1, Row 1 — Identificación */}
+          {/* ── 1. Descripción del puesto ─────────────────────────── */}
           <Card>
-            <SectionLabel>Identificación</SectionLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-              <Field label="Puesto" name="puesto" defaultValue={busqueda?.puesto} required placeholder="Capataz de campo" />
+            <SectionLabel>Descripción del puesto</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <Field label="Nombre del puesto" name="puesto" defaultValue={busqueda?.puesto} required placeholder="Capataz de campo" />
               <Field label="Cliente / Empleador" name="cliente" defaultValue={busqueda?.cliente} required placeholder="Estancia La Esperanza" />
+              <Field label="Lugar / Área" name="ubicacion" defaultValue={busqueda?.ubicacion ?? ""} placeholder="Santa Rosa, LP" />
+              <Field label="Reporte directo a" name="reporte_directo" defaultValue={busqueda?.reporte_directo ?? ""} placeholder="Gerente de campo" />
               <div>
                 <label style={labelStyle}>Estado</label>
                 <select
                   name="estado"
                   defaultValue={busqueda?.estado ?? "activa"}
-                  style={inputStyle}
-                  onFocus={(e) => { e.currentTarget.style.borderColor = OLIVE; e.currentTarget.style.boxShadow = `0 0 0 3px ${OLIVE_BG}` }}
-                  onBlur={(e)  => { e.currentTarget.style.borderColor = BORDER_MD; e.currentTarget.style.boxShadow = "none" }}
+                  style={inputStyle} {...focusHandlers}
                 >
                   <option value="activa">Activa</option>
                   <option value="pausada">Pausada</option>
                 </select>
               </div>
-            </div>
-          </Card>
-
-          {/* Col 2, Row 1 — Descripción */}
-          <Card style={{ display: "flex", flexDirection: "column" }}>
-            <SectionLabel>Brief</SectionLabel>
-            <TextArea
-              label="Descripción del puesto" name="descripcion"
-              defaultValue={busqueda?.descripcion ?? ""} rows={7}
-              placeholder="Descripción de la posición, perfil buscado, contexto del establecimiento..."
-            />
-          </Card>
-
-          {/* Col 1, Row 2 — Detalles */}
-          <Card>
-            <SectionLabel>Detalles</SectionLabel>
-            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
-                <Field label="Ubicación" name="ubicacion" defaultValue={busqueda?.ubicacion ?? ""} placeholder="Santa Rosa, LP" />
                 <Field label="Rango salarial" name="rango_salarial" defaultValue={busqueda?.rango_salarial ?? ""} placeholder="$300k – $500k" />
+                <Field
+                  label="Fecha apertura" name="fecha_apertura" type="date"
+                  defaultValue={busqueda?.fecha_apertura ?? new Date().toISOString().split("T")[0]}
+                />
               </div>
-              <Field
-                label="Fecha de apertura" name="fecha_apertura" type="date"
-                defaultValue={busqueda?.fecha_apertura ?? new Date().toISOString().split("T")[0]}
-              />
             </div>
           </Card>
 
-          {/* Col 2, Row 2 — Requisitos */}
-          <Card style={{ display: "flex", flexDirection: "column" }}>
-            <SectionLabel>Requisitos</SectionLabel>
+          {/* ── 2. Descripción de tareas ──────────────────────────── */}
+          <Card>
+            <SectionLabel>Descripción de tareas</SectionLabel>
             <TextArea
-              label="Un requisito por línea" name="requisitos"
-              defaultValue={busqueda?.requisitos?.join("\n") ?? ""} rows={6}
-              placeholder={"Manejo de hacienda\nLicencia de conducir\nDisponibilidad para residir en campo"}
-              hint="Cada línea se guarda como un requisito separado"
+              label="Principales responsabilidades y detalle de tareas" name="descripcion"
+              defaultValue={busqueda?.descripcion ?? ""} rows={5}
+              placeholder="Describir las principales responsabilidades, tareas diarias y contexto del establecimiento..."
             />
+          </Card>
+
+          {/* ── 3. Actitud laboral ──────────��─────────────────────── */}
+          <Card>
+            <SectionLabel>Actitud laboral</SectionLabel>
+            <TextArea
+              label="Actitudes destacadas requeridas" name="actitudes"
+              defaultValue={busqueda?.actitudes?.join("\n") ?? ""} rows={4}
+              placeholder={"Proactivo y resolutivo\nBuena comunicación con el equipo\nOrientado a resultados"}
+              hint="Una actitud por línea"
+            />
+          </Card>
+
+          {/* ── 4. Experiencia requerida ──────────────────────────── */}
+          <Card>
+            <SectionLabel>Experiencia requerida</SectionLabel>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+              <Field
+                label="Puestos similares" name="puestos_similares"
+                defaultValue={busqueda?.puestos_similares ?? ""}
+                placeholder="Mayordomo, encargado de campo"
+              />
+              <NumberField
+                label="Gente a cargo (mínimo)" name="personal_a_cargo_min"
+                defaultValue={busqueda?.personal_a_cargo_min} placeholder="0" min={0}
+              />
+              <SelectField
+                label="Idioma inglés" name="idioma_ingles"
+                defaultValue={busqueda?.idioma_ingles}
+                options={IDIOMA_OPTIONS}
+              />
+              <div style={{ gridColumn: "1 / -1" }}>
+                <TextArea
+                  label="Otros requisitos" name="requisitos"
+                  defaultValue={busqueda?.requisitos?.join("\n") ?? ""} rows={4}
+                  placeholder={"Manejo de hacienda\nLicencia de conducir\nDisponibilidad para residir en campo"}
+                  hint="Un requisito por línea"
+                />
+              </div>
+            </div>
+          </Card>
+
+          {/* ── 5. Requerimientos formales ────────────────────────── */}
+          <Card>
+            <SectionLabel>Requerimientos formales</SectionLabel>
+            <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "0.75rem" }}>
+                <NumberField label="Edad mínima" name="edad_minima" defaultValue={busqueda?.edad_minima} placeholder="25" min={18} max={99} />
+                <NumberField label="Edad máxima" name="edad_maxima" defaultValue={busqueda?.edad_maxima} placeholder="50" min={18} max={99} />
+                <SelectField
+                  label="Nivel de educación" name="nivel_educacion"
+                  defaultValue={busqueda?.nivel_educacion}
+                  options={EDUCACION_OPTIONS}
+                />
+                <Field
+                  label="Estado civil" name="estado_civil"
+                  defaultValue={busqueda?.estado_civil ?? ""}
+                  placeholder="Indistinto"
+                />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", paddingTop: "0.5rem", borderTop: `1px solid ${BORDER}` }}>
+                <Toggle
+                  label="Disposición a viajar"
+                  name="disponibilidad_viaje"
+                  defaultChecked={busqueda?.disponibilidad_viaje ?? false}
+                />
+                <Toggle
+                  label="Movilidad propia"
+                  name="movilidad_requerida"
+                  defaultChecked={busqueda?.movilidad_requerida ?? false}
+                />
+              </div>
+            </div>
           </Card>
 
           {/* Error — full width */}
           {error && (
             <div style={{
-              gridColumn: "1 / -1",
               fontSize: "13px", color: "#cf222e",
               background: "#ffebe9", border: "1px solid #f1aeb5",
               borderRadius: "0.5rem", padding: "0.625rem 0.875rem",

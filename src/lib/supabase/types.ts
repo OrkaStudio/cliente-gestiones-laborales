@@ -16,60 +16,87 @@ export type Database = {
     Tables: {
       busquedas: {
         Row: {
+          actitudes: string[]
           cliente: string
           created_at: string
           descripcion: string | null
+          disponibilidad_viaje: boolean | null
+          edad_maxima: number | null
+          edad_minima: number | null
           embedding: string | null
           estado: Database["public"]["Enums"]["estado_busqueda"]
+          estado_civil: string | null
           fecha_apertura: string
           fecha_cierre: string | null
           notas_cierre: string | null
           hectareas_min: number | null
           id: string
+          idioma_ingles: string | null
           movilidad_requerida: boolean | null
+          nivel_educacion: string | null
           personal_a_cargo_min: number | null
+          puestos_similares: string | null
           puesto: string
           rango_salarial: string | null
+          reporte_directo: string | null
           requisitos: string[]
           tipos_ganaderia_req: string[]
           ubicacion: string | null
           updated_at: string
         }
         Insert: {
+          actitudes?: string[]
           cliente: string
           created_at?: string
           descripcion?: string | null
+          disponibilidad_viaje?: boolean | null
+          edad_maxima?: number | null
+          edad_minima?: number | null
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_busqueda"]
+          estado_civil?: string | null
           fecha_apertura?: string
           fecha_cierre?: string | null
           notas_cierre?: string | null
           hectareas_min?: number | null
           id?: string
+          idioma_ingles?: string | null
           movilidad_requerida?: boolean | null
+          nivel_educacion?: string | null
           personal_a_cargo_min?: number | null
+          puestos_similares?: string | null
           puesto: string
           rango_salarial?: string | null
+          reporte_directo?: string | null
           requisitos?: string[]
           tipos_ganaderia_req?: string[]
           ubicacion?: string | null
           updated_at?: string
         }
         Update: {
+          actitudes?: string[]
           cliente?: string
           created_at?: string
           descripcion?: string | null
+          disponibilidad_viaje?: boolean | null
+          edad_maxima?: number | null
+          edad_minima?: number | null
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_busqueda"]
+          estado_civil?: string | null
           fecha_apertura?: string
           fecha_cierre?: string | null
           notas_cierre?: string | null
           hectareas_min?: number | null
           id?: string
+          idioma_ingles?: string | null
           movilidad_requerida?: boolean | null
+          nivel_educacion?: string | null
           personal_a_cargo_min?: number | null
+          puestos_similares?: string | null
           puesto?: string
           rango_salarial?: string | null
+          reporte_directo?: string | null
           requisitos?: string[]
           tipos_ganaderia_req?: string[]
           ubicacion?: string | null

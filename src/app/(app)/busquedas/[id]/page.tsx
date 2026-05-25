@@ -498,38 +498,118 @@ export default async function BusquedaDetailPage({
             </div>
           )}
 
+          {/* Actitudes */}
+          {(busqueda.actitudes?.length ?? 0) > 0 && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-3" style={{ color: "var(--gl-ink)" }}>
+                Actitud laboral
+              </h2>
+              <div className="space-y-0">
+                {busqueda.actitudes.map((a: string, i: number) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-3 py-2.5"
+                    style={{ borderTop: "1px solid var(--gl-border)" }}
+                  >
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{a}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Experiencia requerida */}
+          {(busqueda.puestos_similares || busqueda.personal_a_cargo_min != null || busqueda.idioma_ingles) && (
+            <div className="rounded-2xl border p-6" style={CARD}>
+              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
+                Experiencia requerida
+              </h2>
+              <div className="space-y-0">
+                {busqueda.puestos_similares && (
+                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                    <span className="gl-eyebrow">Puestos similares</span>
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.puestos_similares}</span>
+                  </div>
+                )}
+                {busqueda.personal_a_cargo_min != null && (
+                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                    <span className="gl-eyebrow">Gente a cargo</span>
+                    <span className="text-sm font-bold" style={{ color: "var(--gl-ink)" }}>
+                      {busqueda.personal_a_cargo_min}+
+                    </span>
+                  </div>
+                )}
+                {busqueda.idioma_ingles && (
+                  <div className="flex items-center justify-between gap-3 py-3">
+                    <span className="gl-eyebrow">Inglés</span>
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.idioma_ingles}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Datos */}
           <div className="rounded-2xl border p-6" style={CARD}>
             <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
               Datos
             </h2>
             <div className="space-y-0">
+              {busqueda.reporte_directo && (
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <span className="gl-eyebrow">Reporte directo</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.reporte_directo}</span>
+                </div>
+              )}
               {busqueda.rango_salarial && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
                   <span className="gl-eyebrow">Rango salarial</span>
-                  <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>
-                    {busqueda.rango_salarial}
+                  <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>{busqueda.rango_salarial}</span>
+                </div>
+              )}
+              {(busqueda.edad_minima != null || busqueda.edad_maxima != null) && (
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <span className="gl-eyebrow">Edad</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                    {busqueda.edad_minima ?? "—"} – {busqueda.edad_maxima ?? "—"} años
                   </span>
                 </div>
               )}
-              <div
-                className="flex items-center justify-between gap-3 py-3"
-                style={{ borderBottom: "1px solid var(--gl-border)" }}
-              >
+              {busqueda.nivel_educacion && (
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <span className="gl-eyebrow">Educación</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.nivel_educacion}</span>
+                </div>
+              )}
+              {busqueda.estado_civil && (
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <span className="gl-eyebrow">Estado civil</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.estado_civil}</span>
+                </div>
+              )}
+              {busqueda.disponibilidad_viaje != null && (
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <span className="gl-eyebrow">Disp. a viajar</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.disponibilidad_viaje ? "gl-badge-green" : "gl-badge-gray"}`}>
+                    {busqueda.disponibilidad_viaje ? "Sí" : "No"}
+                  </span>
+                </div>
+              )}
+              {busqueda.movilidad_requerida != null && (
+                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <span className="gl-eyebrow">Movilidad propia</span>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.movilidad_requerida ? "gl-badge-green" : "gl-badge-gray"}`}>
+                    {busqueda.movilidad_requerida ? "Sí" : "No"}
+                  </span>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
                 <span className="gl-eyebrow">Apertura</span>
-                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>
-                  {busqueda.fecha_apertura}
-                </span>
+                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>{busqueda.fecha_apertura}</span>
               </div>
               <div className="flex items-center justify-between gap-3 py-3">
                 <span className="gl-eyebrow">Tiempo abierta</span>
-                <span
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color: daysOpen > 30 ? "var(--gl-olive)" : "var(--gl-ink)" }}
-                >
+                <span className="text-sm font-bold tabular-nums" style={{ color: daysOpen > 30 ? "var(--gl-olive)" : "var(--gl-ink)" }}>
                   {daysOpen}d
                 </span>
               </div>

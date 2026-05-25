@@ -13,7 +13,18 @@ type BusquedaData = {
   rango_salarial?: string
   descripcion?: string
   requisitos?: string
+  actitudes?: string
   fecha_apertura?: string
+  reporte_directo?: string
+  puestos_similares?: string
+  personal_a_cargo_min?: string
+  idioma_ingles?: string
+  edad_minima?: string
+  edad_maxima?: string
+  nivel_educacion?: string
+  disponibilidad_viaje?: string
+  estado_civil?: string
+  movilidad_requerida?: string
 }
 
 function parseRequisitos(raw?: string): string[] {
@@ -30,7 +41,18 @@ function buildPayload(data: BusquedaData) {
     rango_salarial: data.rango_salarial?.trim() || null,
     descripcion: data.descripcion?.trim() || null,
     requisitos: parseRequisitos(data.requisitos),
+    actitudes: parseRequisitos(data.actitudes),
     fecha_apertura: data.fecha_apertura?.trim() || new Date().toISOString().split("T")[0],
+    reporte_directo: data.reporte_directo?.trim() || null,
+    puestos_similares: data.puestos_similares?.trim() || null,
+    personal_a_cargo_min: data.personal_a_cargo_min ? parseInt(data.personal_a_cargo_min, 10) : null,
+    idioma_ingles: data.idioma_ingles?.trim() || null,
+    edad_minima: data.edad_minima ? parseInt(data.edad_minima, 10) : null,
+    edad_maxima: data.edad_maxima ? parseInt(data.edad_maxima, 10) : null,
+    nivel_educacion: data.nivel_educacion?.trim() || null,
+    disponibilidad_viaje: data.disponibilidad_viaje === "on" ? true : data.disponibilidad_viaje === "false" ? false : null,
+    estado_civil: data.estado_civil?.trim() || null,
+    movilidad_requerida: data.movilidad_requerida === "on" ? true : data.movilidad_requerida === "false" ? false : null,
   }
 }
 
