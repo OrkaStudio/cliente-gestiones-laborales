@@ -14,6 +14,7 @@ import { waUrl } from "@/lib/cv/utils"
 import { ReferenciaInlinePanel } from "@/components/app/referencia-inline-panel"
 import type { Referencia } from "@/components/app/referencia-inline-panel"
 import { FichaEditablePanel } from "@/components/app/ficha-editable-panel"
+import { ExperienciaEditablePanel } from "@/components/app/experiencia-editable-panel"
 import { NotasRecruiterInline } from "@/components/app/notas-recruiter-inline"
 import { CategoriasInlinePanel } from "@/components/app/categorias-inline-panel"
 import { CamposPendientesPanel } from "@/components/app/campos-pendientes-panel"
@@ -482,6 +483,12 @@ export default async function CandidatoDetailPage({
               </div>
             )}
           </div>
+
+          {/* Trayectoria laboral */}
+          <ExperienciaEditablePanel
+            candidatoId={candidato.id}
+            initialExperiencia={experiencia ?? []}
+          />
 
           {/* Notas del recruiter */}
           <NotasRecruiterInline
