@@ -1,19 +1,11 @@
 "use client"
 
-import { useState, useRef, useTransition, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Pencil, Check, X, Download, FileText, Save } from "lucide-react"
-import { updateCVProcesado } from "@/lib/actions/candidatos"
+import { Download, FileText } from "lucide-react"
 import {
-  parseSections, assembleSections,
+  parseSections,
   parseKV, parseJobs, parseBullets, parseRefs, parseJobBlocksB,
   type CvSection,
 } from "@/lib/cv/utils"
-
-function autoResize(el: HTMLTextAreaElement) {
-  el.style.height = "auto"
-  el.style.height = `${el.scrollHeight}px`
-}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -202,113 +194,8 @@ function SectionContentWeb({ title, content }: { title: string; content: string 
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto, hideDownload = false }: Props) {
-  const [sections,    setSections]    = useState<CvSection[]>(() => parseSections(initialTexto ?? ""))
-  const [editMode,    setEditMode]    = useState(false)
-  const [activeIdx,   setActiveIdx]   = useState<number | null>(null)
-  const [drafts,      setDrafts]      = useState<Record<number, string>>({})
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [pendingHref, setPendingHref] = useState<string | null>(null)
-  const [saved,       setSaved]       = useState(false)
-  const [isPending,   start]          = useTransition()
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const router = useRouter()
-
-  const hasText   = !!initialTexto?.trim()
-  const hasDrafts = Object.keys(drafts).length > 0
-  const isDirty   = editMode && (hasDrafts || activeIdx !== null)
-
-  // Bloquear cierre de tab / refresh cuando hay cambios sin guardar
-  useEffect(() => {
-    if (!isDirty) return
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = "" }
-    window.addEventListener("beforeunload", handler)
-    return () => window.removeEventListener("beforeunload", handler)
-  }, [isDirty])
-
-  // Interceptar clicks en links internos cuando hay cambios sin guardar
-  useEffect(() => {
-    if (!isDirty) return
-    const handleClick = (e: MouseEvent) => {
-      const anchor = (e.target as Element).closest("a")
-      if (!anchor) return
-      if (anchor.hasAttribute("download")) return       // descargas: dejar pasar
-      const href = anchor.getAttribute("href")
-      if (!href || href.startsWith("http") || href.startsWith("#")) return
-      e.preventDefault()
-      e.stopPropagation()
-      setPendingHref(href)
-      setShowConfirm(true)
-    }
-    document.addEventListener("click", handleClick, true)
-    return () => document.removeEventListener("click", handleClick, true)
-  }, [isDirty])
-
-  // Entrar en modo edición
-  function enterEditMode() {
-    setEditMode(true)
-    setDrafts({})
-    setActiveIdx(null)
-    setSaved(false)
-  }
-
-  // Abrir una sección para editar (guarda el draft de la anterior si existía)
-  function openSection(idx: number) {
-    if (!editMode) return
-    if (activeIdx !== null && activeIdx !== idx) {
-      // Guardar textarea actual al draft local antes de cambiar
-      const currentVal = textareaRef.current?.value
-      if (currentVal !== undefined) {
-        setDrafts(d => ({ ...d, [activeIdx]: currentVal }))
-      }
-    }
-    setActiveIdx(idx)
-    setTimeout(() => {
-      if (textareaRef.current) autoResize(textareaRef.current)
-    }, 0)
-  }
-
-  // Guardar todo en DB y salir de edición
-  function saveAll() {
-    // Capturar el textarea activo si lo hay
-    const finalDrafts = { ...drafts }
-    if (activeIdx !== null && textareaRef.current) {
-      finalDrafts[activeIdx] = textareaRef.current.value
-    }
-    const updated = sections.map((s, i) =>
-      finalDrafts[i] !== undefined ? { ...s, content: finalDrafts[i] } : s
-    )
-    const fullText = assembleSections(updated)
-    start(async () => {
-      await updateCVProcesado(candidatoId, fullText)
-      setSections(updated)
-      setEditMode(false)
-      setActiveIdx(null)
-      setDrafts({})
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2500)
-    })
-  }
-
-  // Intentar cancelar edición — pedir confirmación si hay cambios sin guardar
-  function tryExitEdit() {
-    setPendingHref(null)
-    if (hasDrafts || activeIdx !== null) {
-      setShowConfirm(true)
-    } else {
-      doExitEdit()
-    }
-  }
-
-  function doExitEdit() {
-    setEditMode(false)
-    setActiveIdx(null)
-    setDrafts({})
-    setShowConfirm(false)
-    if (pendingHref) {
-      router.push(pendingHref)
-      setPendingHref(null)
-    }
-  }
+  const sections: CvSection[] = parseSections(initialTexto ?? "")
+  const hasText = !!initialTexto?.trim()
 
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (!hasText) {
@@ -333,155 +220,21 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
     <div>
 
       {/* ── Toolbar ─────────────────────────────────────────────────────────── */}
-      {(
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
-            {editMode
-              ? activeIdx !== null
-                ? `Editando ${sections[activeIdx]?.title} — hacé clic en otra sección para continuar`
-                : "Modo edición — hacé clic en una sección para editarla"
-              : "CV procesado por IA — editá si necesitás corregir algo"}
-          </span>
-          <div className="flex items-center gap-2">
-            {editMode ? (
-              <>
-                <button
-                  onClick={tryExitEdit}
-                  disabled={isPending}
-                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors disabled:opacity-50"
-                  style={{ background: "var(--gl-gray-bg)", color: "var(--gl-gray)" }}
-                >
-                  <X className="h-3.5 w-3.5" /> Cancelar
-                </button>
-                <button
-                  onClick={saveAll}
-                  disabled={isPending || (!hasDrafts && activeIdx === null)}
-                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all disabled:opacity-40"
-                  style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
-                >
-                  <Save className="h-3.5 w-3.5" />
-                  {isPending ? "Guardando…" : "Guardar CV"}
-                </button>
-              </>
-            ) : (
-              <>
-                {saved && (
-                  <span className="flex items-center gap-1 text-[11px] font-semibold" style={{ color: "var(--gl-olive)" }}>
-                    <Check className="h-3.5 w-3.5" /> Guardado
-                  </span>
-                )}
-                <button
-                  onClick={enterEditMode}
-                  className="inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-[12px] font-medium transition-colors"
-                  style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)", border: "1px solid rgba(42,74,24,0.2)" }}
-                >
-                  <Pencil className="h-3.5 w-3.5" /> Editar CV
-                </button>
-                {!hideDownload && (
-                  <a
-                    href={`/api/cv/${candidatoId}/pdf`}
-                    download
-                    className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all hover:opacity-90"
-                    style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
-                  >
-                    <Download className="h-3.5 w-3.5" /> Descargar PDF
-                  </a>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ── Modal confirmar salir sin guardar ───────────────────────────────── */}
-      {showConfirm && (
-        <div
-          style={{
-            position:        "fixed",
-            inset:           0,
-            zIndex:          9999,
-            background:      "rgba(13,17,23,0.55)",
-            display:         "flex",
-            alignItems:      "center",
-            justifyContent:  "center",
-            padding:         "1.5rem",
-            backdropFilter:  "blur(2px)",
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setShowConfirm(false) }}
-        >
-          <div
-            style={{
-              background:    "#fff8e6",
-              border:        "1.5px solid #f5c842",
-              borderRadius:  "1.25rem",
-              padding:       "2.5rem 2.25rem",
-              maxWidth:      440,
-              width:         "100%",
-              boxShadow:     "0 24px 64px rgba(13,17,23,0.22), 0 4px 16px rgba(13,17,23,0.12)",
-              display:       "flex",
-              flexDirection: "column",
-              gap:           "1.5rem",
-            }}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-[11px]" style={{ color: "var(--gl-ink-3)" }}>
+          CV procesado por IA — para corregir datos, editá el perfil del candidato
+        </span>
+        {!hideDownload && (
+          <a
+            href={`/api/cv/${candidatoId}/pdf`}
+            download
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-[12px] font-semibold transition-all hover:opacity-90"
+            style={{ background: "var(--gl-olive)", color: "#fff", boxShadow: "0 2px 8px rgba(42,74,24,0.25)" }}
           >
-            {/* Icono */}
-            <div style={{ fontSize: 28 }}>⚠️</div>
-
-            {/* Texto */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: "#7a5500", letterSpacing: "-0.02em" }}>
-                Cambios sin guardar
-              </div>
-              <p style={{ fontSize: 14, color: "#92400e", lineHeight: 1.6, margin: 0 }}>
-                {pendingHref
-                  ? "Si salís ahora perdés las ediciones que hiciste en el CV. ¿Salir igual?"
-                  : "Si descartás los cambios no se van a guardar. ¿Estás seguro?"}
-              </p>
-            </div>
-
-            {/* Botones */}
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <button
-                onClick={() => setShowConfirm(false)}
-                style={{
-                  flex:         1,
-                  padding:      "0.75rem 1rem",
-                  fontSize:     14,
-                  fontWeight:   600,
-                  color:        "#7a5500",
-                  background:   "#fff",
-                  border:       "1.5px solid #f5c842",
-                  borderRadius: "0.75rem",
-                  cursor:       "pointer",
-                  transition:   "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#fff3cd")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-              >
-                Seguir editando
-              </button>
-              <button
-                onClick={doExitEdit}
-                style={{
-                  flex:         1,
-                  padding:      "0.75rem 1rem",
-                  fontSize:     14,
-                  fontWeight:   700,
-                  color:        "#fff",
-                  background:   "#c0392b",
-                  border:       "none",
-                  borderRadius: "0.75rem",
-                  cursor:       "pointer",
-                  transition:   "background 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#a93226")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#c0392b")}
-              >
-                {pendingHref ? "Salir sin guardar" : "Descartar cambios"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <Download className="h-3.5 w-3.5" /> Descargar PDF
+          </a>
+        )}
+      </div>
 
       {/* ── Documento ─────────────────────────────────────────────────────── */}
       <div
@@ -489,8 +242,7 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
         style={{
           background: "#fff",
           boxShadow:  "0 4px 32px rgba(13,17,23,0.10), 0 1px 4px rgba(13,17,23,0.06)",
-          border:     editMode ? "1.5px solid var(--gl-olive)" : "1px solid var(--gl-border)",
-          transition: "border-color 0.2s",
+          border:     "1px solid var(--gl-border)",
         }}
       >
         {/* Header */}
@@ -521,76 +273,24 @@ export function CVProcesadoEditor({ candidatoId, nombre, apellido, initialTexto,
             </div>
           )}
 
-          {sections.map((sec, idx) => {
-            const isActive = activeIdx === idx
-            const isDirty  = drafts[idx] !== undefined
-            const content  = drafts[idx] ?? sec.content
-
-            return (
-              <div
-                key={idx}
-                onClick={() => !isActive && openSection(idx)}
-                style={{
-                  borderBottom: idx < sections.length - 1 ? "1px solid var(--gl-border)" : "none",
-                  padding:      "18px 28px",
-                  background:   isActive ? "#fafffe" : editMode && !isActive ? "#fafafa" : "#fff",
-                  cursor:       editMode && !isActive ? "pointer" : "default",
-                  transition:   "background 0.15s",
-                }}
-              >
-                {/* Cabecera de sección */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <div style={{
-                      width: 3, height: 14, borderRadius: 2, flexShrink: 0,
-                      background: isActive ? "var(--gl-amber)" : "var(--gl-olive)",
-                      transition: "background 0.15s",
-                    }} />
-                    <span className="font-bold uppercase tracking-[0.18em]" style={{
-                      color:    isActive ? "var(--gl-amber)" : "var(--gl-olive)",
-                      fontSize: 10, transition: "color 0.15s",
-                    }}>
-                      {sec.title}
-                    </span>
-                    {isDirty && !isActive && (
-                      <span style={{ fontSize: 9, color: "var(--gl-amber)", fontWeight: 600 }}>● editado</span>
-                    )}
-                  </div>
-                  {editMode && !isActive && (
-                    <span style={{ fontSize: 10, color: "var(--gl-ink-3)" }}>clic para editar</span>
-                  )}
-                </div>
-
-                <div style={{
-                  height: 1,
-                  background: isActive ? "var(--gl-olive)" : "var(--gl-border)",
-                  opacity: isActive ? 0.4 : 1,
-                  marginBottom: 14,
-                  transition: "background 0.15s",
-                }} />
-
-                {/* Contenido */}
-                {editMode && isActive ? (
-                  <textarea
-                    ref={textareaRef}
-                    defaultValue={content}
-                    autoFocus
-                    onFocus={(e) => autoResize(e.target)}
-                    onChange={(e) => autoResize(e.target)}
-                    className="w-full resize-none focus:outline-none rounded-xl px-4 py-3"
-                    style={{
-                      fontFamily: "var(--font-geist-mono), ui-monospace, monospace",
-                      fontSize:   12.5, lineHeight: 1.75, color: "var(--gl-ink)",
-                      background: "#f6f8fa", border: "1.5px solid var(--gl-olive)",
-                      minHeight:  72, overflow: "hidden",
-                    }}
-                  />
-                ) : (
-                  <SectionContentWeb title={sec.title} content={content} />
-                )}
+          {sections.map((sec, idx) => (
+            <div
+              key={idx}
+              style={{
+                borderBottom: idx < sections.length - 1 ? "1px solid var(--gl-border)" : "none",
+                padding: "18px 28px",
+              }}
+            >
+              <div className="flex items-center gap-2.5 mb-3">
+                <div style={{ width: 3, height: 14, borderRadius: 2, flexShrink: 0, background: "var(--gl-olive)" }} />
+                <span className="font-bold uppercase tracking-[0.18em]" style={{ color: "var(--gl-olive)", fontSize: 10 }}>
+                  {sec.title}
+                </span>
               </div>
-            )
-          })}
+              <div style={{ height: 1, background: "var(--gl-border)", marginBottom: 14 }} />
+              <SectionContentWeb title={sec.title} content={sec.content} />
+            </div>
+          ))}
         </div>
 
         {/* Footer del documento */}

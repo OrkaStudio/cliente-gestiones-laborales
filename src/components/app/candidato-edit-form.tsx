@@ -459,6 +459,10 @@ export function CandidatoEditForm({
             <Field label="Muebles propios" value={c.muebles_propios ?? ""} onChange={(v) => setField("muebles_propios", v || null)} placeholder="Mesa, sillas, camas..." />
             <Field label="Animales"        value={c.animales        ?? ""} onChange={(v) => setField("animales",        v || null)} placeholder="Perro, gato..." />
           </Row>
+          <Row>
+            <Field label="Hectáreas máx." value={c.hectareas_max != null ? String(c.hectareas_max) : ""} onChange={(v) => setField("hectareas_max", v ? Number(v) : null)} type="number" placeholder="5000" hint="Superficie máxima de establecimiento manejada" />
+            <Field label="Personal a cargo máx." value={c.personal_a_cargo_max != null ? String(c.personal_a_cargo_max) : ""} onChange={(v) => setField("personal_a_cargo_max", v ? Number(v) : null)} type="number" placeholder="10" hint="Cantidad máxima de personas conducidas" />
+          </Row>
         </AccordionCard>
 
       </div>
