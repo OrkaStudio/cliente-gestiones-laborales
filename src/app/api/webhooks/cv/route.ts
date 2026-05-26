@@ -48,8 +48,8 @@ Respondé ÚNICAMENTE con un JSON array. Ejemplo: ["Peón General", "Tractorista
     .filter((c): c is string => typeof c === "string" && CATEGORIAS_GL.includes(c))
 }
 
-// Claude puede tardar 30s+ — respondemos 202 a Make y procesamos en background
-export const maxDuration = 60;
+// Claude puede tardar 60s+ en PDFs complejos — after() extiende la vida de la función
+export const maxDuration = 300;
 
 const BodySchema = z.object({
   secret: z.string(),
@@ -189,7 +189,7 @@ export async function POST(req: NextRequest) {
 
       let candidatoParseado;
       try {
-        const parseSignal = AbortSignal.timeout(55_000);
+        const parseSignal = AbortSignal.timeout(270_000);
         candidatoParseado = await parsearCV(buffer, mimeEfectivo, body.archivo_nombre, parseSignal);
       } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
