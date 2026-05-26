@@ -21,6 +21,7 @@ export type BusquedaRow = {
   notas_internas: string | null
   fecha_apertura: string
   fecha_cierre: string | null
+  fecha_ultimo_activado: string | null
   gestiones: GestionRaw[]
 }
 
@@ -282,7 +283,7 @@ function BusquedasGrid({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
       {busquedas.map((b) => {
-        const days   = calcDaysOpen(b.fecha_apertura)
+        const days   = calcDaysOpen(b.fecha_ultimo_activado ?? b.fecha_apertura)
         const count  = b.gestiones.length
         const dys    = daysBadge(days)
         const etapas = etapasActivas(b.gestiones)

@@ -11,6 +11,7 @@ export type Database = {
           ubicacion: string | null;
           estado: "activa" | "pausada" | "cerrada";
           fecha_apertura: string | null;
+          fecha_ultimo_activado: string | null;
           descripcion: string | null;
           requisitos: string[] | null;
           rango_salarial: string | null;
@@ -30,6 +31,7 @@ export type Database = {
           ubicacion?: string | null;
           estado?: "activa" | "pausada" | "cerrada";
           fecha_apertura?: string | null;
+          fecha_ultimo_activado?: string | null;
           descripcion?: string | null;
           requisitos?: string[] | null;
           rango_salarial?: string | null;
@@ -49,6 +51,7 @@ export type Database = {
           ubicacion?: string | null;
           estado?: "activa" | "pausada" | "cerrada";
           fecha_apertura?: string | null;
+          fecha_ultimo_activado?: string | null;
           descripcion?: string | null;
           requisitos?: string[] | null;
           rango_salarial?: string | null;

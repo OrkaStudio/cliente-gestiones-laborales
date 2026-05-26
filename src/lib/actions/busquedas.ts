@@ -82,13 +82,15 @@ export async function updateBusqueda(id: string, data: BusquedaData): Promise<Ac
     .single()
 
   const base = buildPayload(data)
-  const cerrando   = data.estado === "cerrada" && current?.estado !== "cerrada"
-  const reabriendo = data.estado === "activa"  && current?.estado === "cerrada"
+  const cerrando    = data.estado === "cerrada" && current?.estado !== "cerrada"
+  const reabriendo  = data.estado === "activa"  && current?.estado === "cerrada"
+  const reactivando = data.estado === "activa"  && current?.estado === "pausada"
 
   const payload = {
     ...base,
-    ...(cerrando   && { fecha_cierre: new Date().toISOString() }),
-    ...(reabriendo && { fecha_cierre: null }),
+    ...(cerrando    && { fecha_cierre: new Date().toISOString() }),
+    ...(reabriendo  && { fecha_cierre: null }),
+    ...(reactivando && { fecha_ultimo_activado: new Date().toISOString() }),
   }
 
   const { error } = await supabase.from("busquedas").update(payload).eq("id", id)

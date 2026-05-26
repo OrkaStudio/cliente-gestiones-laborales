@@ -46,7 +46,7 @@ export function SumarCandidatoDialog({
 }: Props) {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
   const [pending, startTransition] = useTransition()
   const router = useRouter()
 
@@ -65,21 +65,33 @@ export function SumarCandidatoDialog({
   function handleOpen() {
     setOpen(true)
     setQuery("")
-    setSelected(null)
+    setSelected([])
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
   }
 
   function handleConfirm() {
-    if (!selected) return
+    if (selected.length === 0) return
     startTransition(async () => {
-      const result = await createGestion({
-        candidato_id: selected,
-        busqueda_id: busquedaId,
-      })
-      if (!result.success) {
-        toast.error(result.error)
-        return
+      const results = await Promise.all(
+        selected.map((candidato_id) =>
+          createGestion({ candidato_id, busqueda_id: busquedaId }),
+        ),
+      )
+      const errors = results.filter((r) => !r.success)
+      if (errors.length > 0) {
+        toast.error(`${errors.length} candidato${errors.length !== 1 ? "s" : ""} no se pudieron sumar`)
+      } else {
+        toast.success(
+          selected.length === 1
+            ? "Candidato sumado a la búsqueda"
+            : `${selected.length} candidatos sumados a la búsqueda`,
+        )
       }
-      toast.success("Candidato sumado a la búsqueda")
       router.refresh()
       setOpen(false)
     })
@@ -92,6 +104,13 @@ export function SumarCandidatoDialog({
     { bg: "#fff8c5", color: "#7d4e00" },
     { bg: "#eddeff", color: "#6e40c9" },
   ]
+
+  const btnLabel =
+    selected.length === 0
+      ? "Sumar"
+      : selected.length === 1
+        ? "Sumar 1 candidato"
+        : `Sumar ${selected.length} candidatos`
 
   return (
     <>
@@ -141,10 +160,10 @@ export function SumarCandidatoDialog({
                 fontWeight: 400,
               }}
             >
-              Sumar candidato
+              Sumar candidatos
             </DialogTitle>
             <p style={{ fontSize: "12.5px", color: INK3, marginTop: "0.25rem" }}>
-              El candidato pasará a{" "}
+              Seleccioná uno o más. Pasarán a{" "}
               <span style={{ color: INK2, fontWeight: 500 }}>Preseleccionado</span>
               {" "}en{" "}
               <span style={{ color: INK2, fontWeight: 500 }}>{busquedaPuesto}</span>
@@ -192,7 +211,7 @@ export function SumarCandidatoDialog({
             ) : (
               filtered.map((c, i) => {
                 const yaAsignado = gestionesExistentes.includes(c.id)
-                const isSelected = selected === c.id
+                const isSelected = selected.includes(c.id)
                 const pal = AVATAR_COLORS[i % AVATAR_COLORS.length]
                 const initials = `${(c.nombre ?? "?")[0]}${(c.apellido ?? "?")[0]}`
 
@@ -200,7 +219,7 @@ export function SumarCandidatoDialog({
                   <button
                     key={c.id}
                     disabled={yaAsignado}
-                    onClick={() => !yaAsignado && setSelected(isSelected ? null : c.id)}
+                    onClick={() => !yaAsignado && toggleSelect(c.id)}
                     style={{
                       width: "100%",
                       display: "flex",
@@ -258,7 +277,7 @@ export function SumarCandidatoDialog({
                     </div>
 
                     {/* Badge */}
-                    {yaAsignado && (
+                    {yaAsignado ? (
                       <span
                         style={{
                           fontSize: "11px",
@@ -276,7 +295,22 @@ export function SumarCandidatoDialog({
                         <CheckCircle2 style={{ width: 10, height: 10 }} />
                         En gestión
                       </span>
-                    )}
+                    ) : isSelected ? (
+                      <span
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: "50%",
+                          background: OLIVE,
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <CheckCircle2 style={{ width: 11, height: 11, color: "#fff" }} />
+                      </span>
+                    ) : null}
                   </button>
                 )
               })
@@ -310,7 +344,7 @@ export function SumarCandidatoDialog({
             </button>
             <button
               onClick={handleConfirm}
-              disabled={!selected || pending}
+              disabled={selected.length === 0 || pending}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -319,15 +353,15 @@ export function SumarCandidatoDialog({
                 fontSize: "13.5px",
                 fontWeight: 600,
                 color: "#ffffff",
-                background: !selected || pending ? "#8b949e" : OLIVE,
+                background: selected.length === 0 || pending ? "#8b949e" : OLIVE,
                 border: "none",
                 borderRadius: "0.75rem",
-                cursor: !selected || pending ? "not-allowed" : "pointer",
+                cursor: selected.length === 0 || pending ? "not-allowed" : "pointer",
                 transition: "background 0.15s",
               }}
             >
               {pending && <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />}
-              Sumar
+              {btnLabel}
             </button>
           </div>
         </DialogContent>

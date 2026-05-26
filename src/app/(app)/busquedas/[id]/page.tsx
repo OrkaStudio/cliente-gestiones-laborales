@@ -31,6 +31,12 @@ function calcDaysOpen(fecha: string) {
   return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
 }
 
+function formatDate(iso: string | null) {
+  if (!iso) return ""
+  const d = iso.split("T")[0].split("-")
+  return `${d[2]}/${d[1]}/${d[0]}`
+}
+
 function diasDesde(iso: string) {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
 }
@@ -78,7 +84,7 @@ export default async function BusquedaDetailPage({
 
   if (!busqueda) notFound();
 
-  const daysOpen    = calcDaysOpen(busqueda.fecha_apertura);
+  const daysOpen    = calcDaysOpen(busqueda.fecha_ultimo_activado ?? busqueda.fecha_apertura);
   const descartados = gestionesData?.filter((g) => g.estado === "descartado").length ?? 0;
   const contratados = gestionesData?.filter((g) => g.estado === "contratado").length ?? 0;
   const activos     = (gestionesData?.length ?? 0) - descartados;
@@ -159,7 +165,7 @@ export default async function BusquedaDetailPage({
                     <span style={{ color: "var(--gl-border)" }}>·</span>
                     <span className="flex items-center gap-1 text-sm" style={{ color: "var(--gl-ink-3)" }}>
                       <Calendar className="h-3 w-3 shrink-0" />
-                      {busqueda.fecha_apertura}
+                      {formatDate(busqueda.fecha_apertura)}
                     </span>
                   </>
                 )}
@@ -606,7 +612,7 @@ export default async function BusquedaDetailPage({
               )}
               <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
                 <span className="gl-eyebrow">Apertura</span>
-                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>{busqueda.fecha_apertura}</span>
+                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>{formatDate(busqueda.fecha_apertura)}</span>
               </div>
               <div className="flex items-center justify-between gap-3 py-3">
                 <span className="gl-eyebrow">Tiempo abierta</span>

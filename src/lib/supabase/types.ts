@@ -28,6 +28,7 @@ export type Database = {
           estado_civil: string | null
           fecha_apertura: string
           fecha_cierre: string | null
+          fecha_ultimo_activado: string | null
           notas_cierre: string | null
           notas_internas: string | null
           hectareas_min: number | null
@@ -58,6 +59,7 @@ export type Database = {
           estado_civil?: string | null
           fecha_apertura?: string
           fecha_cierre?: string | null
+          fecha_ultimo_activado?: string | null
           notas_cierre?: string | null
           notas_internas?: string | null
           hectareas_min?: number | null
@@ -88,6 +90,7 @@ export type Database = {
           estado_civil?: string | null
           fecha_apertura?: string
           fecha_cierre?: string | null
+          fecha_ultimo_activado?: string | null
           notas_cierre?: string | null
           notas_internas?: string | null
           hectareas_min?: number | null
