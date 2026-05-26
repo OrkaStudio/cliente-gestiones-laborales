@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useState, useTransition, useEffect } from "react"
 import { Pencil, Trash2, Plus, Check, X, ChevronDown, ChevronUp } from "lucide-react"
 import { updateExperienciaFields, addExperiencia, deleteExperiencia } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
+import { createClient } from "@/lib/supabase/client"
 
 type Exp = Tables<"experiencia_laboral">
 
@@ -261,27 +262,34 @@ function ExpCard({
 
       {/* Detalle colapsable */}
       {expanded && !editing && (
-        <div style={{ padding: "0.5rem 1rem 0.875rem", borderTop: `1px solid ${BORDER}`, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.6rem 1.5rem" }}>
-          {[
-            { label: "Propietario",    val: exp.nombre_propietario },
-            { label: "Hectáreas",      val: exp.dimension_establecimiento },
-            { label: "Personal",       val: exp.personal_a_cargo },
-            { label: "En blanco",      val: exp.en_blanco === true ? "Sí" : exp.en_blanco === false ? "No" : null },
-            { label: "Ingresos",       val: exp.ingresos_actuales },
-            { label: "Beneficios",     val: exp.beneficios },
-            { label: "Motivo salida",  val: exp.motivo_cambio_o_salida },
-          ].filter(f => f.val).map(f => (
-            <div key={f.label}>
-              <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: INK3 }}>{f.label}</div>
-              <div style={{ fontSize: 12.5, color: INK, marginTop: 1 }}>{f.val}</div>
-            </div>
-          ))}
-          {exp.descripcion && (
-            <div style={{ gridColumn: "1 / -1" }}>
-              <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: INK3, marginBottom: 3 }}>Tareas</div>
-              <p style={{ fontSize: 12.5, color: INK3, lineHeight: 1.6, margin: 0 }}>{exp.descripcion}</p>
-            </div>
-          )}
+        <div style={{ padding: "0.5rem 1rem 0.875rem", borderTop: `1px solid ${BORDER}` }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.6rem 1.5rem", marginBottom: exp.descripcion ? "0.75rem" : 0 }}>
+            {[
+              { label: "Propietario",   val: exp.nombre_propietario },
+              { label: "Desde",         val: exp.desde },
+              { label: "Hasta",         val: esActual ? "Actual" : (exp.hasta ?? null) },
+              { label: "Ubicación",     val: exp.ubicacion },
+              { label: "Dimensión",     val: exp.dimension_establecimiento },
+              { label: "Personal",      val: exp.personal_a_cargo },
+              { label: "En blanco",     val: exp.en_blanco === true ? "Sí" : exp.en_blanco === false ? "No" : null },
+              { label: "Ingresos",      val: exp.ingresos_actuales },
+              { label: "Beneficios",    val: exp.beneficios },
+              { label: "Motivo salida", val: exp.motivo_cambio_o_salida },
+            ].map(f => (
+              <div key={f.label}>
+                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: INK3 }}>{f.label}</div>
+                <div style={{ fontSize: 12.5, color: f.val ? INK : INK3, marginTop: 1, fontStyle: f.val ? "normal" : "italic" }}>
+                  {f.val ?? "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: INK3, marginBottom: 3 }}>Tareas</div>
+            <p style={{ fontSize: 12.5, color: exp.descripcion ? INK3 : INK3, lineHeight: 1.6, margin: 0, fontStyle: exp.descripcion ? "normal" : "italic" }}>
+              {exp.descripcion ?? "—"}
+            </p>
+          </div>
         </div>
       )}
 
@@ -314,6 +322,31 @@ export function ExperienciaEditablePanel({
   const [addingNew, setAddingNew]     = useState(false)
   const [newDraft, setNewDraft]       = useState<DraftExp>(() => toDraft({}))
   const [saving, startSave]           = useTransition()
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel(`experiencia-${candidatoId}`)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "experiencia_laboral", filter: `candidato_id=eq.${candidatoId}` },
+        (payload) => {
+          setExperiencia(prev => prev.map(e => e.id === (payload.new as Exp).id ? payload.new as Exp : e))
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "experiencia_laboral", filter: `candidato_id=eq.${candidatoId}` },
+        (payload) => {
+          setExperiencia(prev => {
+            const ya = prev.some(e => e.id === (payload.new as Exp).id)
+            return ya ? prev : [...prev, payload.new as Exp]
+          })
+        },
+      )
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [candidatoId])
 
   function handleAddSave() {
     startSave(async () => {
