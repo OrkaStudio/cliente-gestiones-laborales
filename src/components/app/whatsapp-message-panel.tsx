@@ -11,6 +11,12 @@ import {
   type PreguntaEnviada,
 } from "@/lib/actions/candidatos"
 
+function fmtRespuesta(v: string): string {
+  if (v === "true")  return "Sí"
+  if (v === "false") return "No"
+  return v
+}
+
 // ─── Overlay de carga / éxito ─────────────────────────────────────────────────
 
 function LoadingOverlay({ titulo, subtitulo }: { titulo: string; subtitulo: string }) {
@@ -350,7 +356,7 @@ export function WhatsappMessagePanel({
                         <div key={p.campo} style={{ borderLeft: "2px solid var(--gl-border)", paddingLeft: 10 }}>
                           <div className="text-[11px] font-semibold mb-0.5" style={{ color: "var(--gl-ink-3)" }}>{p.pregunta}</div>
                           <div className="text-[12.5px]" style={{ color: resp?.respuesta?.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
-                            {resp?.respuesta?.trim() || "— sin respuesta"}
+                            {resp?.respuesta?.trim() ? fmtRespuesta(resp.respuesta.trim()) : "— sin respuesta"}
                           </div>
                         </div>
                       )
@@ -422,7 +428,7 @@ export function WhatsappMessagePanel({
                   {pregunta}
                 </div>
                 <div className="text-[12.5px]" style={{ color: respuesta.trim() ? "var(--gl-ink)" : "var(--gl-ink-3)" }}>
-                  {respuesta.trim() || "— sin respuesta"}
+                  {respuesta.trim() ? fmtRespuesta(respuesta.trim()) : "— sin respuesta"}
                 </div>
               </div>
             ))}
