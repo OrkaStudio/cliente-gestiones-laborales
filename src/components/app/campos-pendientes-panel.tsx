@@ -36,9 +36,6 @@ const CAMPOS: { key: keyof Candidato; label: string; grupo: string }[] = [
   // Campo
   { key: "muebles_propios",      label: "Muebles propios",        grupo: "Campo"       },
   { key: "animales",             label: "Animales",               grupo: "Campo"       },
-  // Capacidad
-  { key: "hectareas_max",        label: "Hectáreas máx.",         grupo: "Capacidad"   },
-  { key: "personal_a_cargo_max", label: "Personal a cargo máx.",  grupo: "Capacidad"   },
 ]
 
 function isMissing(val: unknown): boolean {
