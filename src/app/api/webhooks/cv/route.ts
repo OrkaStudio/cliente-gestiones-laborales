@@ -8,6 +8,16 @@ import { after } from "next/server";
 import { revalidateTag } from "next/cache";
 import { z, ZodError } from "zod";
 
+const AGRO_KW    = ["campo", "estancia", "tambo", "feedlot", "agrícol", "agropecuar", "ganade", "rural", "tambero", "puestero", "capataz", "tractorista", "cosecha", "siembra", "cultivo", "agro"]
+const NO_AGRO_KW = ["distribuidora", "distribuidor", "distribución", "repositor", "supermercado", "hipermercado", "farmacia", "banco ", "financier", "seguro", "administrat", "contab", "recepcion", "cajero", "secretar", "sistemas", "software", "programad", "marketing"]
+
+function requiereDimensionEstablecimiento(exp: { rol?: string | null; empresa?: string | null }): boolean {
+  const t = `${exp.rol ?? ""} ${exp.empresa ?? ""}`.toLowerCase()
+  if (AGRO_KW.some(kw => t.includes(kw)))    return true
+  if (NO_AGRO_KW.some(kw => t.includes(kw))) return false
+  return true
+}
+
 async function detectarCategorias(cvTexto: string): Promise<string[]> {
   const key = process.env.ANTHROPIC_API_KEY
   if (!key || !cvTexto.trim()) return []
@@ -323,7 +333,7 @@ export async function POST(req: NextRequest) {
           if (isMissing(exp.rol))                       campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "rol",                       label: "Cargo/puesto"               })
           if (isMissing(exp.desde))                     campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "desde",                     label: "Fecha de ingreso"           })
           if (isMissing(exp.ubicacion))                 campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "ubicacion",                 label: "Ubicación"                  })
-          if (isMissing(exp.dimension_establecimiento)) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "dimension_establecimiento", label: "Tamaño establecimiento"     })
+          if (isMissing(exp.dimension_establecimiento) && requiereDimensionEstablecimiento(exp)) campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "dimension_establecimiento", label: "Tamaño establecimiento"     })
           if (isMissing(exp.descripcion))               campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "descripcion",               label: "Tareas desarrolladas"       })
           if (isMissing(exp.personal_a_cargo))          campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "personal_a_cargo",          label: "Personas a cargo"           })
           if (exp.en_blanco === null)                   campos.push({ tipo: "experiencia", expIndex: i, empresa, campo: "en_blanco",                  label: "En blanco"                  })

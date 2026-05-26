@@ -42,6 +42,16 @@ function isMissing(val: unknown): boolean {
   return val === null || val === undefined || val === ""
 }
 
+const AGRO_KW    = ["campo", "estancia", "tambo", "feedlot", "agrícol", "agropecuar", "ganade", "rural", "tambero", "puestero", "capataz", "tractorista", "cosecha", "siembra", "cultivo", "agro"]
+const NO_AGRO_KW = ["distribuidora", "distribuidor", "distribución", "repositor", "supermercado", "hipermercado", "farmacia", "banco ", "financier", "seguro", "administrat", "contab", "recepcion", "cajero", "secretar", "sistemas", "software", "programad", "marketing"]
+
+function requiereDimensionEstablecimiento(exp: { rol?: string | null; empresa?: string | null }): boolean {
+  const t = `${exp.rol ?? ""} ${exp.empresa ?? ""}`.toLowerCase()
+  if (AGRO_KW.some(kw => t.includes(kw)))    return true
+  if (NO_AGRO_KW.some(kw => t.includes(kw))) return false
+  return true
+}
+
 const CHIP_AMBER: React.CSSProperties = {
   background: "#fff7e6", border: "1px solid #f59e0b", color: "#92400e",
 }
@@ -55,7 +65,7 @@ function getExpCampos(exp: Experiencia): ExpCampo[] {
   if (isMissing(exp.rol))                        r.push({ id: "rol",                       label: "Cargo/puesto"               })
   if (isMissing(exp.desde))                      r.push({ id: "desde",                     label: "Fecha de ingreso"           })
   if (isMissing(exp.ubicacion))                  r.push({ id: "ubicacion",                 label: "Ubicación"                  })
-  if (isMissing(exp.dimension_establecimiento))  r.push({ id: "dimension_establecimiento", label: "Tamaño establecimiento"     })
+  if (isMissing(exp.dimension_establecimiento) && requiereDimensionEstablecimiento(exp))  r.push({ id: "dimension_establecimiento", label: "Tamaño establecimiento"     })
   if (isMissing(exp.descripcion))                r.push({ id: "descripcion",               label: "Tareas desarrolladas"       })
   if (isMissing(exp.personal_a_cargo))           r.push({ id: "personal_a_cargo",          label: "Personas a cargo"           })
   if (exp.en_blanco === null)                    r.push({ id: "en_blanco",                 label: "En blanco"                  })

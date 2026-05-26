@@ -1,12 +1,14 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Search, Users, MessageCircle, ThumbsUp, ThumbsDown, X, ArrowUpDown, ArrowUp } from "lucide-react"
 import { CandidatoSheet } from "@/components/app/candidato-sheet"
 import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle"
 import { waUrl } from "@/lib/cv/utils"
 import { fuzzyFilter } from "@/lib/fuzzy"
+import { createClient } from "@/lib/supabase/client"
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -80,6 +82,18 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
   const [estadoFilter, setEstadoFilter] = useState<"todos" | "activo" | "inactivo">("todos")
   const [catFilter, setCatFilter] = useState<string[]>([])
   const [sortOrder, setSortOrder] = useState<"llegada" | "alfabetico">("llegada")
+  const router = useRouter()
+
+  useEffect(() => {
+    const supabase = createClient()
+    const channel = supabase
+      .channel("candidatos-realtime")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "candidatos" }, () => {
+        router.refresh()
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [router])
 
   const debouncedQuery = useDebounce(query, 180)
 
