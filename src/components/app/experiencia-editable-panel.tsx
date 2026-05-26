@@ -108,20 +108,22 @@ function toDraft(exp: Partial<Exp>): DraftExp {
 }
 
 function fromDraft(d: DraftExp): Partial<Exp> {
+  // empresa y rol son NOT NULL en la DB — si están vacíos se omiten (undefined = no actualizar)
+  // el resto son nullable — null limpia el valor en la DB
   return {
-    empresa:                  d.empresa.trim() || undefined,
-    nombre_propietario:       d.nombre_propietario.trim() || undefined,
-    rol:                      d.rol.trim() || undefined,
-    desde:                    d.desde.trim() || undefined,
-    hasta:                    d.esActual ? undefined : (d.hasta.trim() || undefined),
-    ubicacion:                d.ubicacion.trim() || undefined,
-    dimension_establecimiento: d.dimension_establecimiento.trim() || undefined,
-    descripcion:              d.descripcion.trim() || undefined,
-    personal_a_cargo:         d.personal_a_cargo.trim() || undefined,
-    en_blanco:                d.en_blanco,
-    ingresos_actuales:        d.esActual ? (d.ingresos_actuales.trim() || undefined) : undefined,
-    beneficios:               d.esActual ? (d.beneficios.trim() || undefined) : undefined,
-    motivo_cambio_o_salida:   !d.esActual ? (d.motivo_cambio_o_salida.trim() || undefined) : undefined,
+    empresa:                   d.empresa.trim() || undefined,
+    rol:                       d.rol.trim() || undefined,
+    nombre_propietario:        d.nombre_propietario.trim() || null,
+    desde:                     d.desde.trim() || null,
+    hasta:                     d.esActual ? null : (d.hasta.trim() || null),
+    ubicacion:                 d.ubicacion.trim() || null,
+    dimension_establecimiento: d.dimension_establecimiento.trim() || null,
+    descripcion:               d.descripcion.trim() || null,
+    personal_a_cargo:          d.personal_a_cargo.trim() || null,
+    en_blanco:                 d.en_blanco,
+    ingresos_actuales:         d.esActual ? (d.ingresos_actuales.trim() || null) : null,
+    beneficios:                d.esActual ? (d.beneficios.trim() || null) : null,
+    motivo_cambio_o_salida:    !d.esActual ? (d.motivo_cambio_o_salida.trim() || null) : null,
   }
 }
 

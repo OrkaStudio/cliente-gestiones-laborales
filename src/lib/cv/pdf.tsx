@@ -139,7 +139,7 @@ function ExperienciaPDF({ experiencia }: { experiencia: Experiencia[] }) {
             {/* Cargo + Período — misma fila */}
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 3 }}>
               <Text style={[s.jobTitle, { flex: 1, marginBottom: 0 }]}>
-                {exp.rol || "sin dato"}
+                {exp.rol}
               </Text>
               <Text style={{ fontSize: 8.5, color: C.ink3, fontFamily: "Helvetica" }}>{periodo}</Text>
             </View>
