@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Search, Users, MessageCircle, ThumbsUp, ThumbsDown, X } from "lucide-react"
+import { Search, Users, MessageCircle, ThumbsUp, ThumbsDown, X, ArrowUpDown, ArrowUp } from "lucide-react"
 import { CandidatoSheet } from "@/components/app/candidato-sheet"
 import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle"
 import { waUrl } from "@/lib/cv/utils"
@@ -79,8 +79,12 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
   const [query, setQuery] = useState("")
   const [estadoFilter, setEstadoFilter] = useState<"todos" | "activo" | "inactivo">("todos")
   const [catFilter, setCatFilter] = useState<string[]>([])
+  const [sortOrder, setSortOrder] = useState<"llegada" | "alfabetico">("llegada")
 
   const debouncedQuery = useDebounce(query, 180)
+
+  const norm = (s: string) =>
+    (s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase()
 
   const candidatos = useMemo(() => {
     let result = debouncedQuery.trim()
@@ -91,8 +95,15 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
     if (catFilter.length > 0)
       result = result.filter((c) => catFilter.every((cat) => (c.categorias ?? []).includes(cat)))
 
+    if (sortOrder === "alfabetico")
+      result = [...result].sort((a, b) => {
+        const ap = norm(a.apellido), bp = norm(b.apellido)
+        if (ap !== bp) return ap.localeCompare(bp)
+        return norm(a.nombre).localeCompare(norm(b.nombre))
+      })
+
     return result
-  }, [debouncedQuery, todos, estadoFilter, catFilter])
+  }, [debouncedQuery, todos, estadoFilter, catFilter, sortOrder])
 
   const allCats = useMemo(() => {
     const set = new Set<string>()
@@ -199,6 +210,33 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
               </button>
             ))}
           </div>
+
+          {/* Separador */}
+          <span style={{ width: 1, height: 18, background: "var(--gl-border)", flexShrink: 0 }} />
+
+          {/* Orden chips */}
+          <div className="flex items-center gap-1.5">
+            {(["llegada", "alfabetico"] as const).map((opt) => (
+              <button
+                key={opt}
+                onClick={() => setSortOrder(opt)}
+                style={{
+                  fontSize:     12,
+                  fontWeight:   sortOrder === opt ? 600 : 400,
+                  padding:      "5px 12px",
+                  borderRadius: 99,
+                  border:       `1px solid ${sortOrder === opt ? "var(--gl-olive)" : "var(--gl-border)"}`,
+                  background:   sortOrder === opt ? "var(--gl-olive-bg)" : "transparent",
+                  color:        sortOrder === opt ? "var(--gl-olive)" : "var(--gl-ink-3)",
+                  cursor:       "pointer",
+                  transition:   "all 0.12s",
+                  whiteSpace:   "nowrap",
+                }}
+              >
+                {opt === "llegada" ? "Reciente" : "A → Z"}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Categoría chips */}
@@ -288,21 +326,49 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
             }}
           >
             {["Nombre", "Último puesto", "Edad", "Localidad", "WA", "Categorías", "Gestión activa", "Estado"].map((h) => (
-              <span
-                key={h}
-                style={{
-                  fontSize:      10,
-                  fontWeight:    700,
-                  letterSpacing: "0.12em",
-                  textTransform: "uppercase",
-                  color:         "var(--gl-ink-3)",
-                  whiteSpace:    "nowrap",
-                  overflow:      "hidden",
-                  textOverflow:  "ellipsis",
-                }}
-              >
-                {h}
-              </span>
+              h === "Nombre" ? (
+                <button
+                  key={h}
+                  onClick={() => setSortOrder((s) => s === "alfabetico" ? "llegada" : "alfabetico")}
+                  style={{
+                    display:       "inline-flex",
+                    alignItems:    "center",
+                    gap:           4,
+                    fontSize:      10,
+                    fontWeight:    700,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color:         sortOrder === "alfabetico" ? "var(--gl-olive)" : "var(--gl-ink-3)",
+                    background:    "none",
+                    border:        "none",
+                    padding:       0,
+                    cursor:        "pointer",
+                    whiteSpace:    "nowrap",
+                  }}
+                >
+                  {h}
+                  {sortOrder === "alfabetico"
+                    ? <ArrowUp style={{ width: 10, height: 10 }} />
+                    : <ArrowUpDown style={{ width: 10, height: 10, opacity: 0.4 }} />
+                  }
+                </button>
+              ) : (
+                <span
+                  key={h}
+                  style={{
+                    fontSize:      10,
+                    fontWeight:    700,
+                    letterSpacing: "0.12em",
+                    textTransform: "uppercase",
+                    color:         "var(--gl-ink-3)",
+                    whiteSpace:    "nowrap",
+                    overflow:      "hidden",
+                    textOverflow:  "ellipsis",
+                  }}
+                >
+                  {h}
+                </span>
+              )
             ))}
           </div>
 
@@ -350,7 +416,7 @@ export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
                         whiteSpace:   "nowrap",
                       }}
                     >
-                      {c.nombre} {c.apellido}
+                      {c.apellido} {c.nombre}
                     </span>
                     {!c.visto && (
                       <span style={{
