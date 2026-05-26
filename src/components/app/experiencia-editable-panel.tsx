@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useTransition, useEffect } from "react"
-import { Pencil, Trash2, Plus, Check, X, ChevronDown, ChevronUp } from "lucide-react"
+import { Trash2, Plus, Check, X, ChevronDown, ChevronUp } from "lucide-react"
 import { updateExperienciaFields, addExperiencia, deleteExperiencia } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
 import { createClient } from "@/lib/supabase/client"
@@ -192,27 +192,42 @@ function ExpForm({
   )
 }
 
-// ── Card de un trabajo (lectura) ──────────────────────────────────────────────
+// ── Card de un trabajo ────────────────────────────────────────────────────────
 
 function ExpCard({
   exp, candidatoId, onDelete,
 }: {
   exp: Exp; candidatoId: string; onDelete: () => void
 }) {
-  const [editing, setEditing]   = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [draft, setDraft]       = useState<DraftExp>(() => toDraft(exp))
   const [saving, startSave]     = useTransition()
   const [deleting, startDel]    = useTransition()
 
+  // Sincroniza draft cuando llegan updates de realtime (solo si está cerrado)
+  useEffect(() => {
+    if (!expanded) setDraft(toDraft(exp))
+  }, [exp]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const isDirty = JSON.stringify(draft) !== JSON.stringify(toDraft(exp))
+
+  function handleToggle() {
+    if (expanded && isDirty) {
+      if (!confirm("¿Descartar cambios sin guardar?")) return
+      setDraft(toDraft(exp))
+    }
+    setExpanded(v => !v)
+  }
+
   function handleSave() {
     startSave(async () => {
       await updateExperienciaFields(exp.id, candidatoId, fromDraft(draft) as Parameters<typeof updateExperienciaFields>[2])
-      setEditing(false)
+      setExpanded(false)
     })
   }
 
-  function handleDelete() {
+  function handleDelete(e: React.MouseEvent) {
+    e.stopPropagation()
     if (!confirm("¿Eliminar este trabajo del historial?")) return
     startDel(async () => {
       await deleteExperiencia(exp.id, candidatoId)
@@ -223,14 +238,23 @@ function ExpCard({
   const esActual = exp.hasta == null
 
   return (
-    <div style={{ border: `1px solid ${BORDER}`, borderRadius: 10, overflow: "hidden", background: "#fff" }}>
-      {/* Header siempre visible */}
-      <div style={{ padding: "0.75rem 1rem", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12 }}>
+    <div style={{ border: `1px solid ${expanded ? OLIVE_BG : BORDER}`, borderRadius: 10, overflow: "hidden", background: "#fff", transition: "border-color 0.15s" }}>
+      {/* Header — click para expandir/colapsar */}
+      <div
+        role="button"
+        onClick={handleToggle}
+        style={{ padding: "0.75rem 1rem", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 12, cursor: "pointer", userSelect: "none" }}
+      >
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {esActual && (
               <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: OLIVE, background: OLIVE_BG, padding: "2px 8px", borderRadius: 20 }}>
                 Actual
+              </span>
+            )}
+            {isDirty && (
+              <span style={{ fontSize: 9.5, fontWeight: 600, color: "#92400e", background: "#fff7e6", padding: "2px 8px", borderRadius: 20, border: "1px solid #f59e0b" }}>
+                Sin guardar
               </span>
             )}
             <span style={{ fontSize: 14, fontWeight: 700, color: INK }}>
@@ -245,62 +269,24 @@ function ExpCard({
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-          <button type="button" onClick={() => { setEditing(true); setExpanded(true) }}
-            style={{ padding: "4px 8px", fontSize: 11, fontWeight: 600, color: OLIVE, background: OLIVE_BG, border: `1px solid rgba(42,74,24,0.2)`, borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-            <Pencil style={{ width: 11, height: 11 }} /> Editar
-          </button>
           <button type="button" onClick={handleDelete} disabled={deleting}
             style={{ padding: "4px 7px", color: "#dc2626", background: "transparent", border: `1px solid #fca5a5`, borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center" }}>
             <Trash2 style={{ width: 11, height: 11 }} />
           </button>
-          <button type="button" onClick={() => setExpanded(v => !v)}
-            style={{ padding: "4px 6px", color: INK3, background: "transparent", border: `1px solid ${BORDER}`, borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center" }}>
+          <div style={{ padding: "4px 6px", color: INK3, display: "flex", alignItems: "center" }}>
             {expanded ? <ChevronUp style={{ width: 12, height: 12 }} /> : <ChevronDown style={{ width: 12, height: 12 }} />}
-          </button>
+          </div>
         </div>
       </div>
 
-      {/* Detalle colapsable */}
-      {expanded && !editing && (
-        <div style={{ padding: "0.5rem 1rem 0.875rem", borderTop: `1px solid ${BORDER}` }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: "0.6rem 1.5rem", marginBottom: exp.descripcion ? "0.75rem" : 0 }}>
-            {[
-              { label: "Propietario",   val: exp.nombre_propietario },
-              { label: "Desde",         val: exp.desde },
-              { label: "Hasta",         val: esActual ? "Actual" : (exp.hasta ?? null) },
-              { label: "Ubicación",     val: exp.ubicacion },
-              { label: "Dimensión",     val: exp.dimension_establecimiento },
-              { label: "Personal",      val: exp.personal_a_cargo },
-              { label: "En blanco",     val: exp.en_blanco === true ? "Sí" : exp.en_blanco === false ? "No" : null },
-              { label: "Ingresos",      val: exp.ingresos_actuales },
-              { label: "Beneficios",    val: exp.beneficios },
-              { label: "Motivo salida", val: exp.motivo_cambio_o_salida },
-            ].map(f => (
-              <div key={f.label}>
-                <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: INK3 }}>{f.label}</div>
-                <div style={{ fontSize: 12.5, color: f.val ? INK : INK3, marginTop: 1, fontStyle: f.val ? "normal" : "italic" }}>
-                  {f.val ?? "—"}
-                </div>
-              </div>
-            ))}
-          </div>
-          <div>
-            <div style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: INK3, marginBottom: 3 }}>Tareas</div>
-            <p style={{ fontSize: 12.5, color: exp.descripcion ? INK3 : INK3, lineHeight: 1.6, margin: 0, fontStyle: exp.descripcion ? "normal" : "italic" }}>
-              {exp.descripcion ?? "—"}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Form de edición */}
-      {editing && (
+      {/* Form directo al expandir */}
+      {expanded && (
         <div style={{ padding: "0.5rem 0.75rem 0.75rem", borderTop: `1px solid ${BORDER}` }}>
           <ExpForm
             draft={draft}
             onChange={setDraft}
             onSave={handleSave}
-            onCancel={() => { setEditing(false); setDraft(toDraft(exp)) }}
+            onCancel={handleToggle}
             saving={saving}
           />
         </div>
