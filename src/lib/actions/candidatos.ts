@@ -260,15 +260,14 @@ export async function registrarEnvioWhatsapp(
 }
 
 const CANDIDATO_BOOL_CAMPOS = new Set(["movilidad", "vehiculo_propio", "licencia_conducir"])
-const CANDIDATO_NUM_CAMPOS  = new Set(["hectareas_max", "personal_a_cargo_max"])
+const CANDIDATO_NUM_CAMPOS  = new Set<string>() // actualmente ningún campo de candidato requiere coerción numérica
 
 function parseCampoValue(campo: string, valorStr: string): string | boolean | number {
   const isBool =
     campo.endsWith(":en_blanco") ||
     (campo.startsWith("candidato:") && CANDIDATO_BOOL_CAMPOS.has(campo.split(":")[1] ?? ""))
   const isNum =
-    campo.endsWith(":personal_a_cargo") ||
-    (campo.startsWith("candidato:") && CANDIDATO_NUM_CAMPOS.has(campo.split(":")[1] ?? ""))
+    campo.startsWith("candidato:") && CANDIDATO_NUM_CAMPOS.has(campo.split(":")[1] ?? "")
 
   if (isBool) {
     const v = valorStr.toLowerCase().trim()
@@ -302,19 +301,48 @@ export async function extraerYGuardarRespuestas(
   try {
     const result = await generateText({
       model: anthropic("claude-haiku-4-5-20251001"),
-      prompt: `Se le enviaron estas preguntas a un candidato laboral y respondió por WhatsApp.
-Extraé la respuesta a cada pregunta del texto de respuesta.
+      prompt: `Sos asistente de una consultora de RRHH agropecuaria. Un candidato respondió por WhatsApp a una serie de preguntas sobre su historial laboral.
+Tu tarea es extraer la respuesta a cada pregunta y mapearla al campo correcto.
 
-Preguntas enviadas (formato: número. [id_campo] label: "pregunta"):
+PREGUNTAS ENVIADAS (formato: número. [id_campo] label: "pregunta"):
 ${listaPreguntas}
 
-Texto de respuesta del candidato:
+RESPUESTA DEL CANDIDATO:
 ${textoRespuesta}
 
-Devolvé ÚNICAMENTE un JSON object donde las claves son los id_campo y los valores son las respuestas extraídas.
-Solo incluí campos donde encontraste una respuesta clara.
-Para campos booleanos (en_blanco, movilidad, vehiculo_propio, licencia_conducir), devolvé "true" o "false".
-Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba"}`,
+REGLAS DE EXTRACCIÓN:
+
+1. AMBIGÜEDAD — Preservá el texto tal cual si la respuesta es imprecisa o un rango.
+   Correcto:   "3 o 4 personas"  →  "3 o 4 personas"
+   Incorrecto: "3 o 4 personas"  →  "34"  o  "3"
+
+2. FECHAS — Usá formato YYYY-MM si es posible.
+   - "principios de 2019" → "2019-03"
+   - "a mediados del 2020" → "2020-06"
+   - "fines de 2019" → "2019-11"
+   - "2019" sin más contexto → "2019-01"
+   - Si el candidato indica que ya NO trabaja ahí pero la fecha es incierta, aproximá el mes más razonable. No dejes null.
+
+3. SEMÁNTICA DE CAMPOS — Cada campo tiene un significado exacto:
+   - "dimension_establecimiento": superficie o tamaño físico del campo/establecimiento (ej: "5.000 ha", "800 hectáreas"). NUNCA cantidad de personas.
+   - "personal_a_cargo": personas bajo supervisión directa del candidato (ej: "3 personas", "equipo de 5"). No confundir con total de empleados de la empresa.
+   - "empresa": nombre del establecimiento o empresa, no del propietario.
+   - "nombre_propietario": nombre del dueño o propietario, no de la empresa.
+   - Si la pregunta es sobre cuántos empleados tenía la empresa en total (no a cargo del candidato), ese dato NO tiene campo propio — omitirlo.
+
+4. BOOLEANOS — Para campos booleanos (en_blanco, movilidad, vehiculo_propio, licencia_conducir):
+   - Respuesta afirmativa (sí, claro, siempre) → "true"
+   - Respuesta negativa (no, nunca) → "false"
+   - Respuesta ambigua o parcial (ej: "estaba en blanco aunque los últimos meses hubo un problema") → "true" (interpretá la intención principal)
+
+5. NO INCLUIR — Omitir el campo si:
+   - El candidato claramente no respondió esa pregunta
+   - La respuesta es irrelevante o incompatible con el campo
+   - No podés determinar el valor con razonable certeza
+
+Devolvé ÚNICAMENTE un JSON object donde las claves son los id_campo y los valores son strings.
+Para booleanos devolvé "true" o "false" como string.
+Ejemplo: {"candidato:dni": "30456789", "exp:0:ubicacion": "Córdoba", "exp:0:personal_a_cargo": "3 o 4 personas", "exp:0:hasta": "2019-10"}`,
     })
     text = result.text
   } catch (e) {
