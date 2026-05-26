@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react"
 import Link from "next/link"
-import { Users, Inbox, MapPin, Shield, Archive, Plus, List, Search, X } from "lucide-react"
+import { Users, Inbox, MapPin, Shield, Archive, Plus, List, Search, X, PauseCircle } from "lucide-react"
 import { GarantiaCard } from "@/components/app/garantia-card"
 import { fuzzyFilter } from "@/lib/fuzzy"
 
@@ -18,6 +18,7 @@ export type BusquedaRow = {
   ubicacion: string | null
   rango_salarial: string | null
   notas_cierre: string | null
+  notas_internas: string | null
   fecha_apertura: string
   fecha_cierre: string | null
   gestiones: GestionRaw[]
@@ -52,7 +53,7 @@ const OLIVE_BG = "#eef5e8"
 const INK3     = "#8b949e"
 const BORDER   = "#eaecef"
 
-type Tab = "activas" | "garantia" | "archivadas"
+type Tab = "activas" | "pausadas" | "garantia" | "archivadas"
 
 function daysBadge(days: number) {
   if (days <= 14) return { bg: "#dafbe1", color: "#1a7f37" }
@@ -110,6 +111,7 @@ export function BusquedasClient({ busquedas }: { busquedas: BusquedaRow[] }) {
   }, [debouncedQuery, busquedas])
 
   const activas    = filtered.filter((b) => b.estado === "activa")
+  const pausadas   = filtered.filter((b) => b.estado === "pausada")
   const garantia   = filtered.filter((b) => b.estado === "cerrada")
   const archivadas = filtered.filter((b) => b.estado === "archivada")
 
@@ -120,6 +122,7 @@ export function BusquedasClient({ busquedas }: { busquedas: BusquedaRow[] }) {
 
   const tabs: { key: Tab; label: string; icon: typeof List; count?: number; urgent?: boolean }[] = [
     { key: "activas",    label: "Activas",    icon: List },
+    { key: "pausadas",   label: "Pausadas",   icon: PauseCircle, count: pausadas.length },
     { key: "garantia",   label: "Garantía",   icon: Shield,  count: garantia.length,  urgent: garantiasVencidas > 0 },
     { key: "archivadas", label: "Archivadas", icon: Archive, count: archivadas.length },
   ]
@@ -221,6 +224,15 @@ export function BusquedasClient({ busquedas }: { busquedas: BusquedaRow[] }) {
           emptyTitle="Sin búsquedas activas"
           emptyDesc="Creá la primera posición para empezar."
           showDays
+        />
+      )}
+      {tab === "pausadas" && (
+        <BusquedasGrid
+          busquedas={pausadas}
+          emptyIcon={<PauseCircle />}
+          emptyTitle="Sin búsquedas pausadas"
+          emptyDesc="Las búsquedas pausadas temporalmente aparecen acá."
+          showDays={false}
         />
       )}
       {tab === "garantia" && (

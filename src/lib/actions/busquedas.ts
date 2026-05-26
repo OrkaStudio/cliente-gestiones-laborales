@@ -161,6 +161,20 @@ export async function cerrarBusqueda(
   return { success: true, id: busquedaId }
 }
 
+export async function updateBusquedaNotas(
+  id: string,
+  notas: string | null,
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase
+    .from("busquedas")
+    .update({ notas_internas: notas })
+    .eq("id", id)
+  if (error) return { success: false, error: error.message }
+  revalidateTag(`busqueda-${id}`, {})
+  return { success: true, id }
+}
+
 export async function cerrarGarantia(
   id: string,
   decision: "exitosa" | "reabrir" | "pausar",

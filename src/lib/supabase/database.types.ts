@@ -14,6 +14,7 @@ export type Database = {
           descripcion: string | null;
           requisitos: string[] | null;
           rango_salarial: string | null;
+          notas_internas: string | null;
           embedding: string | null;
           hectareas_min: number | null;
           personal_a_cargo_min: number | null;
@@ -32,6 +33,7 @@ export type Database = {
           descripcion?: string | null;
           requisitos?: string[] | null;
           rango_salarial?: string | null;
+          notas_internas?: string | null;
           embedding?: string | null;
           hectareas_min?: number | null;
           personal_a_cargo_min?: number | null;
@@ -50,6 +52,7 @@ export type Database = {
           descripcion?: string | null;
           requisitos?: string[] | null;
           rango_salarial?: string | null;
+          notas_internas?: string | null;
           embedding?: string | null;
           hectareas_min?: number | null;
           personal_a_cargo_min?: number | null;

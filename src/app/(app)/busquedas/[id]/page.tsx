@@ -6,7 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
-import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button";
+import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button"
+import { NotasBusquedaInline } from "@/components/app/notas-busqueda-inline";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -615,6 +616,12 @@ export default async function BusquedaDetailPage({
               </div>
             </div>
           </div>
+
+          {/* Notas internas */}
+          <NotasBusquedaInline
+            busquedaId={busqueda.id}
+            notas={busqueda.notas_internas ?? null}
+          />
 
         </div>
       </div>
