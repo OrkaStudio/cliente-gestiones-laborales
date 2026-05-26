@@ -322,12 +322,14 @@ REGLAS DE EXTRACCIÓN:
    - "fines de 2019" → "2019-11"
    - "2019" sin más contexto → "2019-01"
    - Si el candidato indica que ya NO trabaja ahí pero la fecha es incierta, aproximá el mes más razonable. No dejes null.
+   - Si el candidato indica que SIGUE trabajando ahí ("sigo trabajando", "es mi trabajo actual", "hasta hoy"), omitir el campo "hasta" y poner "esActual": "true".
 
 3. SEMÁNTICA DE CAMPOS — Cada campo tiene un significado exacto:
-   - "dimension_establecimiento": superficie o tamaño físico del campo/establecimiento (ej: "5.000 ha", "800 hectáreas"). NUNCA cantidad de personas.
+   - "dimension_establecimiento": superficie o tamaño físico del establecimiento agropecuario (ej: "5.000 ha", "800 hectáreas"). SOLO aplica si el trabajo es claramente agropecuario (campo, estancia, tambo, feedlot, etc.) o si el candidato menciona explícitamente hectáreas/superficie. Si el trabajo es comercial, urbano o de servicios, omitir este campo. Si la respuesta menciona animales (vacas, cabezas) o personas pero no superficie, omitir.
    - "personal_a_cargo": personas bajo supervisión directa del candidato (ej: "3 personas", "equipo de 5"). No confundir con total de empleados de la empresa.
    - "empresa": nombre del establecimiento o empresa, no del propietario.
    - "nombre_propietario": nombre del dueño o propietario, no de la empresa.
+   - "ingresos_actuales" y "beneficios": solo incluir si el candidato sigue trabajando ahí (trabajo actual). Si ya se fue, omitir estos campos.
    - Si la pregunta es sobre cuántos empleados tenía la empresa en total (no a cargo del candidato), ese dato NO tiene campo propio — omitirlo.
 
 4. BOOLEANOS — Para campos booleanos (en_blanco, movilidad, vehiculo_propio, licencia_conducir):
@@ -335,7 +337,13 @@ REGLAS DE EXTRACCIÓN:
    - Respuesta negativa (no, nunca) → "false"
    - Respuesta ambigua o parcial (ej: "estaba en blanco aunque los últimos meses hubo un problema") → "true" (interpretá la intención principal)
 
-5. NO INCLUIR — Omitir el campo si:
+5. IGNORANCIA / NEGACIÓN — Omitir el campo si el candidato expresa que no sabe o no recuerda.
+   - "no recuerdo", "no sé", "no me acuerdo", "no tengo idea" → omitir el campo, NO poner ese texto como valor.
+
+6. NÚMEROS — Solo usar unidades de superficie para "dimension_establecimiento" (ha, hectáreas, km²).
+   - "800 vacas", "200 cabezas", "15 empleados" NO son valores válidos para dimension_establecimiento → omitir.
+
+7. NO INCLUIR — Omitir el campo si:
    - El candidato claramente no respondió esa pregunta
    - La respuesta es irrelevante o incompatible con el campo
    - No podés determinar el valor con razonable certeza
