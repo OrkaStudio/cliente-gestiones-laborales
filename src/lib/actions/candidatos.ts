@@ -200,6 +200,7 @@ export async function guardarCandidatoProcesado(data: CVParseado): Promise<Actio
   revalidatePath(`/candidatos/${id}`)
   revalidateTag(`candidato-${id}`, {})
   revalidatePath("/")
+  revalidateTag("dashboard", {})
   return { success: true, id }
 }
 

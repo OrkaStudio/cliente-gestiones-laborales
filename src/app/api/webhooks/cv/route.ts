@@ -241,6 +241,7 @@ export async function POST(req: NextRequest) {
         remitente_email: body.remitente_email,
       });
       revalidateTag("candidatos-list", {});
+      revalidateTag("dashboard", {});
 
       await runPostProcess(candidatoId, candidatoParseado)
     } catch (err) {
