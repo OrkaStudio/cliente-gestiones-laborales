@@ -1,6 +1,7 @@
 ﻿"use server"
 
 import { revalidatePath, revalidateTag } from "next/cache"
+import { after } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { CVParseado } from "@/lib/cv/parse"
 import { upsertCandidato } from "@/lib/cv/upsert-candidato"
@@ -8,6 +9,7 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
+import { runPostProcess } from "@/lib/cv/post-process"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -183,13 +185,15 @@ export async function guardarCandidatoProcesado(data: CVParseado): Promise<Actio
     return { success: false, error: err instanceof Error ? err.message : "Error guardando candidato" }
   }
 
-  // Guardar cv_procesado_texto + preguntas (igual que el webhook, por separado)
   const { error } = await supabase
     .from("candidatos")
     .update({ cv_procesado_texto: data.cv_procesado_texto, preguntas_sugeridas: data.preguntas_sugeridas })
     .eq("id", id)
 
   if (error) return { success: false, error: error.message }
+
+  // Post-procesado idéntico al webhook: preguntas_mapeadas + categorías — en background
+  after(async () => { await runPostProcess(id, data) })
 
   revalidatePath("/candidatos")
   revalidateTag("candidatos-list", {})

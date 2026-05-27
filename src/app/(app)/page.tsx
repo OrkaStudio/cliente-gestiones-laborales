@@ -12,9 +12,11 @@ const AVATAR_HEX = [
   { bg: "#eddeff", color: "#6e40c9" },
 ];
 
-function displayName(email: string | null | undefined): string {
-  if (!email) return "bienvenida"
-  const local = email.split("@")[0]
+function displayName(user: { email?: string | null; user_metadata?: Record<string, unknown> } | null | undefined): string {
+  const fullName = user?.user_metadata?.full_name
+  if (typeof fullName === "string" && fullName.trim()) return fullName.trim()
+  if (!user?.email) return "bienvenida"
+  const local = user.email.split("@")[0]
   return local.charAt(0).toUpperCase() + local.slice(1).replace(/[._]/g, " ")
 }
 
@@ -45,9 +47,9 @@ const getDashboardData = unstable_cache(
 export default async function Home() {
   const supabase = await createClient()
 
-  // getSession lee de cookie, sin llamada a red
-  const [{ data: { session } }, dashboardData] = await Promise.all([
-    supabase.auth.getSession().catch(() => ({ data: { session: null } })),
+  // getUser valida contra el servidor — trae metadata actualizada sin necesidad de re-login
+  const [{ data: { user } }, dashboardData] = await Promise.all([
+    supabase.auth.getUser().catch(() => ({ data: { user: null } })),
     getDashboardData(),
   ])
 
@@ -80,7 +82,7 @@ export default async function Home() {
             style={{ fontSize: "clamp(2rem, 4vw, 2.75rem)", color: "var(--gl-ink)" }}
           >
             Buen día,{" "}
-            <span style={{ color: "var(--gl-olive-light)" }}>{displayName(session?.user?.email)}</span>
+            <span style={{ color: "var(--gl-olive-light)" }}>{displayName(user)}</span>
           </h1>
         </div>
 
