@@ -15,8 +15,10 @@ export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await (supabase.from("candidatos") as any).update({ visto: true }).eq("id", candidatoId).eq("visto", false)
+  await supabase.from("notificaciones").update({ leida: true }).eq("candidato_id", candidatoId).eq("tipo", "cv_nuevo").eq("leida", false)
   revalidatePath("/candidatos")
   revalidateTag("candidatos-list", {})
+  revalidatePath("/", "layout")
 }
 
 export type ConversacionEntry = { id: string; fecha: string; texto: string }

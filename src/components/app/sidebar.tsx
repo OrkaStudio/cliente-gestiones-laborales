@@ -77,7 +77,7 @@ const TIPO: Record<
     actionBg: "#f6f8fa",
     actionColor: "#0d1117",
     actionBorder: "#eaecef",
-    actionType: "navigate",
+    actionType: "navigate+dismiss",
   },
   cv_duplicado: {
     icon: Copy,
