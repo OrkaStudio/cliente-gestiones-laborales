@@ -61,11 +61,12 @@ export async function POST(req: NextRequest) {
     detalle: null,
   });
 
-  // 4. Deduplicación: si ya procesamos este email_id, responder 200
+  // 4. Deduplicación: (email_id + archivo_nombre) para soportar múltiples adjuntos por email
   const { data: yaProcessado } = await supabase
     .from("emails_procesados")
     .select("id")
     .eq("email_id", body.email_id)
+    .eq("archivo_nombre", body.archivo_nombre)
     .maybeSingle();
 
   if (yaProcessado) {
@@ -146,6 +147,9 @@ export async function POST(req: NextRequest) {
         detalle: `mime:${mimeEfectivo}`,
       });
 
+      // Jitter aleatorio (0–20 s) para evitar que lotes simultáneos saturen el rate limit de Claude.
+      await new Promise(r => setTimeout(r, Math.random() * 20_000));
+
       let candidatoParseado;
       try {
         const parseSignal = AbortSignal.timeout(270_000);
@@ -192,7 +196,7 @@ export async function POST(req: NextRequest) {
           cuerpo: `Se recibió un nuevo CV de ${nombreCompleto} (${body.archivo_nombre}). El perfil existente no fue modificado.`,
           candidato_id: candidatoId,
         });
-        await supabase.from("emails_procesados").insert({ email_id: body.email_id, candidato_id: candidatoId });
+        await supabase.from("emails_procesados").insert({ email_id: body.email_id, archivo_nombre: body.archivo_nombre, candidato_id: candidatoId });
         await supabase.from("webhook_logs").insert({
           email_id: body.email_id,
           estado: "duplicate",
@@ -232,7 +236,7 @@ export async function POST(req: NextRequest) {
         cuerpo: `Se procesó ${body.archivo_nombre} y se creó un perfil nuevo.`,
         candidato_id: candidatoId,
       });
-      await supabase.from("emails_procesados").insert({ email_id: body.email_id, candidato_id: candidatoId });
+      await supabase.from("emails_procesados").insert({ email_id: body.email_id, archivo_nombre: body.archivo_nombre, candidato_id: candidatoId });
       await supabase.from("webhook_logs").insert({
         email_id: body.email_id,
         estado: "complete",
