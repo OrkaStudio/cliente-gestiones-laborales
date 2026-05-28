@@ -118,9 +118,11 @@ export async function POST(req: NextRequest) {
 
   // 7. Subir CV crudo a Supabase Storage (upsert por si Make reintenta)
   const safeEmailId = body.email_id.replace(/[<>]/g, "").replace(/[^a-zA-Z0-9._@-]/g, "_");
-  const safeNombre = body.archivo_nombre && body.archivo_nombre !== "desconocido" && body.archivo_nombre !== "unknown"
+  const rawNombre = body.archivo_nombre && body.archivo_nombre !== "desconocido" && body.archivo_nombre !== "unknown"
     ? body.archivo_nombre
     : `cv_${Date.now()}.pdf`;
+  // Supabase Storage rechaza nombres con diacríticos — normalizar a ASCII-safe
+  const safeNombre = rawNombre.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-zA-Z0-9._\- ]/g, "_");
   const storagePath = `${safeEmailId}/${safeNombre}`;
   const { error: uploadError } = await supabase.storage
     .from("cv-crudos")
