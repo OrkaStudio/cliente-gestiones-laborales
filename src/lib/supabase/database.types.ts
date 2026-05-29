@@ -232,6 +232,7 @@ export type Database = {
           candidato_id: string | null;
           procesado_at: string;
           error: string | null;
+          archivo_nombre: string | null;
         };
         Insert: {
           id?: string;
@@ -239,6 +240,7 @@ export type Database = {
           candidato_id?: string | null;
           procesado_at?: string;
           error?: string | null;
+          archivo_nombre?: string | null;
         };
         Update: {
           id?: string;
@@ -246,6 +248,7 @@ export type Database = {
           candidato_id?: string | null;
           procesado_at?: string;
           error?: string | null;
+          archivo_nombre?: string | null;
         };
         Relationships: [
           {
