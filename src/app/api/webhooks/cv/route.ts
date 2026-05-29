@@ -82,7 +82,13 @@ export async function POST(req: NextRequest) {
       detalle: "adjunto_vacio",
       archivo_nombre: body.archivo_nombre,
       remitente_email: body.remitente_email,
-    })
+    });
+    await notifyFallo({
+      archivoNombre: body.archivo_nombre || "sin adjunto",
+      remitenteEmail: body.remitente_email,
+      motivo: "adjunto_vacio — posible CV enviado como foto desde WhatsApp",
+      horaRecibido: new Date().toISOString(),
+    });
     return NextResponse.json({ error: "bad_request", detail: "adjunto_vacio" }, { status: 400 });
   }
 
