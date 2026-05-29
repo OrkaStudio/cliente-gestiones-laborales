@@ -24,6 +24,10 @@ export async function upsertCandidato(
 ): Promise<UpsertResult> {
   const supabase = createServiceClient();
 
+  if (!data.nombre?.trim() && !data.apellido?.trim()) {
+    throw new Error("CV sin nombre ni apellido — no se puede crear el candidato");
+  }
+
   // Buscar candidato existente: primero por email, luego por nombre+apellido
   let candidatoId: string | null = null;
 
@@ -46,35 +50,37 @@ export async function upsertCandidato(
     if (existente) candidatoId = existente.id;
   }
 
+  const str = (v: string | null | undefined) => v || null;
+
   const payload = {
     nombre: data.nombre,
     apellido: data.apellido,
-    email: data.email || null,
-    telefono: data.telefono ?? null,
+    email: str(data.email),
+    telefono: str(data.telefono),
     fecha_nacimiento: toISODate(data.fecha_nacimiento),
-    ubicacion: data.ubicacion ?? null,
-    domicilio_completo: data.domicilio_completo ?? null,
-    lugar_nacimiento: data.lugar_nacimiento ?? null,
-    dni: data.dni ?? null,
-    estado_civil: data.estado_civil ?? null,
-    hijos: data.hijos ?? null,
+    ubicacion: str(data.ubicacion),
+    domicilio_completo: str(data.domicilio_completo),
+    lugar_nacimiento: str(data.lugar_nacimiento),
+    dni: str(data.dni),
+    estado_civil: str(data.estado_civil),
+    hijos: str(data.hijos),
     vehiculo_propio: data.vehiculo_propio ?? null,
     licencia_conducir: data.licencia_conducir ?? null,
-    muebles_propios: data.muebles_propios ?? null,
-    animales: data.animales ?? null,
-    educacion: data.educacion ?? null,
+    muebles_propios: str(data.muebles_propios),
+    animales: str(data.animales),
+    educacion: str(data.educacion),
     perfil_laboral: null, // lo genera Claude en cv_procesado_texto — se extrae después
-    pretension_salarial: data.pretension_salarial ?? null,
-    disponibilidad: data.disponibilidad ?? null,
+    pretension_salarial: str(data.pretension_salarial),
+    disponibilidad: str(data.disponibilidad),
     movilidad: data.movilidad ?? null,
     tipos_ganaderia: data.tipos_ganaderia,
     hectareas_max: data.hectareas_max ?? null,
     personal_a_cargo_max: data.personal_a_cargo_max ?? null,
-    ultimo_puesto: data.ultimo_puesto ?? null,
+    ultimo_puesto: str(data.ultimo_puesto),
     idiomas: data.idiomas,
     referencias: data.referencias.length > 0 ? data.referencias : null,
     campos_faltantes: data.campos_faltantes.length > 0 ? data.campos_faltantes : null,
-    informacion_adicional: data.informacion_adicional || null,
+    informacion_adicional: str(data.informacion_adicional),
     ...(cvCrudoPath !== null && { cv_crudo_url: cvCrudoPath }),
   };
 

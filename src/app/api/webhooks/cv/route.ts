@@ -132,6 +132,13 @@ export async function POST(req: NextRequest) {
     });
 
   if (uploadError) {
+    await supabase.from("webhook_logs").insert({
+      email_id: body.email_id,
+      estado: "failed",
+      detalle: `storage_upload_failed: ${uploadError.message}`,
+      archivo_nombre: body.archivo_nombre,
+      remitente_email: body.remitente_email,
+    });
     return NextResponse.json(
       { error: "storage_upload_failed", detail: uploadError.message },
       { status: 500 },

@@ -106,8 +106,14 @@ export async function runPostProcess(candidatoId: string, data: CVParseado): Pro
         await (supabase.from("candidatos") as any).update({ preguntas_mapeadas: preguntas }).eq("id", candidatoId)
       }
     }
-  } catch {
-    // no interrumpe el flujo
+  } catch (err) {
+    await supabase.from("webhook_logs").insert({
+      email_id: "post-process",
+      estado: "failed",
+      detalle: `preguntas_mapeadas: ${err instanceof Error ? err.message : String(err)}`,
+      archivo_nombre: null,
+      remitente_email: candidatoId,
+    })
   }
 
   try {
@@ -115,7 +121,13 @@ export async function runPostProcess(candidatoId: string, data: CVParseado): Pro
     if (cats.length > 0) {
       await supabase.from("candidatos").update({ categorias: cats }).eq("id", candidatoId)
     }
-  } catch {
-    // no interrumpe el flujo
+  } catch (err) {
+    await supabase.from("webhook_logs").insert({
+      email_id: "post-process",
+      estado: "failed",
+      detalle: `detectar_categorias: ${err instanceof Error ? err.message : String(err)}`,
+      archivo_nombre: null,
+      remitente_email: candidatoId,
+    })
   }
 }
