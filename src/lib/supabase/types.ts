@@ -288,6 +288,7 @@ export type Database = {
           error: string | null
           id: string
           procesado_at: string
+          archivo_nombre: string | null
         }
         Insert: {
           candidato_id?: string | null
@@ -295,6 +296,7 @@ export type Database = {
           error?: string | null
           id?: string
           procesado_at?: string
+          archivo_nombre?: string | null
         }
         Update: {
           candidato_id?: string | null
@@ -302,6 +304,7 @@ export type Database = {
           error?: string | null
           id?: string
           procesado_at?: string
+          archivo_nombre?: string | null
         }
         Relationships: [
           {
