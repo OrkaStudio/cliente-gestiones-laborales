@@ -2,6 +2,7 @@
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
 import { runPostProcess } from "@/lib/cv/post-process";
+import { notifyFallo, notifyExito } from "@/lib/slack";
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { revalidateTag } from "next/cache";
@@ -139,6 +140,12 @@ export async function POST(req: NextRequest) {
       archivo_nombre: body.archivo_nombre,
       remitente_email: body.remitente_email,
     });
+    await notifyFallo({
+      archivoNombre: body.archivo_nombre,
+      remitenteEmail: body.remitente_email,
+      motivo: `storage_upload_failed: ${uploadError.message}`,
+      horaRecibido: new Date().toISOString(),
+    });
     return NextResponse.json(
       { error: "storage_upload_failed", detail: uploadError.message },
       { status: 500 },
@@ -177,6 +184,12 @@ export async function POST(req: NextRequest) {
           titulo: `No se pudo procesar un CV`,
           cuerpo: `El archivo "${body.archivo_nombre}" no pudo procesarse automáticamente. Contactá a soporte para revisarlo.`,
         });
+        await notifyFallo({
+          archivoNombre: body.archivo_nombre,
+          remitenteEmail: body.remitente_email,
+          motivo: `parse_failed: ${detail}`,
+          horaRecibido: new Date().toISOString(),
+        });
         return;
       }
 
@@ -192,6 +205,12 @@ export async function POST(req: NextRequest) {
           archivo_nombre: body.archivo_nombre,
           remitente_email: body.remitente_email,
         });
+        await notifyFallo({
+          archivoNombre: body.archivo_nombre,
+          remitenteEmail: body.remitente_email,
+          motivo: `upsert_failed: ${detail}`,
+          horaRecibido: new Date().toISOString(),
+        });
         return;
       }
 
@@ -205,7 +224,12 @@ export async function POST(req: NextRequest) {
           cuerpo: `Se recibió un nuevo CV de ${nombreCompleto} (${body.archivo_nombre}). El perfil existente no fue modificado.`,
           candidato_id: candidatoId,
         });
-        await supabase.from("emails_procesados").insert({ email_id: body.email_id, archivo_nombre: body.archivo_nombre, candidato_id: candidatoId });
+        const { error: dedupError } = await supabase.from("emails_procesados").insert({ email_id: body.email_id, archivo_nombre: body.archivo_nombre, candidato_id: candidatoId });
+        // Race condition: si otro request ya insertó primero, ignoramos el error de UNIQUE
+        if (dedupError && dedupError.code !== "23505") {
+          await supabase.from("webhook_logs").insert({ email_id: body.email_id, estado: "failed", detalle: `emails_procesados_insert: ${dedupError.message}`, archivo_nombre: body.archivo_nombre, remitente_email: body.remitente_email });
+          return;
+        }
         await supabase.from("webhook_logs").insert({
           email_id: body.email_id,
           estado: "duplicate",
@@ -213,6 +237,12 @@ export async function POST(req: NextRequest) {
           archivo_nombre: body.archivo_nombre,
           remitente_email: body.remitente_email,
           detalle: `Candidato existente: ${candidatoId}`,
+        });
+        await notifyExito({
+          nombreCompleto,
+          archivoNombre: body.archivo_nombre,
+          horaRecibido: new Date().toISOString(),
+          esNuevo: false,
         });
         return;
       }
@@ -245,13 +275,24 @@ export async function POST(req: NextRequest) {
         cuerpo: `Se procesó ${body.archivo_nombre} y se creó un perfil nuevo.`,
         candidato_id: candidatoId,
       });
-      await supabase.from("emails_procesados").insert({ email_id: body.email_id, archivo_nombre: body.archivo_nombre, candidato_id: candidatoId });
+      const { error: dedupErrorNuevo } = await supabase.from("emails_procesados").insert({ email_id: body.email_id, archivo_nombre: body.archivo_nombre, candidato_id: candidatoId });
+      // Race condition: si otro request ya insertó primero, ignoramos el error de UNIQUE
+      if (dedupErrorNuevo && dedupErrorNuevo.code !== "23505") {
+        await supabase.from("webhook_logs").insert({ email_id: body.email_id, estado: "failed", detalle: `emails_procesados_insert: ${dedupErrorNuevo.message}`, archivo_nombre: body.archivo_nombre, remitente_email: body.remitente_email });
+        return;
+      }
       await supabase.from("webhook_logs").insert({
         email_id: body.email_id,
         estado: "complete",
         candidato_id: candidatoId,
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
+      });
+      await notifyExito({
+        nombreCompleto,
+        archivoNombre: body.archivo_nombre,
+        horaRecibido: new Date().toISOString(),
+        esNuevo: true,
       });
       revalidateTag("candidatos-list", {});
       revalidateTag("dashboard", {});
@@ -266,6 +307,12 @@ export async function POST(req: NextRequest) {
         detalle: `after_unhandled: ${detail}`,
         archivo_nombre: body.archivo_nombre,
         remitente_email: body.remitente_email,
+      });
+      await notifyFallo({
+        archivoNombre: body.archivo_nombre,
+        remitenteEmail: body.remitente_email,
+        motivo: `after_unhandled: ${detail}`,
+        horaRecibido: new Date().toISOString(),
       });
     }
   });

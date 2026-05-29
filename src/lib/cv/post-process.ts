@@ -110,9 +110,9 @@ export async function runPostProcess(candidatoId: string, data: CVParseado): Pro
     await supabase.from("webhook_logs").insert({
       email_id: "post-process",
       estado: "failed",
-      detalle: `preguntas_mapeadas: ${err instanceof Error ? err.message : String(err)}`,
+      detalle: `preguntas_mapeadas: ${err instanceof Error ? err.message : String(err)}, candidato_id=${candidatoId}`,
       archivo_nombre: null,
-      remitente_email: candidatoId,
+      remitente_email: null,
     })
   }
 
@@ -125,9 +125,9 @@ export async function runPostProcess(candidatoId: string, data: CVParseado): Pro
     await supabase.from("webhook_logs").insert({
       email_id: "post-process",
       estado: "failed",
-      detalle: `detectar_categorias: ${err instanceof Error ? err.message : String(err)}`,
+      detalle: `detectar_categorias: ${err instanceof Error ? err.message : String(err)}, candidato_id=${candidatoId}`,
       archivo_nombre: null,
-      remitente_email: candidatoId,
+      remitente_email: null,
     })
   }
 }
