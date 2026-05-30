@@ -67,7 +67,35 @@ export async function GET(req: Request) {
     };
   });
 
-  await sendDigest(lineas);
+  // Salud agregada de los últimos 7 días: tasa de éxito + causa principal de fallo.
+  const desde7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: logs7d } = await supabase
+    .from("webhook_logs")
+    .select("estado, detalle")
+    .in("estado", ["complete", "duplicate", "failed"])
+    .gte("created_at", desde7d);
+
+  let salud: { tasaExito: number; causaTop: string | null } | undefined;
+  if (logs7d && logs7d.length > 0) {
+    const ok = logs7d.filter((l) => l.estado === "complete" || l.estado === "duplicate").length;
+    const fallos = logs7d.filter((l) => l.estado === "failed");
+    const tasaExito = Math.round((ok / logs7d.length) * 100);
+
+    let causaTop: string | null = null;
+    if (fallos.length > 0) {
+      const conteo = new Map<string, number>();
+      for (const f of fallos) {
+        const d = f.detalle ?? "(sin detalle)";
+        const idx = d.indexOf(":");
+        const motivo = idx > 0 ? d.slice(0, idx).trim() : d.trim();
+        conteo.set(motivo, (conteo.get(motivo) ?? 0) + 1);
+      }
+      causaTop = [...conteo.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    }
+    salud = { tasaExito, causaTop };
+  }
+
+  await sendDigest(lineas, salud);
 
   return NextResponse.json({ status: "sent", count: lineas.length });
 }

@@ -99,7 +99,8 @@ export async function sendDigest(
     hora: string;
     estado: "complete" | "failed" | "duplicate";
     motivo: string | null;
-  }[]
+  }[],
+  salud?: { tasaExito: number; causaTop: string | null },
 ): Promise<void> {
   if (lineas.length === 0) return;
 
@@ -123,19 +124,27 @@ export async function sendDigest(
     })
     .join("\n");
 
-  await postToSlack(
-    [
-      { type: "header", text: { type: "plain_text", text: `🌅 Digest GL Pipeline — ${hoy}` } },
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: `*${total} recibidos* · ✅ ${ok} procesados · 🔁 ${dup} duplicados · ❌ ${fail} fallidos`,
-        },
+  const blocks: SlackBlock[] = [
+    { type: "header", text: { type: "plain_text", text: `🌅 Digest GL Pipeline — ${hoy}` } },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `*${total} recibidos* · ✅ ${ok} procesados · 🔁 ${dup} duplicados · ❌ ${fail} fallidos`,
       },
-      { type: "divider" },
-      { type: "section", text: { type: "mrkdwn", text: detalle } },
-    ],
-    `🌅 Digest GL Pipeline ${hoy}: ${ok} OK · ${fail} fallidos`
-  );
+    },
+  ];
+
+  if (salud) {
+    const causa = salud.causaTop ? ` · principal causa de fallo: \`${salud.causaTop}\`` : "";
+    blocks.push({
+      type: "section",
+      text: { type: "mrkdwn", text: `_Tasa de éxito últimos 7 días: ${salud.tasaExito}%${causa}_` },
+    });
+  }
+
+  blocks.push({ type: "divider" });
+  blocks.push({ type: "section", text: { type: "mrkdwn", text: detalle } });
+
+  await postToSlack(blocks, `🌅 Digest GL Pipeline ${hoy}: ${ok} OK · ${fail} fallidos`);
 }
