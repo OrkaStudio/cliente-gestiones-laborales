@@ -34,6 +34,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# diagnósticos locales con PII — no committear
+diagnostico-*.html
+
 # vercel
 .vercel
 
