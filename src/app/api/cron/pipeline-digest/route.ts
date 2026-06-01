@@ -27,12 +27,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  if (!logs || logs.length === 0) {
-    return NextResponse.json({ status: "no_activity" });
-  }
+  // No cortamos si no hay eventos terminales: igual hay que correr el detector de
+  // huérfanos (podría haber processing sin cierre y ningún terminal en la ventana).
+  const filas = logs ?? [];
 
   // Resolver nombres de candidatos para los que tienen candidato_id
-  const candidatoIds = [...new Set(logs.map((l) => l.candidato_id).filter(Boolean))] as string[];
+  const candidatoIds = [...new Set(filas.map((l) => l.candidato_id).filter(Boolean))] as string[];
   const nombrePorId: Record<string, string> = {};
 
   if (candidatoIds.length > 0) {
@@ -46,7 +46,7 @@ export async function GET(req: Request) {
     }
   }
 
-  const lineas = logs.map((log) => {
+  const lineas = filas.map((log) => {
     const nombre =
       (log.candidato_id && nombrePorId[log.candidato_id]) ||
       log.archivo_nombre ||
@@ -95,7 +95,42 @@ export async function GET(req: Request) {
     salud = { tasaExito, causaTop };
   }
 
-  await sendDigest(lineas, salud);
+  // Detector de huérfanos: CVs que entraron a `processing` y nunca llegaron a un
+  // estado terminal. Es el síntoma de una falla silenciosa (after() cortado, insert
+  // de log que falló sin avisar, etc.). Damos 10 min de gracia para no marcar
+  // parseos que todavía están en vuelo cuando corre el cron.
+  const graceDate = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+  const { data: enCurso } = await supabase
+    .from("webhook_logs")
+    .select("email_id, archivo_nombre, remitente_email, created_at")
+    .eq("estado", "processing")
+    .gte("created_at", desde)
+    .lt("created_at", graceDate)
+    .order("created_at", { ascending: true });
 
-  return NextResponse.json({ status: "sent", count: lineas.length });
+  // Clave de dedup del pipeline: (email_id + archivo_nombre). Un processing es
+  // huérfano si no existe ningún evento terminal con la misma clave.
+  const terminalKeys = new Set(filas.map((l) => `${l.email_id}|${l.archivo_nombre ?? ""}`));
+  const huerfanosMap = new Map<
+    string,
+    { archivoNombre: string | null; remitenteEmail: string | null; hora: string }
+  >();
+  for (const p of enCurso ?? []) {
+    const key = `${p.email_id}|${p.archivo_nombre ?? ""}`;
+    if (terminalKeys.has(key) || huerfanosMap.has(key)) continue;
+    huerfanosMap.set(key, {
+      archivoNombre: p.archivo_nombre,
+      remitenteEmail: p.remitente_email,
+      hora: new Date(p.created_at).toLocaleTimeString("es-AR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "America/Argentina/Buenos_Aires",
+      }),
+    });
+  }
+  const huerfanos = [...huerfanosMap.values()];
+
+  await sendDigest(lineas, salud, huerfanos);
+
+  return NextResponse.json({ status: "sent", count: lineas.length, huerfanos: huerfanos.length });
 }

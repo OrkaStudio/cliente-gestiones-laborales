@@ -23,6 +23,26 @@ const BodySchema = z.object({
   archivo_mime: z.string(),
 });
 
+// Inserta un webhook_log reintentando una vez ante un error transitorio.
+// Los logs terminales (complete/duplicate) alimentan el digest y el detector de
+// huérfanos: si se pierden en silencio, el CV queda figurando como `processing`
+// para siempre aunque haya terminado bien. Antes este error no se chequeaba.
+async function insertLogTerminal(
+  supabase: ReturnType<typeof createServiceClient>,
+  row: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase.from("webhook_logs").insert(row);
+  if (!error) return;
+  await new Promise((r) => setTimeout(r, 500));
+  const { error: retryError } = await supabase.from("webhook_logs").insert(row);
+  if (retryError) {
+    // El detector de huérfanos del digest es la red de seguridad final.
+    console.error(
+      `[webhook_logs] no se pudo grabar estado=${row.estado} email_id=${row.email_id}: ${retryError.message}`,
+    );
+  }
+}
+
 export async function POST(req: NextRequest) {
   // 1. Parsear y validar body
   // Usamos arrayBuffer en lugar de req.json() — Next.js 16 falla con req.json()
@@ -236,7 +256,7 @@ export async function POST(req: NextRequest) {
           await supabase.from("webhook_logs").insert({ email_id: body.email_id, estado: "failed", detalle: `emails_procesados_insert: ${dedupError.message}`, archivo_nombre: body.archivo_nombre, remitente_email: body.remitente_email });
           return;
         }
-        await supabase.from("webhook_logs").insert({
+        await insertLogTerminal(supabase, {
           email_id: body.email_id,
           estado: "duplicate",
           candidato_id: candidatoId,
@@ -287,7 +307,7 @@ export async function POST(req: NextRequest) {
         await supabase.from("webhook_logs").insert({ email_id: body.email_id, estado: "failed", detalle: `emails_procesados_insert: ${dedupErrorNuevo.message}`, archivo_nombre: body.archivo_nombre, remitente_email: body.remitente_email });
         return;
       }
-      await supabase.from("webhook_logs").insert({
+      await insertLogTerminal(supabase, {
         email_id: body.email_id,
         estado: "complete",
         candidato_id: candidatoId,

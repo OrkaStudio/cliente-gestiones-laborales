@@ -101,8 +101,10 @@ export async function sendDigest(
     motivo: string | null;
   }[],
   salud?: { tasaExito: number; causaTop: string | null },
+  huerfanos?: { archivoNombre: string | null; remitenteEmail: string | null; hora: string }[],
 ): Promise<void> {
-  if (lineas.length === 0) return;
+  const orfanos = huerfanos ?? [];
+  if (lineas.length === 0 && orfanos.length === 0) return;
 
   const total = lineas.length;
   const ok = lineas.filter((l) => l.estado === "complete").length;
@@ -130,10 +132,25 @@ export async function sendDigest(
       type: "section",
       text: {
         type: "mrkdwn",
-        text: `*${total} recibidos* · ✅ ${ok} procesados · 🔁 ${dup} duplicados · ❌ ${fail} fallidos`,
+        text:
+          `*${total} cerrados* · ✅ ${ok} procesados · 🔁 ${dup} duplicados · ❌ ${fail} fallidos` +
+          (orfanos.length > 0 ? ` · ⚠️ ${orfanos.length} sin cerrar` : ""),
       },
     },
   ];
+
+  if (orfanos.length > 0) {
+    const lista = orfanos
+      .map((o) => `• ${o.hora}h — \`${o.archivoNombre ?? "desconocido"}\`${o.remitenteEmail ? ` · ${o.remitenteEmail}` : ""}`)
+      .join("\n");
+    blocks.push({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `⚠️ *${orfanos.length} CV sin estado final* (entraron pero nunca cerraron — posible falla silenciosa, revisar):\n${lista}`,
+      },
+    });
+  }
 
   if (salud) {
     const causa = salud.causaTop ? ` · principal causa de fallo: \`${salud.causaTop}\`` : "";
@@ -146,5 +163,8 @@ export async function sendDigest(
   blocks.push({ type: "divider" });
   blocks.push({ type: "section", text: { type: "mrkdwn", text: detalle } });
 
-  await postToSlack(blocks, `🌅 Digest GL Pipeline ${hoy}: ${ok} OK · ${fail} fallidos`);
+  await postToSlack(
+    blocks,
+    `🌅 Digest GL Pipeline ${hoy}: ${ok} OK · ${fail} fallidos${orfanos.length > 0 ? ` · ${orfanos.length} sin cerrar` : ""}`,
+  );
 }
