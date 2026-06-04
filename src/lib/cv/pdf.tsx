@@ -321,24 +321,22 @@ export function CVTextoDocument({
 
             // DATOS PERSONALES — grilla 2 columnas
             if (sec.title === "DATOS PERSONALES") {
-              const pairs = parseKVLines(sec.lines)
+              // CV descargable: ocultar campos faltantes (pedido de Oriana) — no mostrar "sin dato"
+              const pairs = parseKVLines(sec.lines).filter(p => p.value !== "sin dato")
               return (
                 <View key={si} style={s.section}>
                   <Text style={s.sectionTitle}>{sec.title}</Text>
                   <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
-                    {pairs.map((p, pi) => {
-                      const sinDato = p.value === "sin dato"
-                      return (
-                        <View key={pi} style={{ width: "50%", paddingRight: 12, marginBottom: 7 }}>
-                          <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: C.ink3, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 1 }}>
-                            {p.label}
-                          </Text>
-                          <Text style={{ fontSize: 9.5, color: sinDato ? C.ink3 : C.ink2, fontStyle: sinDato ? "italic" : "normal" }}>
-                            {p.value}
-                          </Text>
-                        </View>
-                      )
-                    })}
+                    {pairs.map((p, pi) => (
+                      <View key={pi} style={{ width: "50%", paddingRight: 12, marginBottom: 7 }}>
+                        <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: C.ink3, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 1 }}>
+                          {p.label}
+                        </Text>
+                        <Text style={{ fontSize: 9.5, color: C.ink2 }}>
+                          {p.value}
+                        </Text>
+                      </View>
+                    ))}
                   </View>
                 </View>
               )
@@ -351,6 +349,8 @@ export function CVTextoDocument({
                 {blocks.map((block, bi) => {
                   const f = extractJobFieldsPDF(block.lines)
                   const isSinDato = (v: string) => !v || v === "sin dato"
+                  // CV descargable: ocultar metadata faltante (pedido de Oriana)
+                  const metaConDato = f.metadata.filter(m => m.value !== "sin dato")
                   return (
                     <View key={bi} wrap={false} style={{ marginBottom: 12, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: C.olive }}>
                       {/* Tipo */}
@@ -360,9 +360,11 @@ export function CVTextoDocument({
 
                       {/* Cargo + Período — misma fila */}
                       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 3 }}>
-                        <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 11, color: isSinDato(f.cargo) ? C.ink3 : C.ink, flex: 1 }}>
-                          {isSinDato(f.cargo) ? "sin dato" : f.cargo}
-                        </Text>
+                        {!isSinDato(f.cargo) && (
+                          <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 11, color: C.ink, flex: 1 }}>
+                            {f.cargo}
+                          </Text>
+                        )}
                         {!isSinDato(f.periodo) && (
                           <Text style={{ fontSize: 8, color: C.ink3, fontFamily: "Helvetica" }}>{f.periodo}</Text>
                         )}
@@ -379,21 +381,18 @@ export function CVTextoDocument({
                       )}
 
                       {/* Metadata — grilla 2 columnas */}
-                      {f.metadata.length > 0 && (
+                      {metaConDato.length > 0 && (
                         <View style={{ flexDirection: "row", flexWrap: "wrap", backgroundColor: "rgba(42,74,24,0.05)", borderRadius: 3, padding: 5, marginBottom: 5 }}>
-                          {f.metadata.map((m, mi) => {
-                            const sinD = m.value === "sin dato"
-                            return (
-                              <View key={mi} style={{ width: "50%", paddingRight: 8, marginBottom: 4 }}>
-                                <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: C.ink3, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 1 }}>
-                                  {m.label}
-                                </Text>
-                                <Text style={{ fontSize: 9, color: sinD ? C.ink3 : C.ink2 }}>
-                                  {m.value}
-                                </Text>
-                              </View>
-                            )
-                          })}
+                          {metaConDato.map((m, mi) => (
+                            <View key={mi} style={{ width: "50%", paddingRight: 8, marginBottom: 4 }}>
+                              <Text style={{ fontSize: 7, fontFamily: "Helvetica-Bold", color: C.ink3, letterSpacing: 0.4, textTransform: "uppercase", marginBottom: 1 }}>
+                                {m.label}
+                              </Text>
+                              <Text style={{ fontSize: 9, color: C.ink2 }}>
+                                {m.value}
+                              </Text>
+                            </View>
+                          ))}
                         </View>
                       )}
 
