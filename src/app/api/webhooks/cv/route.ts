@@ -1,4 +1,5 @@
 ﻿import { createServiceClient } from "@/lib/supabase/service";
+import type { TablesInsert } from "@/lib/supabase/types";
 import { parsearCV } from "@/lib/cv/parse";
 import { upsertCandidato } from "@/lib/cv/upsert-candidato";
 import { runPostProcess } from "@/lib/cv/post-process";
@@ -29,7 +30,7 @@ const BodySchema = z.object({
 // para siempre aunque haya terminado bien. Antes este error no se chequeaba.
 async function insertLogTerminal(
   supabase: ReturnType<typeof createServiceClient>,
-  row: Record<string, unknown>,
+  row: TablesInsert<"webhook_logs">,
 ): Promise<void> {
   const { error } = await supabase.from("webhook_logs").insert(row);
   if (!error) return;
