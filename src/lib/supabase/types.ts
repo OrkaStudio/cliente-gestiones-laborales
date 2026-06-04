@@ -147,6 +147,7 @@ export type Database = {
           hijos: string | null
           domicilio_completo: string | null
           vehiculo_propio: boolean | null
+          vehiculo_detalle: string | null
           licencia_conducir: boolean | null
           muebles_propios: string | null
           animales: string | null
@@ -194,6 +195,7 @@ export type Database = {
           hijos?: string | null
           domicilio_completo?: string | null
           vehiculo_propio?: boolean | null
+          vehiculo_detalle?: string | null
           licencia_conducir?: boolean | null
           muebles_propios?: string | null
           animales?: string | null
@@ -241,6 +243,7 @@ export type Database = {
           hijos?: string | null
           domicilio_completo?: string | null
           vehiculo_propio?: boolean | null
+          vehiculo_detalle?: string | null
           licencia_conducir?: boolean | null
           muebles_propios?: string | null
           animales?: string | null

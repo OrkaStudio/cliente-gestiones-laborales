@@ -218,7 +218,7 @@ function ChipsField({
 const B_FIELDS = new Set<keyof Candidato>([
   "disponibilidad", "pretension_salarial", "educacion", "perfil_laboral",
   "idiomas", "tipos_ganaderia", "ultimo_puesto", "estado_civil", "hijos",
-  "movilidad", "vehiculo_propio", "licencia_conducir", "muebles_propios", "animales",
+  "vehiculo_propio", "vehiculo_detalle", "licencia_conducir", "muebles_propios", "animales",
 ])
 
 export function CandidatoEditForm({
@@ -312,7 +312,7 @@ export function CandidatoEditForm({
         muebles_propios: c.muebles_propios, animales: c.animales,
         educacion: c.educacion, perfil_laboral: c.perfil_laboral,
         pretension_salarial: c.pretension_salarial, disponibilidad: c.disponibilidad,
-        movilidad: c.movilidad, tipos_ganaderia: c.tipos_ganaderia,
+        vehiculo_detalle: c.vehiculo_detalle, tipos_ganaderia: c.tipos_ganaderia,
         idiomas: c.idiomas, ultimo_puesto: c.ultimo_puesto,
       })
 
@@ -445,8 +445,8 @@ export function CandidatoEditForm({
           </Row>
           <Row cols={4}>
             <Field label="Hijos" value={c.hijos ?? ""} onChange={(v) => setField("hijos", v || null)} placeholder="2 hijos, 5 y 8 años" />
-            <BoolField label="Movilidad a campo"   value={c.movilidad}          onChange={(v) => setField("movilidad",          v)} />
             <BoolField label="Vehículo propio"     value={c.vehiculo_propio}    onChange={(v) => setField("vehiculo_propio",    v)} />
+            <Field label="Detalle vehículo" value={c.vehiculo_detalle ?? ""} onChange={(v) => setField("vehiculo_detalle", v || null)} placeholder="Camioneta, moto..." />
             <BoolField label="Licencia de conducir" value={c.licencia_conducir}  onChange={(v) => setField("licencia_conducir",  v)} />
           </Row>
           <Field label="Educación / Formación" value={c.educacion ?? ""} onChange={(v) => setField("educacion", v || null)} placeholder="Técnico agropecuario" />

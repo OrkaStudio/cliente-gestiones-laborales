@@ -61,9 +61,10 @@ const CAMPOS_CV_MAP: CampoCV[] = [
   { label: "disponibilidad",       field: "disponibilidad",      type: "string" },
   { label: "pretensión salarial",  field: "pretension_salarial", type: "string" },
   { label: "pretension salarial",  field: "pretension_salarial", type: "string" },
-  { label: "movilidad",            field: "movilidad",           type: "bool"   },
   { label: "vehículo propio",      field: "vehiculo_propio",     type: "bool"   },
   { label: "vehiculo propio",      field: "vehiculo_propio",     type: "bool"   },
+  { label: "detalle vehículo",     field: "vehiculo_detalle",    type: "string" },
+  { label: "detalle vehiculo",     field: "vehiculo_detalle",    type: "string" },
   { label: "licencia de conducir", field: "licencia_conducir",   type: "bool"   },
   { label: "muebles propios",      field: "muebles_propios",     type: "string" },
   { label: "animales",             field: "animales",            type: "string" },
@@ -100,7 +101,7 @@ async function sincronizarCamposDesdeCV(
 ): Promise<void> {
   const { data: row } = await supabase
     .from("candidatos")
-    .select("dni, domicilio_completo, fecha_nacimiento, lugar_nacimiento, estado_civil, hijos, disponibilidad, pretension_salarial, movilidad, vehiculo_propio, licencia_conducir, muebles_propios, animales, hectareas_max, personal_a_cargo_max")
+    .select("dni, domicilio_completo, fecha_nacimiento, lugar_nacimiento, estado_civil, hijos, disponibilidad, pretension_salarial, vehiculo_propio, vehiculo_detalle, licencia_conducir, muebles_propios, animales, hectareas_max, personal_a_cargo_max")
     .eq("id", candidatoId)
     .single()
 
@@ -339,10 +340,11 @@ REGLAS DE EXTRACCIÓN:
    - "ingresos_actuales" y "beneficios": solo incluir si el candidato sigue trabajando ahí (trabajo actual). Si ya se fue, omitir estos campos.
    - Si la pregunta es sobre cuántos empleados tenía la empresa en total (no a cargo del candidato), ese dato NO tiene campo propio — omitirlo.
 
-4. BOOLEANOS — Para campos booleanos (en_blanco, movilidad, vehiculo_propio, licencia_conducir):
+4. BOOLEANOS — Para campos booleanos (en_blanco, vehiculo_propio, licencia_conducir):
    - Respuesta afirmativa (sí, claro, siempre) → "true"
    - Respuesta negativa (no, nunca) → "false"
    - Respuesta ambigua o parcial (ej: "estaba en blanco aunque los últimos meses hubo un problema") → "true" (interpretá la intención principal)
+   - VEHÍCULO / MOVILIDAD: la pregunta sobre "vehículo o movilidad propia" mapea a "candidato:vehiculo_propio" (true/false). Si además el candidato menciona QUÉ vehículo tiene (moto, bicicleta, auto, camioneta, camión, etc.), agregá TAMBIÉN "candidato:vehiculo_detalle" con ese texto corto (ej: "camioneta"). Si responde que no tiene, omitir vehiculo_detalle.
 
 5. IGNORANCIA / NEGACIÓN — Omitir el campo si el candidato expresa que no sabe o no recuerda.
    - "no recuerdo", "no sé", "no me acuerdo", "no tengo idea" → omitir el campo, NO poner ese texto como valor.
@@ -873,6 +875,7 @@ export async function regenerarCVTextoDesdeDatos(candidatoId: string): Promise<A
     `Hijos: ${val(c.hijos)}`,
     `Estudios: ${val(c.educacion)}`,
     `Vehículo propio: ${bool(c.vehiculo_propio)}`,
+    `Detalle vehículo: ${val(c.vehiculo_detalle)}`,
     `Licencia de conducir: ${bool(c.licencia_conducir)}`,
     `Disponibilidad: ${val(c.disponibilidad)}`,
     `Pretensión salarial: ${val(c.pretension_salarial)}`,

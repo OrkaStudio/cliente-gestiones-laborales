@@ -76,7 +76,6 @@ function calcCompleteness(c: Record<string, unknown>, exp: unknown[], refs: unkn
     // Movilidad (planilla GL)
     c.vehiculo_propio !== null && c.vehiculo_propio !== undefined,
     c.licencia_conducir !== null && c.licencia_conducir !== undefined,
-    !!(c.movilidad),
     // Trayectoria
     !!c.perfil_laboral,
     exp?.length > 0,
@@ -347,8 +346,8 @@ export default async function CandidatoDetailPage({
         candidatoId={candidato.id}
         disponibilidad={candidato.disponibilidad ?? null}
         pretension_salarial={candidato.pretension_salarial ?? null}
-        movilidad={candidato.movilidad ?? null}
         vehiculo_propio={candidato.vehiculo_propio ?? null}
+        vehiculo_detalle={candidato.vehiculo_detalle ?? null}
         licencia_conducir={candidato.licencia_conducir ?? null}
         estado_civil={candidato.estado_civil ?? null}
         hijos={candidato.hijos ?? null}

@@ -8,16 +8,16 @@ interface Props {
   candidatoId: string
   disponibilidad:     string | null
   pretension_salarial: string | null
-  movilidad:          boolean | null
   vehiculo_propio:    boolean | null
+  vehiculo_detalle:   string | null
   licencia_conducir:  boolean | null
   estado_civil:       string | null
   hijos:              string | null
   edad:               number | null
 }
 
-type TextField = "disponibilidad" | "pretension_salarial" | "estado_civil" | "hijos"
-type BoolField  = "movilidad" | "vehiculo_propio" | "licencia_conducir"
+type TextField = "disponibilidad" | "pretension_salarial" | "estado_civil" | "hijos" | "vehiculo_detalle"
+type BoolField  = "vehiculo_propio" | "licencia_conducir"
 type EditField  = TextField | BoolField
 
 const CARD = {
@@ -38,16 +38,16 @@ function boolDisplay(v: boolean | null) {
   return { text: "—", muted: true }
 }
 
-const TEXT_FIELDS: TextField[]  = ["disponibilidad", "pretension_salarial", "estado_civil", "hijos"]
-const BOOL_FIELDS: BoolField[]  = ["movilidad", "vehiculo_propio", "licencia_conducir"]
+const TEXT_FIELDS: TextField[]  = ["disponibilidad", "pretension_salarial", "estado_civil", "hijos", "vehiculo_detalle"]
+const BOOL_FIELDS: BoolField[]  = ["vehiculo_propio", "licencia_conducir"]
 
 const LABELS: Record<EditField, string> = {
   disponibilidad:      "Disponibilidad",
   pretension_salarial: "Pretensión",
   estado_civil:        "Estado civil",
   hijos:               "Hijos",
-  movilidad:           "Movilidad a campo",
   vehiculo_propio:     "Vehículo propio",
+  vehiculo_detalle:    "Detalle vehículo",
   licencia_conducir:   "Licencia conducir",
 }
 

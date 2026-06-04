@@ -111,6 +111,7 @@ function DatosPersonalesPDF({ c }: { c: Candidato }) {
       <KVRow label="Hijos"          value={c.hijos} />
       <KVRow label="Estudios"       value={c.educacion} />
       {c.vehiculo_propio !== null && <KVRow label="Vehículo propio"  value={c.vehiculo_propio ? "Sí" : "No"} />}
+      <KVRow label="Detalle vehículo" value={c.vehiculo_detalle} />
       {c.licencia_conducir !== null && <KVRow label="Licencia conducir" value={c.licencia_conducir ? "Sí" : "No"} />}
       <KVRow label="Muebles propios" value={c.muebles_propios} />
       <KVRow label="Animales"       value={c.animales} />

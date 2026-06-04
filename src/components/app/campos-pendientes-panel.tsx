@@ -30,8 +30,7 @@ const CAMPOS: { key: keyof Candidato; label: string; grupo: string }[] = [
   // Condiciones
   { key: "disponibilidad",       label: "Disponibilidad",         grupo: "Condiciones" },
   { key: "pretension_salarial",  label: "Pretensión salarial",    grupo: "Condiciones" },
-  { key: "movilidad",            label: "Movilidad",              grupo: "Condiciones" },
-  { key: "vehiculo_propio",      label: "Vehículo propio",        grupo: "Condiciones" },
+  { key: "vehiculo_propio",      label: "Vehículo o movilidad propia (y cuál tiene)", grupo: "Condiciones" },
   { key: "licencia_conducir",    label: "Licencia de conducir",   grupo: "Condiciones" },
   // Campo
   { key: "muebles_propios",      label: "Muebles propios",        grupo: "Campo"       },
