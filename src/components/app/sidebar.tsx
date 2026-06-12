@@ -6,7 +6,7 @@ import { Home, Users, Search, FileText, LogOut, Bell, UserPlus, Copy, ShieldChec
 import { signOut } from "@/lib/actions/auth"
 import { marcarTodasLeidas, marcarLeida } from "@/lib/actions/notificaciones"
 import { useState, useTransition, useEffect } from "react"
-import { createClient } from "@/lib/supabase/client"
+import { createRealtimeClient } from "@/lib/supabase/client"
 
 const NAV = [
   { label: "Inicio",      href: "/",          icon: Home },
@@ -136,18 +136,23 @@ export function Sidebar({ userEmail, notificaciones: initialNotificaciones }: Si
   const count = notifs.length
 
   useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel("notificaciones-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notificaciones" },
-        (payload) => {
-          setNotifs((prev) => [payload.new as Notificacion, ...prev])
-        },
-      )
-      .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+    let cancelado = false
+    let cleanup = () => {}
+    void createRealtimeClient().then((supabase) => {
+      if (cancelado) return
+      const channel = supabase
+        .channel("notificaciones-realtime")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "notificaciones" },
+          (payload) => {
+            setNotifs((prev) => [payload.new as Notificacion, ...prev])
+          },
+        )
+        .subscribe()
+      cleanup = () => { void supabase.removeChannel(channel) }
+    })
+    return () => { cancelado = true; cleanup() }
   }, [])
 
   function dismiss(id: string) {

@@ -4,7 +4,7 @@ import { useState, useTransition, useEffect } from "react"
 import { Trash2, Plus, Check, X, ChevronDown, ChevronUp } from "lucide-react"
 import { updateExperienciaFields, addExperiencia, deleteExperiencia } from "@/lib/actions/candidatos"
 import type { Tables } from "@/lib/supabase/types"
-import { createClient } from "@/lib/supabase/client"
+import { createRealtimeClient } from "@/lib/supabase/client"
 
 type Exp = Tables<"experiencia_laboral">
 
@@ -310,28 +310,33 @@ export function ExperienciaEditablePanel({
   const [saving, startSave]           = useTransition()
 
   useEffect(() => {
-    const supabase = createClient()
-    const channel = supabase
-      .channel(`experiencia-${candidatoId}`)
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "experiencia_laboral", filter: `candidato_id=eq.${candidatoId}` },
-        (payload) => {
-          setExperiencia(prev => prev.map(e => e.id === (payload.new as Exp).id ? payload.new as Exp : e))
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "experiencia_laboral", filter: `candidato_id=eq.${candidatoId}` },
-        (payload) => {
-          setExperiencia(prev => {
-            const ya = prev.some(e => e.id === (payload.new as Exp).id)
-            return ya ? prev : [...prev, payload.new as Exp]
-          })
-        },
-      )
-      .subscribe()
-    return () => { void supabase.removeChannel(channel) }
+    let cancelado = false
+    let cleanup = () => {}
+    void createRealtimeClient().then((supabase) => {
+      if (cancelado) return
+      const channel = supabase
+        .channel(`experiencia-${candidatoId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "experiencia_laboral", filter: `candidato_id=eq.${candidatoId}` },
+          (payload) => {
+            setExperiencia(prev => prev.map(e => e.id === (payload.new as Exp).id ? payload.new as Exp : e))
+          },
+        )
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "experiencia_laboral", filter: `candidato_id=eq.${candidatoId}` },
+          (payload) => {
+            setExperiencia(prev => {
+              const ya = prev.some(e => e.id === (payload.new as Exp).id)
+              return ya ? prev : [...prev, payload.new as Exp]
+            })
+          },
+        )
+        .subscribe()
+      cleanup = () => { void supabase.removeChannel(channel) }
+    })
+    return () => { cancelado = true; cleanup() }
   }, [candidatoId])
 
   function handleAddSave() {
