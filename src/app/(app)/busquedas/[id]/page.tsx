@@ -95,8 +95,9 @@ export default async function BusquedaDetailPage({
   })).filter((s) => s.count > 0);
   const maxCount = Math.max(...funnel.map((s) => s.count), 1);
 
-  const puestoChar = busqueda.puesto.charCodeAt(0);
-  const headerPal  = AVATAR_HEX[puestoChar % AVATAR_HEX.length];
+  const headerTitulo    = busqueda.cliente?.trim() ? busqueda.cliente : busqueda.puesto;
+  const headerSubtitulo = busqueda.cliente?.trim() ? busqueda.puesto : null;
+  const headerPal  = AVATAR_HEX[headerTitulo.charCodeAt(0) % AVATAR_HEX.length];
 
   const estadoBadge  = busqueda.estado === "activa" ? "gl-badge-green" : "gl-badge-gray"
   const editable     = busqueda.estado === "activa" || busqueda.estado === "pausada"
@@ -131,7 +132,7 @@ export default async function BusquedaDetailPage({
               className="h-14 w-14 rounded-2xl grid place-items-center text-xl font-bold shrink-0"
               style={{ background: headerPal.bg, color: headerPal.color }}
             >
-              {busqueda.puesto[0].toUpperCase()}
+              {headerTitulo[0].toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2 flex-wrap">
@@ -145,12 +146,14 @@ export default async function BusquedaDetailPage({
                 )}
               </div>
               <h1 className="text-2xl font-bold leading-tight" style={{ color: "var(--gl-ink)" }}>
-                {busqueda.puesto}
+                {headerTitulo}
               </h1>
               <div className="flex items-center gap-2 flex-wrap mt-1.5">
-                <span className="text-sm font-medium" style={{ color: "var(--gl-ink-3)" }}>
-                  {busqueda.cliente}
-                </span>
+                {headerSubtitulo && (
+                  <span className="text-sm font-medium" style={{ color: "var(--gl-ink-3)" }}>
+                    {headerSubtitulo}
+                  </span>
+                )}
                 {busqueda.ubicacion && (
                   <>
                     <span style={{ color: "var(--gl-border)" }}>·</span>

@@ -287,7 +287,9 @@ function BusquedasGrid({
         const count  = b.gestiones.length
         const dys    = daysBadge(days)
         const etapas = etapasActivas(b.gestiones)
-        const pal    = AVATAR_HEX[(b.puesto.charCodeAt(0) || 0) % AVATAR_HEX.length]
+        const titulo    = b.cliente?.trim() ? b.cliente : b.puesto
+        const subtitulo = b.cliente?.trim() ? b.puesto : null
+        const pal    = AVATAR_HEX[(titulo.charCodeAt(0) || 0) % AVATAR_HEX.length]
 
         return (
           <Link key={b.id} href={`/busquedas/${b.id}`} className="gl-card-link flex flex-col p-5">
@@ -296,15 +298,17 @@ function BusquedasGrid({
                 className="h-11 w-11 rounded-xl grid place-items-center text-sm font-bold shrink-0"
                 style={{ background: pal.bg, color: pal.color }}
               >
-                {(b.puesto[0] ?? "?").toUpperCase()}
+                {(titulo[0] ?? "?").toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-bold leading-tight" style={{ color: "var(--gl-ink)" }}>
-                  {b.puesto}
+                  {titulo}
                 </div>
-                <div className="text-[12.5px] mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
-                  {b.cliente}
-                </div>
+                {subtitulo && (
+                  <div className="text-[12.5px] mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
+                    {subtitulo}
+                  </div>
+                )}
                 {b.ubicacion && (
                   <div className="flex items-center gap-1 mt-0.5">
                     <MapPin className="h-3 w-3 shrink-0" style={{ color: "var(--gl-ink-3)" }} />
@@ -399,7 +403,7 @@ function GarantiaGrid({
       {busquedas.map((b) => {
         const restantes = diasFn(b.fecha_cierre)
         const vencida   = restantes !== null && restantes <= 0
-        const pal       = AVATAR_HEX[(b.puesto.charCodeAt(0) || 0) % AVATAR_HEX.length]
+        const pal       = AVATAR_HEX[((b.cliente?.trim() ? b.cliente : b.puesto).charCodeAt(0) || 0) % AVATAR_HEX.length]
         const count     = b.gestiones.length
 
         return (

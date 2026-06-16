@@ -59,18 +59,20 @@ export function GarantiaCard({
             className="h-11 w-11 rounded-xl grid place-items-center text-sm font-bold shrink-0"
             style={{ background: pal.bg, color: pal.color }}
           >
-            {busqueda.puesto[0].toUpperCase()}
+            {(busqueda.cliente?.trim() || busqueda.puesto)[0].toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <div
               className="text-[14px] font-bold leading-tight"
               style={{ color: "var(--gl-ink)" }}
             >
-              {busqueda.puesto}
+              {busqueda.cliente?.trim() || busqueda.puesto}
             </div>
-            <div className="text-[12.5px] mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
-              {busqueda.cliente}
-            </div>
+            {busqueda.cliente?.trim() && (
+              <div className="text-[12.5px] mt-0.5 truncate" style={{ color: "var(--gl-ink-3)" }}>
+                {busqueda.puesto}
+              </div>
+            )}
             {busqueda.ubicacion && (
               <div className="flex items-center gap-1 mt-0.5">
                 <MapPin className="h-3 w-3 shrink-0" style={{ color: "var(--gl-ink-3)" }} />
