@@ -1,4 +1,5 @@
 import { generateText } from "ai"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { anthropic } from "@ai-sdk/anthropic"
 import { CATEGORIAS_GL } from "@/lib/cv/categorias"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
@@ -129,4 +130,12 @@ export async function runPostProcess(candidatoId: string, data: CVParseado): Pro
       remitente_email: null,
     })
   }
+
+  // El post-process corre en background (after()): al terminar, bustar el caché
+  // del perfil para que las categorías / preguntas recién escritas se vean al
+  // refrescar, sin esperar el TTL de 120s.
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
+  revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
 }
