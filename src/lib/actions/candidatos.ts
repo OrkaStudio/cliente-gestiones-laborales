@@ -1,6 +1,6 @@
 ﻿"use server"
 
-import { revalidatePath, revalidateTag } from "next/cache"
+import { revalidatePath, revalidateTag, unstable_cache } from "next/cache"
 import { after } from "next/server"
 import { createServiceClient } from "@/lib/supabase/service"
 import type { CVParseado } from "@/lib/cv/parse"
@@ -10,7 +10,7 @@ import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 import { runPostProcess } from "@/lib/cv/post-process"
-import { fuzzyScore, normalize } from "@/lib/fuzzy"
+import { normalize } from "@/lib/fuzzy"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -1004,77 +1004,34 @@ export async function desvincularPareja(aId: string): Promise<ActionResult> {
   return { success: true, id: aId }
 }
 
-// Sugerencia on-demand: resuelve el nombre que el CV declara como pareja contra
-// la base (fuzzy, reusa fuzzy.ts). Devuelve el mejor match o null si no hay uno claro.
-export async function sugerirPareja(candidatoId: string): Promise<ParejaCandidato | null> {
-  const supabase = createServiceClient()
-  const { data: cand } = await supabase
-    .from("candidatos")
-    .select("pareja_declarada")
-    .eq("id", candidatoId)
-    .single()
-  const declarada = (cand as { pareja_declarada: string | null } | null)?.pareja_declarada
-  if (!declarada || !declarada.trim()) return null
-  const { data: todos } = await supabase
-    .from("candidatos")
-    .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado_civil")
-    .neq("id", candidatoId)
-  if (!todos) return null
-  let best: ParejaCandidato | null = null
-  let bestScore = 0
-  for (const c of todos as unknown as ParejaCandidato[]) {
-    const score = fuzzyScore([`${c.nombre} ${c.apellido}`], declarada)
-    if (score > bestScore) { bestScore = score; best = c }
-  }
-  // exige que todas las palabras del nombre declarado matcheen (score >= 1)
-  return bestScore >= 1 ? best : null
-}
+// Lista liviana de candidatos para el modal de vincular pareja. Se trae UNA sola
+// vez (cacheada, tag candidatos-list) y el filtrado + ranking se hacen client-side
+// → tipeo instantáneo, sin un viaje al servidor por tecla.
+const getCandidatosLite = unstable_cache(
+  async (): Promise<ParejaCandidato[]> => {
+    const supabase = createServiceClient()
+    const { data } = await supabase
+      .from("candidatos")
+      .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado_civil")
+    return (data ?? []) as unknown as ParejaCandidato[]
+  },
+  ["candidatos-lite-pareja"],
+  { tags: ["candidatos-list"], revalidate: 120 },
+)
 
-// Búsqueda de candidatos para vincular a mano (excluye al propio).
-// Sin query: lista "inteligente" por defecto — prioriza misma zona y mismo apellido
-// que el candidato (señales de pareja) y casados/en pareja. Con query: fuzzy.
-export async function buscarCandidatosParaPareja(
+export async function listarCandidatosParaPareja(
   candidatoId: string,
-  query: string,
-): Promise<ParejaCandidato[]> {
+): Promise<{ candidatos: ParejaCandidato[]; selfUb: string; selfAp: string }> {
   const supabase = createServiceClient()
   const { data: self } = await supabase
     .from("candidatos")
     .select("ubicacion, apellido")
     .eq("id", candidatoId)
     .single()
-  const selfUb = normalize((self as { ubicacion: string | null } | null)?.ubicacion ?? "")
-  const selfAp = normalize((self as { apellido: string | null } | null)?.apellido ?? "")
-
-  const { data } = await supabase
-    .from("candidatos")
-    .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado_civil")
-    .neq("id", candidatoId)
-    .limit(500)
-  if (!data) return []
-  const list = data as unknown as ParejaCandidato[]
-
-  if (query.trim()) {
-    return list
-      .map((c) => ({ c, score: fuzzyScore([`${c.nombre} ${c.apellido}`, c.ultimo_puesto], query) }))
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 8)
-      .map((x) => x.c)
+  const all = await getCandidatosLite()
+  return {
+    candidatos: all.filter((c) => c.id !== candidatoId),
+    selfUb: normalize((self as { ubicacion: string | null } | null)?.ubicacion ?? ""),
+    selfAp: normalize((self as { apellido: string | null } | null)?.apellido ?? ""),
   }
-
-  // sin query → sugeridos rankeados por afinidad con el candidato
-  const afinidad = (c: ParejaCandidato) => {
-    let s = 0
-    const ub = normalize(c.ubicacion ?? "")
-    const ap = normalize(c.apellido ?? "")
-    if (selfUb && ub === selfUb) s += 3
-    else if (selfUb && ub && (ub.includes(selfUb) || selfUb.includes(ub))) s += 1
-    if (selfAp && ap === selfAp) s += 2
-    if (/casad|pareja|concubin|uni[oó]n/i.test(c.estado_civil ?? "")) s += 1
-    return s
-  }
-  return [...list]
-    .sort((a, b) => afinidad(b) - afinidad(a) || `${a.nombre} ${a.apellido}`.localeCompare(`${b.nombre} ${b.apellido}`))
-    .slice(0, 8)
 }

@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
+import { fuzzyScore, normalize } from "@/lib/fuzzy"
 import {
   vincularPareja,
   desvincularPareja,
-  sugerirPareja,
-  buscarCandidatosParaPareja,
+  listarCandidatosParaPareja,
   type ParejaCandidato,
 } from "@/lib/actions/candidatos"
 
@@ -31,64 +31,77 @@ function tienePareja(civil: string | null): boolean {
 }
 
 const initials = (n: string, a: string) => ((n[0] ?? "") + (a[0] ?? "")).toUpperCase()
+const fullName = (c: { nombre: string; apellido: string }) => `${c.nombre} ${c.apellido}`
 
 export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, pareja }: Props) {
   const [open, setOpen] = useState(false)
-  const [manual, setManual] = useState(false)
-  const [sugerida, setSugerida] = useState<ParejaCandidato | null>(null)
-  const [cargandoSug, setCargandoSug] = useState(false)
+  const [manual, setManual] = useState(false)         // forzar búsqueda aunque haya sugerencia
+  const [all, setAll] = useState<ParejaCandidato[] | null>(null) // lista completa (carga 1 vez)
+  const [selfUb, setSelfUb] = useState("")
+  const [selfAp, setSelfAp] = useState("")
   const [query, setQuery] = useState("")
-  const [resultados, setResultados] = useState<ParejaCandidato[]>([])
   const [isPending, startTrans] = useTransition()
 
   const declara = !!(parejaDeclarada && parejaDeclarada.trim())
+
+  // sugerencia desde el nombre declarado — client-side, sobre la lista cargada
+  const sugerida = useMemo(() => {
+    if (!all || !declara) return null
+    let best: ParejaCandidato | null = null
+    let bs = 0
+    for (const c of all) {
+      const s = fuzzyScore([fullName(c)], parejaDeclarada as string)
+      if (s > bs) { bs = s; best = c }
+    }
+    return bs >= 1 ? best : null
+  }, [all, declara, parejaDeclarada])
+
+  // resultados del buscador — client-side, instantáneo
+  const resultados = useMemo(() => {
+    if (!all) return []
+    if (query.trim()) {
+      return all
+        .map((c) => ({ c, s: fuzzyScore([fullName(c), c.ultimo_puesto], query) }))
+        .filter((x) => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+        .slice(0, 8)
+        .map((x) => x.c)
+    }
+    // sin query → rankeados por afinidad (misma zona +3, mismo apellido +2, casado +1)
+    const afinidad = (c: ParejaCandidato) => {
+      let s = 0
+      const ub = normalize(c.ubicacion ?? "")
+      const ap = normalize(c.apellido ?? "")
+      if (selfUb && ub === selfUb) s += 3
+      else if (selfUb && ub && (ub.includes(selfUb) || selfUb.includes(ub))) s += 1
+      if (selfAp && ap === selfAp) s += 2
+      if (/casad|pareja|concubin|uni[oó]n/i.test(c.estado_civil ?? "")) s += 1
+      return s
+    }
+    return [...all].sort((a, b) => afinidad(b) - afinidad(a) || fullName(a).localeCompare(fullName(b))).slice(0, 8)
+  }, [all, query, selfUb, selfAp])
 
   // No mostrar nada si no hay vínculo, no es casado y no declara pareja
   if (!pareja && !tienePareja(estadoCivil) && !declara) return null
 
   function abrirModal() {
     setOpen(true)
-    setManual(false)
     setQuery("")
-    setResultados([])
-    setSugerida(null)
-    if (declara) {
-      setCargandoSug(true)
+    setManual(!declara) // si declara, arranca en vista sugerencia; si no, en búsqueda
+    if (!all) {
       startTrans(async () => {
-        const s = await sugerirPareja(candidatoId)
-        setSugerida(s)
-        setCargandoSug(false)
-        if (!s) cargarManual() // sin coincidencia clara → búsqueda manual con sugeridos
+        const res = await listarCandidatosParaPareja(candidatoId)
+        setAll(res.candidatos)
+        setSelfUb(res.selfUb)
+        setSelfAp(res.selfAp)
       })
-    } else {
-      cargarManual()
     }
-  }
-
-  // entra al buscador manual y precarga sugeridos (sin query) rankeados por afinidad
-  function cargarManual() {
-    setManual(true)
-    setQuery("")
-    startTrans(async () => {
-      const r = await buscarCandidatosParaPareja(candidatoId, "")
-      setResultados(r)
-    })
   }
 
   function cerrar() {
     setOpen(false)
     setManual(false)
     setQuery("")
-    setResultados([])
-    setSugerida(null)
-  }
-
-  function buscar(q: string) {
-    setQuery(q)
-    startTrans(async () => {
-      const r = await buscarCandidatosParaPareja(candidatoId, q)
-      setResultados(r)
-    })
   }
 
   function confirmar(parejaId: string) {
@@ -153,16 +166,14 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
 
       {open && (
         <ModalVincular
-          candidatoNombre=""
           declarada={parejaDeclarada}
-          manual={manual}
-          cargandoSug={cargandoSug}
+          loading={all === null}
+          showSuggestion={!manual && declara}
           sugerida={sugerida}
           query={query}
           resultados={resultados}
-          isPending={isPending}
-          onBuscar={buscar}
-          onIrManual={cargarManual}
+          onBuscar={setQuery}
+          onIrManual={() => setManual(true)}
           onConfirmar={confirmar}
           onCerrar={cerrar}
         />
@@ -172,20 +183,21 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
 }
 
 function ModalVincular(props: {
-  candidatoNombre: string
   declarada: string | null
-  manual: boolean
-  cargandoSug: boolean
+  loading: boolean
+  showSuggestion: boolean
   sugerida: ParejaCandidato | null
   query: string
   resultados: ParejaCandidato[]
-  isPending: boolean
   onBuscar: (q: string) => void
   onIrManual: () => void
   onConfirmar: (id: string) => void
   onCerrar: () => void
 }) {
-  const { declarada, manual, cargandoSug, sugerida, query, resultados, isPending, onBuscar, onIrManual, onConfirmar, onCerrar } = props
+  const { declarada, loading, showSuggestion, sugerida, query, resultados, onBuscar, onIrManual, onConfirmar, onCerrar } = props
+
+  // qué vista: cargando → spinner; sugerencia (si declara y hay match y no forzó manual); si no → buscador
+  const vista = loading ? "loading" : showSuggestion && sugerida ? "suggest" : "search"
 
   return (
     <>
@@ -208,37 +220,34 @@ function ModalVincular(props: {
         </div>
 
         <div className="px-5 py-5">
-          {!manual && (
+          {vista === "loading" && (
+            <div className="text-[13px]" style={{ color: "var(--gl-ink-3)" }}>Cargando candidatos…</div>
+          )}
+
+          {vista === "suggest" && sugerida && (
             <>
-              {cargandoSug && (
-                <div className="text-[13px]" style={{ color: "var(--gl-ink-3)" }}>Buscando coincidencia…</div>
-              )}
-              {!cargandoSug && sugerida && (
-                <>
-                  <div className="text-[12.5px] mb-3" style={{ color: "var(--gl-ink-2)", lineHeight: 1.5 }}>
-                    El CV menciona a <b style={{ color: "var(--gl-ink)" }}>&quot;{declarada}&quot;</b>. Encontramos esta coincidencia en la base — confirmá si es la misma persona:
-                  </div>
-                  <div className="flex items-center gap-3 p-3" style={{ border: "1px solid var(--gl-olive)", borderRadius: "0.8rem", background: "var(--gl-olive-bg)" }}>
-                    <Avatar nombre={sugerida.nombre} apellido={sugerida.apellido} />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>{sugerida.nombre} {sugerida.apellido}</div>
-                      <div className="text-[12px]" style={{ color: "var(--gl-ink-3)" }}>{sugerida.ultimo_puesto ?? "—"}{sugerida.ubicacion ? ` · ${sugerida.ubicacion}` : ""}</div>
-                    </div>
-                    <div className="flex flex-col gap-1.5 shrink-0">
-                      <BtnGhost onClick={onIrManual}>No es</BtnGhost>
-                      <BtnOlive onClick={() => onConfirmar(sugerida.id)}>Confirmar</BtnOlive>
-                    </div>
-                  </div>
-                  <div className="mt-3 text-[12px]" style={{ color: "var(--gl-ink-3)" }}>
-                    ¿No es esta persona?{" "}
-                    <button type="button" onClick={onIrManual} className="font-semibold" style={{ color: "var(--gl-olive)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Buscar a mano</button>
-                  </div>
-                </>
-              )}
+              <div className="text-[12.5px] mb-3" style={{ color: "var(--gl-ink-2)", lineHeight: 1.5 }}>
+                El CV menciona a <b style={{ color: "var(--gl-ink)" }}>&quot;{declarada}&quot;</b>. Encontramos esta coincidencia en la base — confirmá si es la misma persona:
+              </div>
+              <div className="flex items-center gap-3 p-3" style={{ border: "1px solid var(--gl-olive)", borderRadius: "0.8rem", background: "var(--gl-olive-bg)" }}>
+                <Avatar nombre={sugerida.nombre} apellido={sugerida.apellido} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-semibold" style={{ color: "var(--gl-ink)" }}>{sugerida.nombre} {sugerida.apellido}</div>
+                  <div className="text-[12px]" style={{ color: "var(--gl-ink-3)" }}>{sugerida.ultimo_puesto ?? "—"}{sugerida.ubicacion ? ` · ${sugerida.ubicacion}` : ""}</div>
+                </div>
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <BtnGhost onClick={onIrManual}>No es</BtnGhost>
+                  <BtnOlive onClick={() => onConfirmar(sugerida.id)}>Confirmar</BtnOlive>
+                </div>
+              </div>
+              <div className="mt-3 text-[12px]" style={{ color: "var(--gl-ink-3)" }}>
+                ¿No es esta persona?{" "}
+                <button type="button" onClick={onIrManual} className="font-semibold" style={{ color: "var(--gl-olive)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>Buscar a mano</button>
+              </div>
             </>
           )}
 
-          {manual && (
+          {vista === "search" && (
             <>
               {declarada && declarada.trim() && (
                 <div className="text-[12.5px] mb-3" style={{ color: "var(--gl-ink-2)", lineHeight: 1.5 }}>
@@ -261,11 +270,7 @@ function ModalVincular(props: {
               <div className="mt-1.5 flex flex-col gap-0.5" style={{ maxHeight: 300, overflowY: "auto" }}>
                 {resultados.length === 0 ? (
                   <div className="text-[12.5px] px-1 py-2" style={{ color: "var(--gl-ink-3)" }}>
-                    {isPending
-                      ? "Buscando…"
-                      : query.trim()
-                        ? `No hay candidatos que coincidan con "${query}".`
-                        : "No hay otros candidatos en la base."}
+                    {query.trim() ? `No hay candidatos que coincidan con "${query}".` : "No hay otros candidatos en la base."}
                   </div>
                 ) : (
                   resultados.map((c) => (
