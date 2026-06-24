@@ -421,6 +421,146 @@ export function CVTextoDocument({
   )
 }
 
+// ─── Documento de PAREJA (casero) ─────────────────────────────────────────────
+// Componer-no-copiar: arma el CV unificado leyendo en vivo a los dos candidatos.
+// Principal = CV completo; pareja = sección condensada. Situación Familiar = prosa.
+
+function ParejaCondensada({ c, exp }: { c: Candidato; exp: Experiencia[] }) {
+  const conocimientos = [...(c.idiomas ?? []), ...(c.tipos_ganaderia ?? [])]
+  const sorted = [...exp].sort((a, b) => {
+    if (a.hasta === null) return -1
+    if (b.hasta === null) return 1
+    return (b.desde ?? "").localeCompare(a.desde ?? "")
+  })
+  return (
+    <View style={s.section}>
+      <Text style={s.sectionTitle}>{c.nombre} {c.apellido} — Información académica y laboral</Text>
+
+      {c.educacion && (
+        <View style={{ marginBottom: 8 }}>
+          <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink2, marginBottom: 3 }}>Formación</Text>
+          <Text style={s.para}>{c.educacion}</Text>
+        </View>
+      )}
+
+      {c.perfil_laboral && <Text style={[s.para, { marginBottom: 8 }]}>{c.perfil_laboral}</Text>}
+
+      {sorted.length > 0 && (
+        <View style={{ marginBottom: 8 }}>
+          <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink2, marginBottom: 4 }}>Experiencia</Text>
+          {sorted.map((e) => (
+            <View key={e.id} style={{ marginBottom: 5 }} wrap={false}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink, flex: 1 }}>{e.rol}</Text>
+                <Text style={{ fontSize: 8.5, color: C.ink3 }}>{formatFecha(e.desde)} – {formatFecha(e.hasta)}</Text>
+              </View>
+              {(e.empresa || e.ubicacion) && (
+                <Text style={{ fontSize: 9, color: C.ink2 }}>{[e.empresa, e.ubicacion].filter(Boolean).join("  ·  ")}</Text>
+              )}
+              {e.descripcion && <Text style={{ fontSize: 9, color: C.ink2, lineHeight: 1.5, marginTop: 1 }}>{e.descripcion}</Text>}
+            </View>
+          ))}
+        </View>
+      )}
+
+      {conocimientos.length > 0 && (
+        <View>
+          <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9.5, color: C.ink2, marginBottom: 3 }}>Conocimientos</Text>
+          <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+            {conocimientos.map((k, i) => <Text key={i} style={s.tag}>▪ {k}</Text>)}
+          </View>
+        </View>
+      )}
+    </View>
+  )
+}
+
+export function CVParejaDocument({
+  principal,
+  principalExp,
+  pareja,
+  parejaExp,
+  situacionFamiliar,
+  fecha,
+}: {
+  principal:    Candidato
+  principalExp: Experiencia[]
+  pareja:       Candidato
+  parejaExp:    Experiencia[]
+  situacionFamiliar: string | null
+  fecha:        string
+}) {
+  const refsP: Referencia[] = (principal.referencias as Referencia[] | null) ?? []
+  const refsQ: Referencia[] = (pareja.referencias as Referencia[] | null) ?? []
+  const conocimientos = [...(principal.idiomas ?? []), ...(principal.tipos_ganaderia ?? [])]
+
+  return (
+    <Document>
+      <Page size="A4" style={s.page}>
+        <Image src={LOGO_LEYENDA} style={s.brandFixed} fixed />
+        <View fixed render={({ pageNumber }) => pageNumber > 1 ? <View style={{ height: 64 }} /> : null} />
+
+        <View style={s.body}>
+          <View style={s.candidatoHeader}>
+            <Text style={s.candidatoNombre}>{principal.nombre} {principal.apellido}</Text>
+            <Text style={s.candidatoSub}>PERFIL DE PAREJA · {principal.apellido.toUpperCase()} — {pareja.apellido.toUpperCase()}</Text>
+          </View>
+
+          <DatosPersonalesPDF c={principal} />
+
+          {situacionFamiliar?.trim() && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Situación Familiar</Text>
+              {situacionFamiliar.split("\n").filter(l => l.trim()).map((l, i) => (
+                <Text key={i} style={[s.para, { marginBottom: 4 }]}>{l.trim()}</Text>
+              ))}
+            </View>
+          )}
+
+          {principal.perfil_laboral && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Perfil Profesional</Text>
+              <Text style={s.para}>{principal.perfil_laboral}</Text>
+            </View>
+          )}
+
+          <ExperienciaPDF experiencia={principalExp} />
+
+          {conocimientos.length > 0 && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Conocimientos y Habilidades</Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap" }}>
+                {conocimientos.map((k, i) => <Text key={i} style={s.tag}>▪ {k}</Text>)}
+              </View>
+            </View>
+          )}
+
+          <ParejaCondensada c={pareja} exp={parejaExp} />
+
+          {(refsP.length > 0 || refsQ.length > 0) && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Referencias</Text>
+              {[...refsP, ...refsQ].map((ref, i) => (
+                <View key={i} style={s.refBlock}>
+                  <Text style={s.refName}>{ref.nombre}</Text>
+                  {ref.contacto && <Text style={s.refDetail}>{ref.contacto}</Text>}
+                  {ref.relacion && <Text style={s.refDetail}>{ref.relacion}</Text>}
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <View style={s.footer} fixed>
+          <Text style={s.footerBrand}>GESTIONES LABORALES</Text>
+          <Text style={s.footerMid}>{fecha}</Text>
+          <Text style={s.footerPage} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} />
+        </View>
+      </Page>
+    </Document>
+  )
+}
+
 // ─── Documento ────────────────────────────────────────────────────────────────
 
 export function CVDocument({
