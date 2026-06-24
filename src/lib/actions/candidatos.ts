@@ -10,7 +10,6 @@ import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 import { runPostProcess } from "@/lib/cv/post-process"
-import { normalize } from "@/lib/fuzzy"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -1021,17 +1020,7 @@ const getCandidatosLite = unstable_cache(
 
 export async function listarCandidatosParaPareja(
   candidatoId: string,
-): Promise<{ candidatos: ParejaCandidato[]; selfUb: string; selfAp: string }> {
-  const supabase = createServiceClient()
-  const { data: self } = await supabase
-    .from("candidatos")
-    .select("ubicacion, apellido")
-    .eq("id", candidatoId)
-    .single()
+): Promise<ParejaCandidato[]> {
   const all = await getCandidatosLite()
-  return {
-    candidatos: all.filter((c) => c.id !== candidatoId),
-    selfUb: normalize((self as { ubicacion: string | null } | null)?.ubicacion ?? ""),
-    selfAp: normalize((self as { apellido: string | null } | null)?.apellido ?? ""),
-  }
+  return all.filter((c) => c.id !== candidatoId)
 }

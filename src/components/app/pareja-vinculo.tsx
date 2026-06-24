@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
-import { fuzzyScore, normalize } from "@/lib/fuzzy"
+import { fuzzyScore } from "@/lib/fuzzy"
 import {
   vincularPareja,
   desvincularPareja,
@@ -37,8 +37,6 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
   const [open, setOpen] = useState(false)
   const [manual, setManual] = useState(false)         // forzar búsqueda aunque haya sugerencia
   const [all, setAll] = useState<ParejaCandidato[] | null>(null) // lista completa (carga 1 vez)
-  const [selfUb, setSelfUb] = useState("")
-  const [selfAp, setSelfAp] = useState("")
   const [query, setQuery] = useState("")
   const [isPending, startTrans] = useTransition()
 
@@ -64,22 +62,11 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
         .map((c) => ({ c, s: fuzzyScore([fullName(c), c.ultimo_puesto], query) }))
         .filter((x) => x.s > 0)
         .sort((a, b) => b.s - a.s)
-        .slice(0, 8)
         .map((x) => x.c)
     }
-    // sin query → rankeados por afinidad (misma zona +3, mismo apellido +2, casado +1)
-    const afinidad = (c: ParejaCandidato) => {
-      let s = 0
-      const ub = normalize(c.ubicacion ?? "")
-      const ap = normalize(c.apellido ?? "")
-      if (selfUb && ub === selfUb) s += 3
-      else if (selfUb && ub && (ub.includes(selfUb) || selfUb.includes(ub))) s += 1
-      if (selfAp && ap === selfAp) s += 2
-      if (/casad|pareja|concubin|uni[oó]n/i.test(c.estado_civil ?? "")) s += 1
-      return s
-    }
-    return [...all].sort((a, b) => afinidad(b) - afinidad(a) || fullName(a).localeCompare(fullName(b))).slice(0, 8)
-  }, [all, query, selfUb, selfAp])
+    // sin query → lista alfabética (sin sugerir nada por zona/apellido)
+    return [...all].sort((a, b) => fullName(a).localeCompare(fullName(b)))
+  }, [all, query])
 
   // No mostrar nada si no hay vínculo, no es casado y no declara pareja
   if (!pareja && !tienePareja(estadoCivil) && !declara) return null
@@ -90,10 +77,7 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
     setManual(!declara) // si declara, arranca en vista sugerencia; si no, en búsqueda
     if (!all) {
       startTrans(async () => {
-        const res = await listarCandidatosParaPareja(candidatoId)
-        setAll(res.candidatos)
-        setSelfUb(res.selfUb)
-        setSelfAp(res.selfAp)
+        setAll(await listarCandidatosParaPareja(candidatoId))
       })
     }
   }
@@ -262,12 +246,7 @@ function ModalVincular(props: {
                 className="w-full rounded-lg px-3 py-2 text-[13px] outline-none"
                 style={{ border: "1px solid var(--gl-border-md)", color: "var(--gl-ink)", fontFamily: "inherit" }}
               />
-              {!query.trim() && resultados.length > 0 && (
-                <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
-                  Sugeridos · misma zona y apellido primero
-                </div>
-              )}
-              <div className="mt-1.5 flex flex-col gap-0.5" style={{ maxHeight: 300, overflowY: "auto" }}>
+              <div className="mt-2 flex flex-col gap-0.5" style={{ maxHeight: 300, overflowY: "auto" }}>
                 {resultados.length === 0 ? (
                   <div className="text-[12.5px] px-1 py-2" style={{ color: "var(--gl-ink-3)" }}>
                     {query.trim() ? `No hay candidatos que coincidan con "${query}".` : "No hay otros candidatos en la base."}
