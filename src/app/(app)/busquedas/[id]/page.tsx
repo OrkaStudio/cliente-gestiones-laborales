@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
+import { BorrarGestionButton } from "@/components/app/borrar-gestion-button";
 import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button"
 import { NotasBusquedaInline } from "@/components/app/notas-busqueda-inline";
 
@@ -453,6 +454,14 @@ export default async function BusquedaDetailPage({
                           {dias}d sin cambio
                         </div>
                       </div>
+                      {editable && c && (
+                        <BorrarGestionButton
+                          gestionId={gId}
+                          busquedaId={id}
+                          candidatoId={c.id}
+                          nombre={`${c.nombre} ${c.apellido}`}
+                        />
+                      )}
                     </div>
                   );
                 })}

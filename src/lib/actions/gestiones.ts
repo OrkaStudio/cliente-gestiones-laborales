@@ -71,3 +71,25 @@ export async function updateGestionEstado(
   revalidatePath("/")
   return { success: true, id: gestionId }
 }
+
+// Borrar la gestión por completo: saca al candidato de la búsqueda como si nunca
+// se hubiera agregado (para los agregados por error). Distinto de "descartado",
+// que es un estado del pipeline y se conserva. El candidato sigue en la base.
+export async function eliminarGestion(
+  gestionId: string,
+  paths: { busquedaId: string; candidatoId: string }
+): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  const { error } = await supabase.from("gestiones").delete().eq("id", gestionId)
+
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath(`/busquedas/${paths.busquedaId}`)
+  revalidateTag(`busqueda-${paths.busquedaId}`, {})
+  revalidatePath(`/busquedas`)
+  revalidatePath(`/candidatos/${paths.candidatoId}`)
+  revalidateTag(`candidato-${paths.candidatoId}`, {})
+  revalidateTag("candidatos-list", {})
+  revalidatePath("/")
+  return { success: true, id: gestionId }
+}
