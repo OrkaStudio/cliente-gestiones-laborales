@@ -64,6 +64,7 @@ export async function upsertCandidato(
     dni: str(data.dni),
     estado_civil: str(data.estado_civil),
     hijos: str(data.hijos),
+    pareja_declarada: str(data.pareja_declarada),
     vehiculo_propio: data.vehiculo_propio ?? null,
     licencia_conducir: data.licencia_conducir ?? null,
     muebles_propios: str(data.muebles_propios),

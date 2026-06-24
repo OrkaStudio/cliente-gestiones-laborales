@@ -88,6 +88,8 @@ export type Database = {
           lugar_nacimiento: string | null;
           estado_civil: string | null;
           hijos: string | null;
+          pareja_id: string | null;
+          pareja_declarada: string | null;
           domicilio_completo: string | null;
           vehiculo_propio: boolean | null;
           vehiculo_detalle: string | null;

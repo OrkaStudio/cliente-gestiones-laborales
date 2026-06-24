@@ -10,6 +10,7 @@ import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 import { runPostProcess } from "@/lib/cv/post-process"
+import { fuzzyScore } from "@/lib/fuzzy"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -953,4 +954,100 @@ export async function regenerarCVTextoDesdeDatos(candidatoId: string): Promise<A
   revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
   return { success: true, id: candidatoId }
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Vínculo de pareja
+// Las parejas llegan como dos CVs separados → dos candidatos individuales
+// unidos (1:1 simétrico). El alta/baja se administra desde el perfil; el
+// vínculo siempre lo confirma una persona a mano (nunca se linkea en silencio).
+// ════════════════════════════════════════════════════════════════════
+
+export type ParejaCandidato = {
+  id: string
+  nombre: string
+  apellido: string
+  ultimo_puesto: string | null
+  ubicacion: string | null
+  estado_civil: string | null
+}
+
+function revalidarCandidato(id: string) {
+  revalidatePath(`/candidatos/${id}`)
+  revalidateTag(`candidato-${id}`, {})
+  revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
+}
+
+export async function vincularPareja(aId: string, bId: string): Promise<ActionResult> {
+  if (aId === bId) return { success: false, error: "No se puede vincular un candidato consigo mismo" }
+  const supabase = createServiceClient()
+  // RPC atómica: setea ambos lados en una transacción (ver migración 021)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).rpc("vincular_pareja", { a: aId, b: bId })
+  if (error) return { success: false, error: error.message }
+  revalidarCandidato(aId)
+  revalidarCandidato(bId)
+  return { success: true, id: aId }
+}
+
+export async function desvincularPareja(aId: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+  // leer la pareja actual para revalidar también el otro lado
+  const { data } = await supabase.from("candidatos").select("pareja_id").eq("id", aId).single()
+  const partnerId = (data as { pareja_id: string | null } | null)?.pareja_id ?? null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase as any).rpc("desvincular_pareja", { a: aId })
+  if (error) return { success: false, error: error.message }
+  revalidarCandidato(aId)
+  if (partnerId) revalidarCandidato(partnerId)
+  return { success: true, id: aId }
+}
+
+// Sugerencia on-demand: resuelve el nombre que el CV declara como pareja contra
+// la base (fuzzy, reusa fuzzy.ts). Devuelve el mejor match o null si no hay uno claro.
+export async function sugerirPareja(candidatoId: string): Promise<ParejaCandidato | null> {
+  const supabase = createServiceClient()
+  const { data: cand } = await supabase
+    .from("candidatos")
+    .select("pareja_declarada")
+    .eq("id", candidatoId)
+    .single()
+  const declarada = (cand as { pareja_declarada: string | null } | null)?.pareja_declarada
+  if (!declarada || !declarada.trim()) return null
+  const { data: todos } = await supabase
+    .from("candidatos")
+    .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado_civil")
+    .neq("id", candidatoId)
+  if (!todos) return null
+  let best: ParejaCandidato | null = null
+  let bestScore = 0
+  for (const c of todos as unknown as ParejaCandidato[]) {
+    const score = fuzzyScore([`${c.nombre} ${c.apellido}`], declarada)
+    if (score > bestScore) { bestScore = score; best = c }
+  }
+  // exige que todas las palabras del nombre declarado matcheen (score >= 1)
+  return bestScore >= 1 ? best : null
+}
+
+// Búsqueda manual de candidatos para vincular a mano (excluye al propio).
+export async function buscarCandidatosParaPareja(
+  candidatoId: string,
+  query: string,
+): Promise<ParejaCandidato[]> {
+  const supabase = createServiceClient()
+  const { data } = await supabase
+    .from("candidatos")
+    .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado_civil")
+    .neq("id", candidatoId)
+    .limit(300)
+  if (!data) return []
+  const list = data as unknown as ParejaCandidato[]
+  if (!query.trim()) return list.slice(0, 8)
+  return list
+    .map((c) => ({ c, score: fuzzyScore([`${c.nombre} ${c.apellido}`, c.ultimo_puesto], query) }))
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8)
+    .map((x) => x.c)
 }

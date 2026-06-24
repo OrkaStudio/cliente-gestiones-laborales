@@ -126,6 +126,17 @@ export default async function CandidatoDetailPage({
 
   if (!candidato) notFound();
 
+  // Pareja vinculada (resumen para el panel de Ficha)
+  let parejaVinculada: { id: string; nombre: string; apellido: string; ultimo_puesto: string | null } | null = null;
+  if (candidato.pareja_id) {
+    const { data: p } = await createServiceClient()
+      .from("candidatos")
+      .select("id, nombre, apellido, ultimo_puesto")
+      .eq("id", candidato.pareja_id)
+      .single();
+    parejaVinculada = (p as typeof parejaVinculada) ?? null;
+  }
+
   const yearsExp         = calcYearsExp(experiencia ?? []);
   const referencias      = (candidato.referencias as unknown[] | null) ?? [];
   const completeness     = calcCompleteness(candidato, experiencia ?? [], referencias);
@@ -352,6 +363,8 @@ export default async function CandidatoDetailPage({
         estado_civil={candidato.estado_civil ?? null}
         hijos={candidato.hijos ?? null}
         edad={edad}
+        parejaDeclarada={candidato.pareja_declarada ?? null}
+        pareja={parejaVinculada}
       />
 
       {/* ── Campos pendientes ─────────────────────────────────────── */}

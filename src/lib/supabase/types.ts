@@ -145,6 +145,8 @@ export type Database = {
           lugar_nacimiento: string | null
           estado_civil: string | null
           hijos: string | null
+          pareja_id: string | null
+          pareja_declarada: string | null
           domicilio_completo: string | null
           vehiculo_propio: boolean | null
           vehiculo_detalle: string | null
@@ -206,6 +208,8 @@ export type Database = {
           conversaciones_historial?: Json | null
           informacion_adicional?: string | null
           preguntas_enviadas?: Json | null
+          pareja_id?: string | null
+          pareja_declarada?: string | null
         }
         Update: {
           apellido?: string
@@ -254,6 +258,8 @@ export type Database = {
           conversaciones_historial?: Json | null
           informacion_adicional?: string | null
           preguntas_enviadas?: Json | null
+          pareja_id?: string | null
+          pareja_declarada?: string | null
         }
         Relationships: []
       }

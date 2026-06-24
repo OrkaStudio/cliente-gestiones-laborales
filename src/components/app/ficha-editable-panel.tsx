@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react"
 import { Pencil, Check, X } from "lucide-react"
 import { updateCandidatoFields } from "@/lib/actions/candidatos"
+import { ParejaVinculo } from "@/components/app/pareja-vinculo"
 
 interface Props {
   candidatoId: string
@@ -14,6 +15,8 @@ interface Props {
   estado_civil:       string | null
   hijos:              string | null
   edad:               number | null
+  parejaDeclarada:    string | null
+  pareja:             { id: string; nombre: string; apellido: string; ultimo_puesto: string | null } | null
 }
 
 type TextField = "disponibilidad" | "pretension_salarial" | "estado_civil" | "hijos" | "vehiculo_detalle"
@@ -54,9 +57,11 @@ const LABELS: Record<EditField, string> = {
 export function FichaEditablePanel({
   candidatoId,
   edad,
+  parejaDeclarada,
+  pareja,
   ...initial
 }: Props) {
-  type DataState = Omit<Props, "candidatoId" | "edad">
+  type DataState = Omit<Props, "candidatoId" | "edad" | "parejaDeclarada" | "pareja">
   const [data, setData] = useState<DataState>(initial)
   const [editing, setEditing]   = useState<EditField | null>(null)
   const [editVal, setEditVal]   = useState("")
@@ -103,7 +108,8 @@ export function FichaEditablePanel({
     return v !== null && v !== undefined
   }) || edad !== null
 
-  if (!hasAnyData) return null
+  const hayPareja = !!pareja || !!(parejaDeclarada && parejaDeclarada.trim())
+  if (!hasAnyData && !hayPareja) return null
 
   return (
     <div className="rounded-2xl border p-5" style={CARD}>
@@ -239,6 +245,15 @@ export function FichaEditablePanel({
                     style={{ color: "var(--gl-ink-3)" }}
                   />
                 </button>
+              )}
+
+              {field === "estado_civil" && (
+                <ParejaVinculo
+                  candidatoId={candidatoId}
+                  estadoCivil={data.estado_civil}
+                  parejaDeclarada={parejaDeclarada}
+                  pareja={pareja}
+                />
               )}
             </div>
           )

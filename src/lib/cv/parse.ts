@@ -42,6 +42,7 @@ const CVParseadoSchema = z.object({
   lugar_nacimiento: z.string().describe("Ciudad y provincia de nacimiento. Vacío si no se menciona"),
   estado_civil: z.string().describe("Soltero, casado, etc. Vacío si no se menciona"),
   hijos: z.string().describe("Ej: '2 hijos, 5 y 8 años'. Vacío si no se menciona"),
+  pareja_declarada: z.string().describe("Nombre y apellido de la pareja/cónyuge SOLO si el CV lo menciona explícitamente (ej. 'casado con María Pérez', 'su esposo Juan Díaz'). Vacío si no figura el nombre"),
   ubicacion: z.string().describe("Ciudad y provincia donde vive. Vacío si no se menciona"),
   domicilio_completo: z.string().describe("Calle, número, localidad, provincia. Vacío si no se menciona"),
   educacion: z.string().describe("Nivel y título educativo. Vacío si no se menciona"),
