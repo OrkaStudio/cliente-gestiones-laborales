@@ -58,11 +58,21 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
         const s = await sugerirPareja(candidatoId)
         setSugerida(s)
         setCargandoSug(false)
-        if (!s) setManual(true) // sin coincidencia clara → directo a búsqueda manual
+        if (!s) cargarManual() // sin coincidencia clara → búsqueda manual con sugeridos
       })
     } else {
-      setManual(true)
+      cargarManual()
     }
+  }
+
+  // entra al buscador manual y precarga sugeridos (sin query) rankeados por afinidad
+  function cargarManual() {
+    setManual(true)
+    setQuery("")
+    startTrans(async () => {
+      const r = await buscarCandidatosParaPareja(candidatoId, "")
+      setResultados(r)
+    })
   }
 
   function cerrar() {
@@ -152,7 +162,7 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
           resultados={resultados}
           isPending={isPending}
           onBuscar={buscar}
-          onIrManual={() => setManual(true)}
+          onIrManual={cargarManual}
           onConfirmar={confirmar}
           onCerrar={cerrar}
         />
@@ -175,7 +185,7 @@ function ModalVincular(props: {
   onConfirmar: (id: string) => void
   onCerrar: () => void
 }) {
-  const { declarada, manual, cargandoSug, sugerida, query, resultados, onBuscar, onIrManual, onConfirmar, onCerrar } = props
+  const { declarada, manual, cargandoSug, sugerida, query, resultados, isPending, onBuscar, onIrManual, onConfirmar, onCerrar } = props
 
   return (
     <>
@@ -243,10 +253,19 @@ function ModalVincular(props: {
                 className="w-full rounded-lg px-3 py-2 text-[13px] outline-none"
                 style={{ border: "1px solid var(--gl-border-md)", color: "var(--gl-ink)", fontFamily: "inherit" }}
               />
-              <div className="mt-2 flex flex-col gap-0.5" style={{ maxHeight: 300, overflowY: "auto" }}>
+              {!query.trim() && resultados.length > 0 && (
+                <div className="mt-2 text-[10px] font-semibold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+                  Sugeridos · misma zona y apellido primero
+                </div>
+              )}
+              <div className="mt-1.5 flex flex-col gap-0.5" style={{ maxHeight: 300, overflowY: "auto" }}>
                 {resultados.length === 0 ? (
                   <div className="text-[12.5px] px-1 py-2" style={{ color: "var(--gl-ink-3)" }}>
-                    {query.trim() ? `No hay candidatos que coincidan con "${query}".` : "Escribí un nombre para buscar."}
+                    {isPending
+                      ? "Buscando…"
+                      : query.trim()
+                        ? `No hay candidatos que coincidan con "${query}".`
+                        : "No hay otros candidatos en la base."}
                   </div>
                 ) : (
                   resultados.map((c) => (
