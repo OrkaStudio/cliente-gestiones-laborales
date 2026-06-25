@@ -2,9 +2,8 @@
 
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
-import { Users } from "lucide-react"
+import { Users, FileText } from "lucide-react"
 import { fuzzyScore } from "@/lib/fuzzy"
-import { ParejaCvPanel } from "@/components/app/pareja-cv-panel"
 import {
   vincularPareja,
   desvincularPareja,
@@ -129,7 +128,16 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
             Quitar
           </button>
           <span style={{ color: "var(--gl-border)" }}>·</span>
-          <ParejaCvPanel candidatoId={candidatoId} />
+          <a
+            href={`/api/candidatos/${candidatoId}/cv-pareja/pdf`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[12.5px] font-semibold no-underline"
+            style={{ color: "var(--gl-olive)" }}
+            title="Genera y descarga el CV unificado de la pareja"
+          >
+            <FileText style={{ width: 12, height: 12 }} /> Descargar CV de la pareja
+          </a>
         </>
       ) : (
         <>
