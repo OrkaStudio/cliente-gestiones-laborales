@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
 import { fuzzyScore } from "@/lib/fuzzy"
+import { ParejaCvPanel } from "@/components/app/pareja-cv-panel"
 import {
   vincularPareja,
   desvincularPareja,
@@ -125,6 +126,8 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
           >
             <X className="h-3 w-3" />
           </button>
+          <span style={{ color: "var(--gl-border)" }}>·</span>
+          <ParejaCvPanel candidatoId={candidatoId} />
         </>
       ) : (
         <>

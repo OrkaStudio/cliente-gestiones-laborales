@@ -998,6 +998,12 @@ export async function desvincularPareja(aId: string): Promise<ActionResult> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase as any).rpc("desvincular_pareja", { a: aId })
   if (error) return { success: false, error: error.message }
+  // limpiar la fila de pareja (datos del CV unificado) del par
+  if (partnerId) {
+    const [x, y] = [aId, partnerId].sort()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase as any).from("parejas").delete().eq("candidato_a_id", x).eq("candidato_b_id", y)
+  }
   revalidarCandidato(aId)
   if (partnerId) revalidarCandidato(partnerId)
   return { success: true, id: aId }
