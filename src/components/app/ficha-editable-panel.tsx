@@ -246,19 +246,17 @@ export function FichaEditablePanel({
                   />
                 </button>
               )}
-
-              {field === "estado_civil" && (
-                <ParejaVinculo
-                  candidatoId={candidatoId}
-                  estadoCivil={data.estado_civil}
-                  parejaDeclarada={parejaDeclarada}
-                  pareja={pareja}
-                />
-              )}
             </div>
           )
         })}
       </div>
+
+      <ParejaVinculo
+        candidatoId={candidatoId}
+        estadoCivil={data.estado_civil}
+        parejaDeclarada={parejaDeclarada}
+        pareja={pareja}
+      />
 
       {isPending && (
         <div className="mt-3 text-[10.5px]" style={{ color: "var(--gl-ink-3)" }}>

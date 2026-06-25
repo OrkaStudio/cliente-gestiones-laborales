@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useTransition } from "react"
 import Link from "next/link"
-import { X } from "lucide-react"
+import { Users } from "lucide-react"
 import { fuzzyScore } from "@/lib/fuzzy"
 import { ParejaCvPanel } from "@/components/app/pareja-cv-panel"
 import {
@@ -103,28 +103,30 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
   }
 
   return (
-    <div className="mt-1.5 flex items-center gap-1.5">
-      <span style={{ color: "var(--gl-ink-3)", fontSize: 12, lineHeight: 1 }}>└</span>
+    <div style={{ marginTop: 18, paddingTop: 14, borderTop: "1px solid var(--gl-border)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+      <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide" style={{ color: "var(--gl-ink-3)" }}>
+        <Users style={{ width: 13, height: 13 }} /> Pareja
+      </span>
 
       {pareja ? (
         <>
           <Link
             href={`/candidatos/${pareja.id}`}
-            className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold no-underline"
+            className="inline-flex items-center rounded-full px-2.5 py-1 text-[12.5px] font-semibold no-underline"
             style={{ background: "var(--gl-olive-bg)", color: "var(--gl-olive)" }}
             title={`Ver perfil de ${pareja.nombre} ${pareja.apellido}`}
           >
-            💍 {pareja.nombre} {pareja.apellido}
+            {pareja.nombre} {pareja.apellido}
           </Link>
           <button
             type="button"
             onClick={quitar}
             disabled={isPending}
-            className="p-0.5 leading-none"
+            className="text-[12px]"
             style={{ background: "none", border: "none", cursor: "pointer", color: "var(--gl-ink-3)" }}
             title="Quitar vínculo"
           >
-            <X className="h-3 w-3" />
+            Quitar
           </button>
           <span style={{ color: "var(--gl-border)" }}>·</span>
           <ParejaCvPanel candidatoId={candidatoId} />
@@ -134,18 +136,18 @@ export function ParejaVinculo({ candidatoId, estadoCivil, parejaDeclarada, parej
           <button
             type="button"
             onClick={abrirModal}
-            className="inline-flex items-center gap-1 text-[12px] font-semibold"
+            className="text-[12.5px] font-semibold"
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--gl-olive)" }}
           >
-            💍 Vincular pareja
+            Vincular pareja
           </button>
           {declara && (
             <span
-              className="inline-flex items-center gap-1 text-[10.5px] font-semibold"
+              className="inline-flex items-center gap-1 text-[11px] font-medium"
               style={{ color: "var(--gl-amber)" }}
               title={`El CV menciona a "${parejaDeclarada}"`}
             >
-              ● declara
+              · el CV menciona una
             </span>
           )}
         </>
