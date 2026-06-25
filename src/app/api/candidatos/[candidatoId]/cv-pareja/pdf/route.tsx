@@ -22,15 +22,6 @@ export async function GET(
   if (!partnerId) return new Response("El candidato no tiene una pareja vinculada", { status: 400 })
 
   const [a, b] = [candidatoId, partnerId].sort()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sb = supabase as any
-  await sb.from("parejas").upsert(
-    { candidato_a_id: a, candidato_b_id: b },
-    { onConflict: "candidato_a_id,candidato_b_id", ignoreDuplicates: true },
-  )
-  const { data: parejaRow } = await sb
-    .from("parejas").select("id, situacion_familiar")
-    .eq("candidato_a_id", a).eq("candidato_b_id", b).single()
 
   const [{ data: ca }, { data: cb }, { data: expA }, { data: expB }] = await Promise.all([
     supabase.from("candidatos").select("*").eq("id", a).single(),
@@ -48,12 +39,9 @@ export async function GET(
   const principalExp = aWins ? (expA ?? []) : (expB ?? [])
   const partnerExp   = aWins ? (expB ?? []) : (expA ?? [])
 
-  // Situación Familiar: usar la guardada o generarla (y cachear) si no hay.
-  let narrativa = parejaRow?.situacion_familiar as string | null
-  if (!narrativa?.trim()) {
-    narrativa = await redactarSituacionFamiliar(principal, partner)
-    await sb.from("parejas").update({ situacion_familiar: narrativa, updated_at: new Date().toISOString() }).eq("id", parejaRow.id)
-  }
+  // Situación Familiar: se redacta en cada descarga desde los datos vivos de
+  // ambos, para reflejar cualquier cambio reciente en los perfiles.
+  const narrativa = await redactarSituacionFamiliar(principal, partner)
 
   const fecha = new Date().toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })
   const buffer = await renderToBuffer(

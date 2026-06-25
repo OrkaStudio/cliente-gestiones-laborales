@@ -23,7 +23,7 @@ export async function redactarSituacionFamiliar(principal: PersonaSF, otro: Pers
 Principal: ${ficha(principal)}
 Pareja: ${ficha(otro)}
 
-Escribí 2-3 oraciones en tercera persona, tono profesional y sobrio, mencionando: que están en pareja (nombrá a ${otro.nombre} ${otro.apellido}), la composición familiar si hay hijos, y que buscan una posición que permita la convivencia familiar en el establecimiento. No inventes datos que no estén arriba (si algo es "s/d", omitilo y no lo menciones). Devolvé SOLO el texto, sin títulos ni comillas.`,
+Escribí 2-3 oraciones en tercera persona, tono profesional y sobrio, enfocadas SOLO en lo familiar: que están en pareja (nombrá a ${otro.nombre} ${otro.apellido}), la composición familiar (hijos, si figuran) y que buscan una posición de casero/matrimonio que les permita convivir en el establecimiento. NO describas la experiencia ni el rubro profesional de cada uno (eso va en otras secciones del CV) y NO afirmes que trabajan en el agro si no surge de los datos. No inventes nada: si algo es "s/d", omitilo. Devolvé SOLO el texto, sin títulos ni comillas.`,
   })
   return text.trim()
 }

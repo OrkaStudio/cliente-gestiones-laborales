@@ -94,14 +94,35 @@ function KVRow({ label, value }: { label: string; value: string | null | undefin
   )
 }
 
+// Extrae el texto de una sección del cv_procesado_texto (ej. "PERFIL LABORAL").
+function extractSeccion(texto: string | null | undefined, titulo: string): string | null {
+  if (!texto) return null
+  const out: string[] = []
+  let inSec = false
+  for (const raw of texto.split("\n")) {
+    const t = raw.trim()
+    if (/^[═─]{6,}$/.test(t)) continue
+    const isHeader = t.length > 2 && t === t.toUpperCase() && /^[A-ZÁÉÍÓÚÑÜ\s/–—-]+$/.test(t)
+    if (isHeader) { if (inSec) break; inSec = t.includes(titulo); continue }
+    if (inSec && t) out.push(t)
+  }
+  return out.length ? out.join(" ") : null
+}
+
+function fmtNacimiento(d: string | null): string | null {
+  if (!d) return null
+  return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d.split("-").reverse().join("/") : d
+}
+
 function DatosPersonalesPDF({ c }: { c: Candidato }) {
   const edad = c.fecha_nacimiento ? calcEdad(c.fecha_nacimiento) : null
+  const fnac = fmtNacimiento(c.fecha_nacimiento)
   return (
     <View style={s.section}>
       <Text style={s.sectionTitle}>Datos Personales</Text>
       <KVRow label="Nombre y Apellido" value={`${c.nombre} ${c.apellido}`} />
-      {c.fecha_nacimiento && (
-        <KVRow label="Fecha de nacimiento" value={edad != null ? `${c.fecha_nacimiento} (${edad} años)` : c.fecha_nacimiento} />
+      {fnac && (
+        <KVRow label="Fecha de nacimiento" value={edad != null ? `${fnac} (${edad} años)` : fnac} />
       )}
       <KVRow label="DNI"            value={c.dni} />
       <KVRow label="Domicilio"      value={c.domicilio_completo ?? c.ubicacion} />
@@ -427,6 +448,7 @@ export function CVTextoDocument({
 
 function ParejaCondensada({ c, exp }: { c: Candidato; exp: Experiencia[] }) {
   const conocimientos = [...(c.idiomas ?? []), ...(c.tipos_ganaderia ?? [])]
+  const perfil = c.perfil_laboral ?? extractSeccion(c.cv_procesado_texto, "PERFIL")
   const sorted = [...exp].sort((a, b) => {
     if (a.hasta === null) return -1
     if (b.hasta === null) return 1
@@ -443,7 +465,7 @@ function ParejaCondensada({ c, exp }: { c: Candidato; exp: Experiencia[] }) {
         </View>
       )}
 
-      {c.perfil_laboral && <Text style={[s.para, { marginBottom: 8 }]}>{c.perfil_laboral}</Text>}
+      {perfil && <Text style={[s.para, { marginBottom: 8 }]}>{perfil}</Text>}
 
       {sorted.length > 0 && (
         <View style={{ marginBottom: 8 }}>
@@ -494,13 +516,19 @@ export function CVParejaDocument({
   const refsQ: Referencia[] = (pareja.referencias as Referencia[] | null) ?? []
   const conocimientos = [...(principal.idiomas ?? []), ...(principal.tipos_ganaderia ?? [])]
 
+  // El "Perfil Profesional" vive en cv_procesado_texto (la columna perfil_laboral
+  // está null), así que se extrae de ahí.
+  const perfilPrincipal = principal.perfil_laboral ?? extractSeccion(principal.cv_procesado_texto, "PERFIL")
+
   return (
     <Document>
-      <Page size="A4" style={s.page}>
+      {/* paddingTop a nivel página → reserva el cabezal en TODAS las hojas (no se
+          pisa el logo en la 2da+). El logo y footer son absolute = relativos al
+          borde de la página, no se mueven con el padding. */}
+      <Page size="A4" style={[s.page, { paddingTop: 70 }]}>
         <Image src={LOGO_LEYENDA} style={s.brandFixed} fixed />
-        <View fixed render={({ pageNumber }) => pageNumber > 1 ? <View style={{ height: 64 }} /> : null} />
 
-        <View style={s.body}>
+        <View style={[s.body, { paddingTop: 0 }]}>
           <View style={s.candidatoHeader}>
             <Text style={s.candidatoNombre}>{principal.nombre} {principal.apellido}</Text>
             <Text style={s.candidatoSub}>PERFIL DE PAREJA · {principal.apellido.toUpperCase()} — {pareja.apellido.toUpperCase()}</Text>
@@ -517,10 +545,10 @@ export function CVParejaDocument({
             </View>
           )}
 
-          {principal.perfil_laboral && (
+          {perfilPrincipal && (
             <View style={s.section}>
               <Text style={s.sectionTitle}>Perfil Profesional</Text>
-              <Text style={s.para}>{principal.perfil_laboral}</Text>
+              <Text style={s.para}>{perfilPrincipal}</Text>
             </View>
           )}
 
