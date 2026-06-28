@@ -17,8 +17,10 @@ export type Database = {
       busquedas: {
         Row: {
           actitudes: string[]
+          categorias_aceptadas: string[]
           cliente: string
           created_at: string
+          criterios: Json
           descripcion: string | null
           disponibilidad_viaje: boolean | null
           edad_maxima: number | null
@@ -29,16 +31,17 @@ export type Database = {
           fecha_apertura: string
           fecha_cierre: string | null
           fecha_ultimo_activado: string | null
-          notas_cierre: string | null
-          notas_internas: string | null
+          habilidades_req: string[]
           hectareas_min: number | null
           id: string
           idioma_ingles: string | null
           movilidad_requerida: boolean | null
           nivel_educacion: string | null
+          notas_cierre: string | null
+          notas_internas: string | null
           personal_a_cargo_min: number | null
-          puestos_similares: string | null
           puesto: string
+          puestos_similares: string | null
           rango_salarial: string | null
           reporte_directo: string | null
           requisitos: string[]
@@ -48,8 +51,10 @@ export type Database = {
         }
         Insert: {
           actitudes?: string[]
+          categorias_aceptadas?: string[]
           cliente: string
           created_at?: string
+          criterios?: Json
           descripcion?: string | null
           disponibilidad_viaje?: boolean | null
           edad_maxima?: number | null
@@ -60,16 +65,17 @@ export type Database = {
           fecha_apertura?: string
           fecha_cierre?: string | null
           fecha_ultimo_activado?: string | null
-          notas_cierre?: string | null
-          notas_internas?: string | null
+          habilidades_req?: string[]
           hectareas_min?: number | null
           id?: string
           idioma_ingles?: string | null
           movilidad_requerida?: boolean | null
           nivel_educacion?: string | null
+          notas_cierre?: string | null
+          notas_internas?: string | null
           personal_a_cargo_min?: number | null
-          puestos_similares?: string | null
           puesto: string
+          puestos_similares?: string | null
           rango_salarial?: string | null
           reporte_directo?: string | null
           requisitos?: string[]
@@ -79,8 +85,10 @@ export type Database = {
         }
         Update: {
           actitudes?: string[]
+          categorias_aceptadas?: string[]
           cliente?: string
           created_at?: string
+          criterios?: Json
           descripcion?: string | null
           disponibilidad_viaje?: boolean | null
           edad_maxima?: number | null
@@ -91,16 +99,17 @@ export type Database = {
           fecha_apertura?: string
           fecha_cierre?: string | null
           fecha_ultimo_activado?: string | null
-          notas_cierre?: string | null
-          notas_internas?: string | null
+          habilidades_req?: string[]
           hectareas_min?: number | null
           id?: string
           idioma_ingles?: string | null
           movilidad_requerida?: boolean | null
           nivel_educacion?: string | null
+          notas_cierre?: string | null
+          notas_internas?: string | null
           personal_a_cargo_min?: number | null
-          puestos_similares?: string | null
           puesto?: string
+          puestos_similares?: string | null
           rango_salarial?: string | null
           reporte_directo?: string | null
           requisitos?: string[]
@@ -112,208 +121,231 @@ export type Database = {
       }
       candidatos: {
         Row: {
+          animales: string | null
           apellido: string
+          campos_faltantes: string[] | null
+          categorias: string[]
+          conversaciones_historial: Json | null
           created_at: string
           cv_crudo_url: string | null
           cv_editado_url: string | null
           cv_procesado_texto: string | null
           disponibilidad: string | null
+          dni: string | null
+          domicilio_completo: string | null
           educacion: string | null
           email: string | null
           embedding: string | null
           estado: Database["public"]["Enums"]["estado_candidato"]
+          estado_civil: string | null
           fecha_consultado: string | null
           fecha_ingreso: string
           fecha_nacimiento: string | null
+          habilidades: string[]
           hectareas_max: number | null
+          hijos: string | null
           id: string
           idiomas: string[]
+          informacion_adicional: string | null
+          licencia_conducir: boolean | null
+          lugar_nacimiento: string | null
           mensaje_whatsapp: string | null
           movilidad: boolean | null
+          muebles_propios: string | null
           nombre: string
           notas_recruiter: string | null
+          pareja_declarada: string | null
+          pareja_id: string | null
+          perfil_laboral: string | null
           personal_a_cargo_max: number | null
-          preguntas_sugeridas: string[]
+          preguntas_enviadas: Json | null
+          preguntas_mapeadas: Json | null
+          preguntas_sugeridas: string[] | null
           pretension_salarial: string | null
+          referencias: Json | null
+          residir: string
+          residir_zona_preferida: string | null
           respuestas_candidato: Json | null
           telefono: string | null
           tipos_ganaderia: string[]
           ubicacion: string | null
           ultimo_puesto: string | null
           updated_at: string
-          dni: string | null
-          lugar_nacimiento: string | null
-          estado_civil: string | null
-          hijos: string | null
-          pareja_id: string | null
-          pareja_declarada: string | null
-          domicilio_completo: string | null
-          vehiculo_propio: boolean | null
           vehiculo_detalle: string | null
-          licencia_conducir: boolean | null
-          muebles_propios: string | null
-          animales: string | null
-          perfil_laboral: string | null
-          referencias: Json | null
-          campos_faltantes: string[] | null
-          categorias: string[]
-          conversaciones_historial: Json | null
-          informacion_adicional: string | null
-          preguntas_enviadas: Json | null
+          vehiculo_propio: boolean | null
+          visto: boolean
         }
         Insert: {
+          animales?: string | null
           apellido: string
+          campos_faltantes?: string[] | null
+          categorias?: string[]
+          conversaciones_historial?: Json | null
           created_at?: string
           cv_crudo_url?: string | null
           cv_editado_url?: string | null
           cv_procesado_texto?: string | null
           disponibilidad?: string | null
+          dni?: string | null
+          domicilio_completo?: string | null
           educacion?: string | null
           email?: string | null
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_candidato"]
+          estado_civil?: string | null
           fecha_consultado?: string | null
           fecha_ingreso?: string
           fecha_nacimiento?: string | null
+          habilidades?: string[]
           hectareas_max?: number | null
+          hijos?: string | null
           id?: string
           idiomas?: string[]
+          informacion_adicional?: string | null
+          licencia_conducir?: boolean | null
+          lugar_nacimiento?: string | null
           mensaje_whatsapp?: string | null
           movilidad?: boolean | null
+          muebles_propios?: string | null
           nombre: string
           notas_recruiter?: string | null
+          pareja_declarada?: string | null
+          pareja_id?: string | null
+          perfil_laboral?: string | null
           personal_a_cargo_max?: number | null
-          preguntas_sugeridas?: string[]
+          preguntas_enviadas?: Json | null
+          preguntas_mapeadas?: Json | null
+          preguntas_sugeridas?: string[] | null
           pretension_salarial?: string | null
+          referencias?: Json | null
+          residir?: string
+          residir_zona_preferida?: string | null
           respuestas_candidato?: Json | null
           telefono?: string | null
           tipos_ganaderia?: string[]
           ubicacion?: string | null
           ultimo_puesto?: string | null
           updated_at?: string
-          dni?: string | null
-          lugar_nacimiento?: string | null
-          estado_civil?: string | null
-          hijos?: string | null
-          domicilio_completo?: string | null
-          vehiculo_propio?: boolean | null
           vehiculo_detalle?: string | null
-          licencia_conducir?: boolean | null
-          muebles_propios?: string | null
+          vehiculo_propio?: boolean | null
+          visto?: boolean
+        }
+        Update: {
           animales?: string | null
-          perfil_laboral?: string | null
-          referencias?: Json | null
+          apellido?: string
           campos_faltantes?: string[] | null
           categorias?: string[]
           conversaciones_historial?: Json | null
-          informacion_adicional?: string | null
-          preguntas_enviadas?: Json | null
-          pareja_id?: string | null
-          pareja_declarada?: string | null
-        }
-        Update: {
-          apellido?: string
           created_at?: string
           cv_crudo_url?: string | null
           cv_editado_url?: string | null
           cv_procesado_texto?: string | null
           disponibilidad?: string | null
+          dni?: string | null
+          domicilio_completo?: string | null
           educacion?: string | null
           email?: string | null
           embedding?: string | null
           estado?: Database["public"]["Enums"]["estado_candidato"]
+          estado_civil?: string | null
           fecha_consultado?: string | null
           fecha_ingreso?: string
           fecha_nacimiento?: string | null
+          habilidades?: string[]
           hectareas_max?: number | null
+          hijos?: string | null
           id?: string
           idiomas?: string[]
+          informacion_adicional?: string | null
+          licencia_conducir?: boolean | null
+          lugar_nacimiento?: string | null
           mensaje_whatsapp?: string | null
           movilidad?: boolean | null
+          muebles_propios?: string | null
           nombre?: string
           notas_recruiter?: string | null
+          pareja_declarada?: string | null
+          pareja_id?: string | null
+          perfil_laboral?: string | null
           personal_a_cargo_max?: number | null
-          preguntas_sugeridas?: string[]
+          preguntas_enviadas?: Json | null
+          preguntas_mapeadas?: Json | null
+          preguntas_sugeridas?: string[] | null
           pretension_salarial?: string | null
+          referencias?: Json | null
+          residir?: string
+          residir_zona_preferida?: string | null
           respuestas_candidato?: Json | null
           telefono?: string | null
           tipos_ganaderia?: string[]
           ubicacion?: string | null
           ultimo_puesto?: string | null
           updated_at?: string
-          dni?: string | null
-          lugar_nacimiento?: string | null
-          estado_civil?: string | null
-          hijos?: string | null
-          domicilio_completo?: string | null
-          vehiculo_propio?: boolean | null
           vehiculo_detalle?: string | null
-          licencia_conducir?: boolean | null
-          muebles_propios?: string | null
-          animales?: string | null
-          perfil_laboral?: string | null
-          referencias?: Json | null
-          campos_faltantes?: string[] | null
-          categorias?: string[]
-          conversaciones_historial?: Json | null
-          informacion_adicional?: string | null
-          preguntas_enviadas?: Json | null
-          pareja_id?: string | null
-          pareja_declarada?: string | null
+          vehiculo_propio?: boolean | null
+          visto?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "candidatos_pareja_id_fkey"
+            columns: ["pareja_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cv_pares_training: {
         Row: {
-          id: string
           candidato_nombre: string
+          created_at: string
           cv_crudo_texto: string
           cv_procesado_texto: string
           embedding: string | null
-          created_at: string
+          id: string
         }
         Insert: {
-          id?: string
           candidato_nombre: string
+          created_at?: string
           cv_crudo_texto: string
           cv_procesado_texto: string
           embedding?: string | null
-          created_at?: string
+          id?: string
         }
         Update: {
-          id?: string
           candidato_nombre?: string
+          created_at?: string
           cv_crudo_texto?: string
           cv_procesado_texto?: string
           embedding?: string | null
-          created_at?: string
+          id?: string
         }
         Relationships: []
       }
       emails_procesados: {
         Row: {
+          archivo_nombre: string | null
           candidato_id: string | null
           email_id: string
           error: string | null
           id: string
           procesado_at: string
-          archivo_nombre: string | null
         }
         Insert: {
+          archivo_nombre?: string | null
           candidato_id?: string | null
           email_id: string
           error?: string | null
           id?: string
           procesado_at?: string
-          archivo_nombre?: string | null
         }
         Update: {
+          archivo_nombre?: string | null
           candidato_id?: string | null
           email_id?: string
           error?: string | null
           id?: string
           procesado_at?: string
-          archivo_nombre?: string | null
         }
         Relationships: [
           {
@@ -327,61 +359,61 @@ export type Database = {
       }
       experiencia_laboral: {
         Row: {
+          beneficios: string | null
           candidato_id: string
           created_at: string
           descripcion: string | null
           desde: string | null
+          dimension_establecimiento: string | null
           empresa: string
+          en_blanco: boolean | null
           hasta: string | null
           id: string
-          orden: number
-          rol: string
-          nombre_propietario: string | null
-          ubicacion: string | null
-          dimension_establecimiento: string | null
-          personal_a_cargo: string | null
-          en_blanco: boolean | null
           ingresos_actuales: string | null
-          beneficios: string | null
           motivo_cambio_o_salida: string | null
+          nombre_propietario: string | null
+          orden: number
+          personal_a_cargo: string | null
+          rol: string
+          ubicacion: string | null
         }
         Insert: {
+          beneficios?: string | null
           candidato_id: string
           created_at?: string
           descripcion?: string | null
           desde?: string | null
+          dimension_establecimiento?: string | null
           empresa: string
+          en_blanco?: boolean | null
           hasta?: string | null
           id?: string
-          orden?: number
-          rol: string
-          nombre_propietario?: string | null
-          ubicacion?: string | null
-          dimension_establecimiento?: string | null
-          personal_a_cargo?: string | null
-          en_blanco?: boolean | null
           ingresos_actuales?: string | null
-          beneficios?: string | null
           motivo_cambio_o_salida?: string | null
+          nombre_propietario?: string | null
+          orden?: number
+          personal_a_cargo?: string | null
+          rol: string
+          ubicacion?: string | null
         }
         Update: {
+          beneficios?: string | null
           candidato_id?: string
           created_at?: string
           descripcion?: string | null
           desde?: string | null
+          dimension_establecimiento?: string | null
           empresa?: string
+          en_blanco?: boolean | null
           hasta?: string | null
           id?: string
-          orden?: number
-          rol?: string
-          nombre_propietario?: string | null
-          ubicacion?: string | null
-          dimension_establecimiento?: string | null
-          personal_a_cargo?: string | null
-          en_blanco?: boolean | null
           ingresos_actuales?: string | null
-          beneficios?: string | null
           motivo_cambio_o_salida?: string | null
+          nombre_propietario?: string | null
+          orden?: number
+          personal_a_cargo?: string | null
+          rol?: string
+          ubicacion?: string | null
         }
         Relationships: [
           {
@@ -446,34 +478,34 @@ export type Database = {
       }
       notificaciones: {
         Row: {
-          id: string
-          tipo: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
-          titulo: string
-          cuerpo: string
           busqueda_id: string | null
           candidato_id: string | null
-          leida: boolean
           created_at: string
-        }
-        Insert: {
-          id?: string
+          cuerpo: string
+          id: string
+          leida: boolean
           tipo: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
           titulo: string
-          cuerpo: string
+        }
+        Insert: {
           busqueda_id?: string | null
           candidato_id?: string | null
-          leida?: boolean
           created_at?: string
+          cuerpo: string
+          id?: string
+          leida?: boolean
+          tipo: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
+          titulo: string
         }
         Update: {
-          id?: string
-          tipo?: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
-          titulo?: string
-          cuerpo?: string
           busqueda_id?: string | null
           candidato_id?: string | null
-          leida?: boolean
           created_at?: string
+          cuerpo?: string
+          id?: string
+          leida?: boolean
+          tipo?: "garantia" | "cv_error" | "cv_nuevo" | "cv_duplicado"
+          titulo?: string
         }
         Relationships: [
           {
@@ -483,38 +515,97 @@ export type Database = {
             referencedRelation: "busquedas"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "notificaciones_candidato_id_fkey"
+            columns: ["candidato_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parejas: {
+        Row: {
+          candidato_a_id: string
+          candidato_b_id: string
+          created_at: string
+          id: string
+          principal_id: string | null
+          situacion_familiar: string | null
+          updated_at: string
+        }
+        Insert: {
+          candidato_a_id: string
+          candidato_b_id: string
+          created_at?: string
+          id?: string
+          principal_id?: string | null
+          situacion_familiar?: string | null
+          updated_at?: string
+        }
+        Update: {
+          candidato_a_id?: string
+          candidato_b_id?: string
+          created_at?: string
+          id?: string
+          principal_id?: string | null
+          situacion_familiar?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parejas_candidato_a_id_fkey"
+            columns: ["candidato_a_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parejas_candidato_b_id_fkey"
+            columns: ["candidato_b_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parejas_principal_id_fkey"
+            columns: ["principal_id"]
+            isOneToOne: false
+            referencedRelation: "candidatos"
+            referencedColumns: ["id"]
+          },
         ]
       }
       webhook_logs: {
         Row: {
-          id: string
+          archivo_nombre: string | null
+          candidato_id: string | null
+          created_at: string
+          detalle: string | null
           email_id: string
           estado: "received" | "processing" | "complete" | "failed" | "duplicate"
-          detalle: string | null
-          candidato_id: string | null
-          archivo_nombre: string | null
+          id: string
           remitente_email: string | null
-          created_at: string
         }
         Insert: {
-          id?: string
+          archivo_nombre?: string | null
+          candidato_id?: string | null
+          created_at?: string
+          detalle?: string | null
           email_id: string
           estado: "received" | "processing" | "complete" | "failed" | "duplicate"
-          detalle?: string | null
-          candidato_id?: string | null
-          archivo_nombre?: string | null
+          id?: string
           remitente_email?: string | null
-          created_at?: string
         }
         Update: {
-          id?: string
+          archivo_nombre?: string | null
+          candidato_id?: string | null
+          created_at?: string
+          detalle?: string | null
           email_id?: string
           estado?: "received" | "processing" | "complete" | "failed" | "duplicate"
-          detalle?: string | null
-          candidato_id?: string | null
-          archivo_nombre?: string | null
+          id?: string
           remitente_email?: string | null
-          created_at?: string
         }
         Relationships: [
           {
@@ -531,22 +622,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      desvincular_pareja: { Args: { a: string }; Returns: undefined }
       match_cv_pares_training: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-        }
+        Args: { match_count?: number; query_embedding: string }
         Returns: {
-          id: string
           candidato_nombre: string
           cv_crudo_texto: string
           cv_procesado_texto: string
+          id: string
           similarity: number
         }[]
       }
+      vincular_pareja: { Args: { a: string; b: string }; Returns: undefined }
     }
     Enums: {
-      estado_busqueda: "activa" | "pausada" | "cerrada" | "archivada"
+      estado_busqueda:
+        | "activa"
+        | "pausada"
+        | "cerrada"
+        | "archivada"
+        | "temporario"
       estado_candidato: "activo" | "inactivo"
       estado_gestion:
         | "preseleccionado"
@@ -683,7 +778,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      estado_busqueda: ["activa", "pausada", "cerrada", "archivada"],
+      estado_busqueda: [
+        "activa",
+        "pausada",
+        "cerrada",
+        "archivada",
+        "temporario",
+      ],
       estado_candidato: ["activo", "inactivo"],
       estado_gestion: [
         "preseleccionado",
