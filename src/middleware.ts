@@ -26,6 +26,11 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const isLogin = request.nextUrl.pathname === "/login"
 
+  // Bypass SOLO en desarrollo y con flag explícita (GL_DEV_NO_AUTH=1 en .env.local).
+  // Nunca en producción: doble compuerta. Para construir/ver la V2 en local sin login.
+  const devNoAuth = process.env.NODE_ENV === "development" && process.env.GL_DEV_NO_AUTH === "1"
+  if (devNoAuth) return supabaseResponse
+
   if (!user && !isLogin) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"

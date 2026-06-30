@@ -43,3 +43,6 @@ diagnostico-*.html
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# fixtures locales con PII (datos reales para build local de V2) — no committear
+.fixtures/

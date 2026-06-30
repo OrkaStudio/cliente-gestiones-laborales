@@ -9,6 +9,10 @@ import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 import { BorrarGestionButton } from "@/components/app/borrar-gestion-button";
 import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button"
 import { NotasBusquedaInline } from "@/components/app/notas-busqueda-inline";
+import { MatchingWorkspace } from "@/components/app/matching-workspace";
+import { CandidatosTabs } from "@/components/app/candidatos-tabs";
+import { rankear, reqLabel } from "@/lib/v2/matching";
+import { candidatoDesdeRow, criteriosDesdeBusqueda } from "@/lib/v2/desde-busqueda";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -56,6 +60,12 @@ export default async function BusquedaDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
+  // En dev con bypass de auth no hay sesión → las lecturas anon están bloqueadas (fix PII).
+  // Sólo en ese caso leemos con el service client para poder construir/ver la V2 en local.
+  const { data: { user } } = await supabase.auth.getUser();
+  const devNoAuth = process.env.NODE_ENV === "development" && process.env.GL_DEV_NO_AUTH === "1" && !user;
+  const reader = devNoAuth ? createServiceClient() : supabase;
+
   // Datos base de la búsqueda: estables → cacheados con tag por ID
   const getBusqueda = unstable_cache(
     async () => {
@@ -71,19 +81,36 @@ export default async function BusquedaDetailPage({
   const [busqueda, { data: gestionesData }, { data: candidatosActivos }] =
     await Promise.all([
       getBusqueda(),
-      supabase
+      reader
         .from("gestiones")
         .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
         .eq("busqueda_id", id)
         .order("updated_at", { ascending: false }),
-      supabase
+      reader
         .from("candidatos")
-        .select("id, nombre, apellido, ultimo_puesto, ubicacion, estado")
+        .select(
+          "id, nombre, apellido, ultimo_puesto, ubicacion, estado, fecha_nacimiento, educacion, hectareas_max, personal_a_cargo_max, tipos_ganaderia, vehiculo_propio, licencia_conducir, estado_civil, hijos, categorias, cv_procesado_texto",
+        )
         .eq("estado", "activo")
         .order("apellido"),
     ]);
 
   if (!busqueda) notFound();
+
+  // ── Matching V2 (provisional, en memoria): criterios derivados de los campos de la
+  // búsqueda + candidatos reales rankeados. Las habilidades se derivan del CV con pistas.
+  // Al pasar a prod: criterios desde la columna `criterios` + habilidades del backfill Haiku.
+  const criteriosV2 = criteriosDesdeBusqueda(busqueda);
+  const rankedV2 = rankear((candidatosActivos ?? []).map(candidatoDesdeRow), criteriosV2).map((r) => ({
+    c: r.c,
+    tier: r.tier,
+    score: r.score.s,
+  }));
+  const enBusquedaIds = (gestionesData ?? [])
+    .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
+    .filter(Boolean);
+  const obligatoriosV2 = criteriosV2.requisitos.filter((r) => r.nivel === "obligatorio");
+  const deseablesV2 = criteriosV2.requisitos.filter((r) => r.nivel === "deseable");
 
   const daysOpen    = calcDaysOpen(busqueda.fecha_ultimo_activado ?? busqueda.fecha_apertura);
   const descartados = gestionesData?.filter((g) => g.estado === "descartado").length ?? 0;
@@ -315,25 +342,14 @@ export default async function BusquedaDetailPage({
             )}
           </div>
 
-          {/* Candidatos */}
+          {/* Candidatos — En la búsqueda / Sugeridos */}
           <div className="rounded-2xl border p-6" style={CARD}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
-                <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
-                  Candidatos
-                </h2>
-                <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                  Todos los que participaron en esta búsqueda
-                </p>
-              </div>
-              {(gestionesData?.length ?? 0) > 0 && (
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full gl-badge-olive">
-                  {gestionesData!.length} total
-                </span>
-              )}
-            </div>
-
-            {!gestionesData?.length ? (
+            <CandidatosTabs
+              enBusquedaCount={gestionesData?.length ?? 0}
+              sugeridosCount={rankedV2.length}
+              porConfirmar={rankedV2.filter((r) => r.tier === "amber").length}
+              sugeridos={<MatchingWorkspace busqueda={criteriosV2} ranked={rankedV2} enBusquedaIds={enBusquedaIds} />}
+              enBusqueda={!gestionesData?.length ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <Users className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive)", opacity: 0.3 }} />
                 <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
@@ -468,6 +484,7 @@ export default async function BusquedaDetailPage({
                 <div style={{ borderTop: "1px solid var(--gl-border)" }} />
               </div>
             )}
+            />
           </div>
         </div>
 
@@ -486,36 +503,49 @@ export default async function BusquedaDetailPage({
             </div>
           )}
 
-          {/* Requisitos */}
-          {busqueda.requisitos?.length > 0 && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
-                  Requisitos
-                </h2>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full gl-badge-olive">
-                  {busqueda.requisitos.length}
-                </span>
+          {/* Qué busca esta posición (matching V2) */}
+          <div className="rounded-2xl border p-6" style={CARD}>
+            <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
+              Qué busca esta posición
+            </h2>
+            {criteriosV2.acceptedCats.length > 0 && (
+              <div className="mb-3">
+                <div className="gl-eyebrow mb-2">Categorías aceptadas</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {criteriosV2.acceptedCats.map((c) => (
+                    <span key={c} className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
+                      style={{ background: "var(--gl-olive)", color: "#fff" }}>{c}</span>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-0">
-                {busqueda.requisitos.map((r: string, i: number) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 py-2.5"
-                    style={{ borderTop: "1px solid var(--gl-border)" }}
-                  >
-                    <span
-                      className="font-mono text-[10.5px] tabular-nums shrink-0 mt-0.5 font-semibold"
-                      style={{ color: "var(--gl-border)" }}
-                    >
-                      {String(i + 1).padStart(2, "0")}
+            )}
+            {obligatoriosV2.length > 0 && (
+              <div className="mb-3">
+                <div className="gl-eyebrow mb-2">Obligatorio</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {obligatoriosV2.map((r, i) => (
+                    <span key={i} className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
+                      style={{ background: "var(--gl-olive)", color: "#fff" }}>{reqLabel(r)}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {deseablesV2.length > 0 && (
+              <div>
+                <div className="gl-eyebrow mb-2">Deseable</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {deseablesV2.map((r, i) => (
+                    <span key={i} className="text-xs font-semibold px-2.5 py-1.5 rounded-full gl-badge-olive">
+                      {reqLabel(r)}
                     </span>
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{r}</span>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            {criteriosV2.acceptedCats.length === 0 && criteriosV2.requisitos.length === 0 && (
+              <p className="text-sm" style={{ color: "var(--gl-ink-3)" }}>Sin criterios cargados.</p>
+            )}
+          </div>
 
           {/* Actitudes */}
           {(busqueda.actitudes?.length ?? 0) > 0 && (
