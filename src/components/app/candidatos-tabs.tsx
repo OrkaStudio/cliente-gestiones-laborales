@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, useEffect, useState } from "react";
 
 // Toggle "En la búsqueda / Sugeridos". Ambos contenidos los renderiza el server (la
 // gestión de etapas usa server actions); este wrapper sólo alterna cuál se muestra.
@@ -11,21 +11,31 @@ export function CandidatosTabs({
   enBusqueda,
   sugeridos,
 }: {
-  enBusquedaCount: number
-  sugeridosCount: number
-  porConfirmar: number
-  enBusqueda: ReactNode
-  sugeridos: ReactNode
+  enBusquedaCount: number;
+  sugeridosCount: number;
+  porConfirmar: number;
+  enBusqueda: ReactNode;
+  sugeridos: ReactNode;
 }) {
-  const [tab, setTab] = useState<"enb" | "sug">(enBusquedaCount > 0 ? "enb" : "sug")
+  const [tab, setTab] = useState<"enb" | "sug">(enBusquedaCount > 0 ? "enb" : "sug");
 
   // Para screenshots headless: ?tab=sug / ?tab=enb fuerza la pestaña.
   useEffect(() => {
-    const t = new URLSearchParams(window.location.search).get("tab")
-    if (t === "sug" || t === "enb") setTab(t)
-  }, [])
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "sug" || t === "enb") setTab(t);
+  }, []);
 
-  const Btn = ({ id, label, count, amber }: { id: "enb" | "sug"; label: string; count: number; amber?: boolean }) => (
+  const Btn = ({
+    id,
+    label,
+    count,
+    amber,
+  }: {
+    id: "enb" | "sug";
+    label: string;
+    count: number;
+    amber?: boolean;
+  }) => (
     <button
       type="button"
       onClick={() => setTab(id)}
@@ -50,7 +60,7 @@ export function CandidatosTabs({
         {count}
       </span>
     </button>
-  )
+  );
 
   return (
     <div>
@@ -63,13 +73,21 @@ export function CandidatosTabs({
             Los que están en la búsqueda y todos los que matchean
           </p>
         </div>
-        <div className="inline-flex p-[3px] gap-0.5 rounded-xl" style={{ background: "var(--gl-gray-bg)" }}>
+        <div
+          className="inline-flex p-[3px] gap-0.5 rounded-xl"
+          style={{ background: "var(--gl-gray-bg)" }}
+        >
           <Btn id="enb" label="En la búsqueda" count={enBusquedaCount} />
-          <Btn id="sug" label="Sugeridos" count={sugeridosCount} amber={tab === "sug" && porConfirmar > 0} />
+          <Btn
+            id="sug"
+            label="Sugeridos"
+            count={sugeridosCount}
+            amber={tab === "sug" && porConfirmar > 0}
+          />
         </div>
       </div>
       <div style={{ display: tab === "enb" ? "block" : "none" }}>{enBusqueda}</div>
       <div style={{ display: tab === "sug" ? "block" : "none" }}>{sugeridos}</div>
     </div>
-  )
+  );
 }

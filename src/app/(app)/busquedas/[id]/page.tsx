@@ -1,18 +1,22 @@
+import { ArrowLeft, Calendar, Lock, MapPin, Target, Users } from "lucide-react";
+import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { unstable_cache } from "next/cache";
-import { ArrowLeft, MapPin, Calendar, Users, Target, Lock } from "lucide-react";
+import { BorrarGestionButton } from "@/components/app/borrar-gestion-button";
+import { CandidatosTabs } from "@/components/app/candidatos-tabs";
+import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button";
+import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
+import { MatchingWorkspace } from "@/components/app/matching-workspace";
+import { NotasBusquedaInline } from "@/components/app/notas-busqueda-inline";
+import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
-import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
-import { BorrarGestionButton } from "@/components/app/borrar-gestion-button";
-import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button"
-import { NotasBusquedaInline } from "@/components/app/notas-busqueda-inline";
-import { MatchingWorkspace } from "@/components/app/matching-workspace";
-import { CandidatosTabs } from "@/components/app/candidatos-tabs";
+import {
+  candidatoDesdeRow,
+  criteriosDesdeBusqueda,
+  fichasDesdeRows,
+} from "@/lib/v2/desde-busqueda";
 import { rankear, reqLabel } from "@/lib/v2/matching";
-import { candidatoDesdeRow, criteriosDesdeBusqueda } from "@/lib/v2/desde-busqueda";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -23,12 +27,12 @@ const AVATAR_HEX = [
 ];
 
 const STAGES = [
-  { key: "preseleccionado",    label: "Preseleccionado" },
-  { key: "entrevista_orka",    label: "Entrevista GL" },
+  { key: "preseleccionado", label: "Preseleccionado" },
+  { key: "entrevista_orka", label: "Entrevista GL" },
   { key: "presentado_cliente", label: "Presentado" },
   { key: "entrevista_cliente", label: "2ª Entrevista" },
-  { key: "ofertado",           label: "Ofertado" },
-  { key: "contratado",         label: "Contratado" },
+  { key: "ofertado", label: "Ofertado" },
+  { key: "contratado", label: "Contratado" },
 ];
 
 function calcDaysOpen(fecha: string) {
@@ -37,9 +41,9 @@ function calcDaysOpen(fecha: string) {
 }
 
 function formatDate(iso: string | null) {
-  if (!iso) return ""
-  const d = iso.split("T")[0].split("-")
-  return `${d[2]}/${d[1]}/${d[0]}`
+  if (!iso) return "";
+  const d = iso.split("T")[0].split("-");
+  return `${d[2]}/${d[1]}/${d[0]}`;
 }
 
 function diasDesde(iso: string) {
@@ -52,48 +56,46 @@ const CARD = {
   boxShadow: "0 2px 8px rgba(13,17,23,0.05)",
 } as const;
 
-export default async function BusquedaDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function BusquedaDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const supabase = await createClient();
 
   // En dev con bypass de auth no hay sesión → las lecturas anon están bloqueadas (fix PII).
   // Sólo en ese caso leemos con el service client para poder construir/ver la V2 en local.
-  const { data: { user } } = await supabase.auth.getUser();
-  const devNoAuth = process.env.NODE_ENV === "development" && process.env.GL_DEV_NO_AUTH === "1" && !user;
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const devNoAuth =
+    process.env.NODE_ENV === "development" && process.env.GL_DEV_NO_AUTH === "1" && !user;
   const reader = devNoAuth ? createServiceClient() : supabase;
 
   // Datos base de la búsqueda: estables → cacheados con tag por ID
   const getBusqueda = unstable_cache(
     async () => {
-      const svc = createServiceClient()
-      const { data } = await svc.from("busquedas").select("*").eq("id", id).single()
-      return data
+      const svc = createServiceClient();
+      const { data } = await svc.from("busquedas").select("*").eq("id", id).single();
+      return data;
     },
     [`busqueda-${id}`],
     { tags: [`busqueda-${id}`], revalidate: 120 },
-  )
+  );
 
   // Gestiones y candidatos activos: cambian frecuentemente → sin cache
-  const [busqueda, { data: gestionesData }, { data: candidatosActivos }] =
-    await Promise.all([
-      getBusqueda(),
-      reader
-        .from("gestiones")
-        .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
-        .eq("busqueda_id", id)
-        .order("updated_at", { ascending: false }),
-      reader
-        .from("candidatos")
-        .select(
-          "id, nombre, apellido, ultimo_puesto, ubicacion, estado, fecha_nacimiento, educacion, hectareas_max, personal_a_cargo_max, tipos_ganaderia, vehiculo_propio, licencia_conducir, estado_civil, hijos, categorias, cv_procesado_texto",
-        )
-        .eq("estado", "activo")
-        .order("apellido"),
-    ]);
+  const [busqueda, { data: gestionesData }, { data: candidatosActivos }] = await Promise.all([
+    getBusqueda(),
+    reader
+      .from("gestiones")
+      .select("*, candidatos(id, nombre, apellido, ultimo_puesto)")
+      .eq("busqueda_id", id)
+      .order("updated_at", { ascending: false }),
+    reader
+      .from("candidatos")
+      .select(
+        "id, nombre, apellido, ultimo_puesto, ubicacion, estado, fecha_nacimiento, educacion, hectareas_max, personal_a_cargo_max, tipos_ganaderia, vehiculo_propio, licencia_conducir, estado_civil, hijos, categorias, cv_procesado_texto, telefono, disponibilidad, pretension_salarial, vehiculo_detalle, perfil_laboral, notas_recruiter, referencias, pareja_declarada",
+      )
+      .eq("estado", "activo")
+      .order("apellido"),
+  ]);
 
   if (!busqueda) notFound();
 
@@ -101,21 +103,34 @@ export default async function BusquedaDetailPage({
   // búsqueda + candidatos reales rankeados. Las habilidades se derivan del CV con pistas.
   // Al pasar a prod: criterios desde la columna `criterios` + habilidades del backfill Haiku.
   const criteriosV2 = criteriosDesdeBusqueda(busqueda);
-  const rankedV2 = rankear((candidatosActivos ?? []).map(candidatoDesdeRow), criteriosV2).map((r) => ({
-    c: r.c,
-    tier: r.tier,
-    score: r.score.s,
-  }));
+  const rankedV2 = rankear((candidatosActivos ?? []).map(candidatoDesdeRow), criteriosV2).map(
+    (r) => ({
+      c: r.c,
+      tier: r.tier,
+      score: r.score.s,
+    }),
+  );
   const enBusquedaIds = (gestionesData ?? [])
     .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
     .filter(Boolean);
   const obligatoriosV2 = criteriosV2.requisitos.filter((r) => r.nivel === "obligatorio");
   const deseablesV2 = criteriosV2.requisitos.filter((r) => r.nivel === "deseable");
 
-  const daysOpen    = calcDaysOpen(busqueda.fecha_ultimo_activado ?? busqueda.fecha_apertura);
+  // Ficha + trayectoria reales para el drawer (experiencia_laboral de los activos).
+  const { data: expData } = await reader
+    .from("experiencia_laboral")
+    .select("candidato_id, rol, empresa, desde, hasta, ubicacion, descripcion")
+    .in(
+      "candidato_id",
+      (candidatosActivos ?? []).map((c) => c.id),
+    )
+    .order("orden");
+  const fichas = fichasDesdeRows(candidatosActivos ?? [], expData ?? []);
+
+  const daysOpen = calcDaysOpen(busqueda.fecha_ultimo_activado ?? busqueda.fecha_apertura);
   const descartados = gestionesData?.filter((g) => g.estado === "descartado").length ?? 0;
   const contratados = gestionesData?.filter((g) => g.estado === "contratado").length ?? 0;
-  const activos     = (gestionesData?.length ?? 0) - descartados;
+  const activos = (gestionesData?.length ?? 0) - descartados;
 
   const funnel = STAGES.map((s) => ({
     ...s,
@@ -123,23 +138,22 @@ export default async function BusquedaDetailPage({
   })).filter((s) => s.count > 0);
   const maxCount = Math.max(...funnel.map((s) => s.count), 1);
 
-  const headerTitulo    = busqueda.cliente?.trim() ? busqueda.cliente : busqueda.puesto;
+  const headerTitulo = busqueda.cliente?.trim() ? busqueda.cliente : busqueda.puesto;
   const headerSubtitulo = busqueda.cliente?.trim() ? busqueda.puesto : null;
-  const headerPal  = AVATAR_HEX[headerTitulo.charCodeAt(0) % AVATAR_HEX.length];
+  const headerPal = AVATAR_HEX[headerTitulo.charCodeAt(0) % AVATAR_HEX.length];
 
-  const estadoBadge  = busqueda.estado === "activa" ? "gl-badge-green" : "gl-badge-gray"
-  const editable     = busqueda.estado === "activa" || busqueda.estado === "pausada"
+  const estadoBadge = busqueda.estado === "activa" ? "gl-badge-green" : "gl-badge-gray";
+  const editable = busqueda.estado === "activa" || busqueda.estado === "pausada";
 
   const headerStats = [
-    { label: "Días abierta", value: `${daysOpen}`,                        accent: daysOpen > 30 },
-    { label: "En gestión",   value: `${activos}` },
-    { label: "Requisitos",   value: `${busqueda.requisitos?.length ?? 0}` },
-    { label: "Descartados",  value: `${descartados}` },
+    { label: "Días abierta", value: `${daysOpen}`, accent: daysOpen > 30 },
+    { label: "En gestión", value: `${activos}` },
+    { label: "Requisitos", value: `${busqueda.requisitos?.length ?? 0}` },
+    { label: "Descartados", value: `${descartados}` },
   ];
 
   return (
     <div className="px-10 py-10 space-y-5">
-
       {/* Back */}
       <Link
         href="/busquedas"
@@ -153,7 +167,6 @@ export default async function BusquedaDetailPage({
       {/* ── Header card ──────────────────────────────────────────── */}
       <div className="rounded-2xl border p-6" style={CARD}>
         <div className="flex items-start justify-between gap-6">
-
           {/* Ícono + info */}
           <div className="flex items-start gap-5">
             <div
@@ -164,7 +177,9 @@ export default async function BusquedaDetailPage({
             </div>
             <div>
               <div className="flex items-center gap-2 mb-2 flex-wrap">
-                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${estadoBadge}`}>
+                <span
+                  className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${estadoBadge}`}
+                >
                   {busqueda.estado}
                 </span>
                 {contratados > 0 && (
@@ -185,7 +200,10 @@ export default async function BusquedaDetailPage({
                 {busqueda.ubicacion && (
                   <>
                     <span style={{ color: "var(--gl-border)" }}>·</span>
-                    <span className="flex items-center gap-1 text-sm" style={{ color: "var(--gl-ink-3)" }}>
+                    <span
+                      className="flex items-center gap-1 text-sm"
+                      style={{ color: "var(--gl-ink-3)" }}
+                    >
                       <MapPin className="h-3 w-3 shrink-0" />
                       {busqueda.ubicacion}
                     </span>
@@ -194,7 +212,10 @@ export default async function BusquedaDetailPage({
                 {busqueda.fecha_apertura && (
                   <>
                     <span style={{ color: "var(--gl-border)" }}>·</span>
-                    <span className="flex items-center gap-1 text-sm" style={{ color: "var(--gl-ink-3)" }}>
+                    <span
+                      className="flex items-center gap-1 text-sm"
+                      style={{ color: "var(--gl-ink-3)" }}
+                    >
                       <Calendar className="h-3 w-3 shrink-0" />
                       {formatDate(busqueda.fecha_apertura)}
                     </span>
@@ -228,7 +249,12 @@ export default async function BusquedaDetailPage({
                     .filter((g) => g.estado !== "descartado" && g.estado !== "contratado")
                     .map((g) => ({
                       id: g.id,
-                      candidatos: g.candidatos as { id: string; nombre: string; apellido: string; ultimo_puesto: string | null } | null,
+                      candidatos: g.candidatos as {
+                        id: string;
+                        nombre: string;
+                        apellido: string;
+                        ultimo_puesto: string | null;
+                      } | null,
                     }))}
                 />
               </>
@@ -265,10 +291,8 @@ export default async function BusquedaDetailPage({
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-
         {/* ── Izquierda: pipeline + candidatos ── */}
         <div className="lg:col-span-2 space-y-5">
-
           {/* Pipeline */}
           <div className="rounded-2xl border p-6" style={CARD}>
             <div className="flex items-center justify-between mb-5">
@@ -289,7 +313,10 @@ export default async function BusquedaDetailPage({
 
             {funnel.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Target className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive)", opacity: 0.3 }} />
+                <Target
+                  className="h-8 w-8 mb-3"
+                  style={{ color: "var(--gl-olive)", opacity: 0.3 }}
+                />
                 <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
                   Sin candidatos en pipeline
                 </p>
@@ -305,10 +332,7 @@ export default async function BusquedaDetailPage({
                     className="flex items-center gap-4 py-3.5"
                     style={{ borderTop: "1px solid var(--gl-border)" }}
                   >
-                    <span
-                      className="gl-eyebrow shrink-0 w-36"
-                      style={{ color: "var(--gl-ink-3)" }}
-                    >
+                    <span className="gl-eyebrow shrink-0 w-36" style={{ color: "var(--gl-ink-3)" }}>
                       {stage.label}
                     </span>
                     <div
@@ -319,18 +343,15 @@ export default async function BusquedaDetailPage({
                         className="h-full rounded-full transition-all"
                         style={{
                           width: `${(stage.count / maxCount) * 100}%`,
-                          background: stage.key === "contratado"
-                            ? "var(--gl-green)"
-                            : "var(--gl-olive)",
+                          background:
+                            stage.key === "contratado" ? "var(--gl-green)" : "var(--gl-olive)",
                         }}
                       />
                     </div>
                     <span
                       className="text-[13px] font-bold tabular-nums shrink-0 w-5 text-right"
                       style={{
-                        color: stage.key === "contratado"
-                          ? "var(--gl-green)"
-                          : "var(--gl-olive)",
+                        color: stage.key === "contratado" ? "var(--gl-green)" : "var(--gl-olive)",
                       }}
                     >
                       {stage.count}
@@ -348,149 +369,176 @@ export default async function BusquedaDetailPage({
               enBusquedaCount={gestionesData?.length ?? 0}
               sugeridosCount={rankedV2.length}
               porConfirmar={rankedV2.filter((r) => r.tier === "amber").length}
-              sugeridos={<MatchingWorkspace busqueda={criteriosV2} ranked={rankedV2} enBusquedaIds={enBusquedaIds} />}
-              enBusqueda={!gestionesData?.length ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Users className="h-8 w-8 mb-3" style={{ color: "var(--gl-olive)", opacity: 0.3 }} />
-                <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
-                  Sin candidatos
-                </p>
-                <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>
-                  Sumá candidatos activos a esta búsqueda.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-0">
-                {gestionesData.map(({ id: gId, candidatos: cand, estado, updated_at }) => {
-                  const isDescartado = estado === "descartado";
-                  const isContratado = estado === "contratado";
-                  const stageLabel   = STAGES.find((s) => s.key === estado)?.label ?? estado;
-                  const stageIdx     = STAGES.findIndex((s) => s.key === estado);
-                  const dias         = diasDesde(updated_at);
-                  const c            = cand as {
-                    id: string;
-                    nombre: string;
-                    apellido: string;
-                    ultimo_puesto: string | null;
-                  } | null;
-                  const avatarPal    = c
-                    ? AVATAR_HEX[(c.nombre.charCodeAt(0) + c.apellido.charCodeAt(0)) % AVATAR_HEX.length]
-                    : AVATAR_HEX[0];
+              sugeridos={
+                <MatchingWorkspace
+                  busqueda={criteriosV2}
+                  busquedaId={busqueda.id}
+                  ranked={rankedV2}
+                  enBusquedaIds={enBusquedaIds}
+                  fichas={fichas}
+                  preview={devNoAuth}
+                />
+              }
+              enBusqueda={
+                !gestionesData?.length ? (
+                  <div className="flex flex-col items-center justify-center py-10 text-center">
+                    <Users
+                      className="h-8 w-8 mb-3"
+                      style={{ color: "var(--gl-olive)", opacity: 0.3 }}
+                    />
+                    <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
+                      Sin candidatos
+                    </p>
+                    <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>
+                      Sumá candidatos activos a esta búsqueda.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-0">
+                    {gestionesData.map(({ id: gId, candidatos: cand, estado, updated_at }) => {
+                      const isDescartado = estado === "descartado";
+                      const isContratado = estado === "contratado";
+                      const stageLabel = STAGES.find((s) => s.key === estado)?.label ?? estado;
+                      const stageIdx = STAGES.findIndex((s) => s.key === estado);
+                      const dias = diasDesde(updated_at);
+                      const c = cand as {
+                        id: string;
+                        nombre: string;
+                        apellido: string;
+                        ultimo_puesto: string | null;
+                      } | null;
+                      const avatarPal = c
+                        ? AVATAR_HEX[
+                            (c.nombre.charCodeAt(0) + c.apellido.charCodeAt(0)) % AVATAR_HEX.length
+                          ]
+                        : AVATAR_HEX[0];
 
-                  const stageBadgeCls = isDescartado
-                    ? "gl-badge-gray"
-                    : isContratado
-                      ? "gl-badge-green"
-                      : "gl-badge-olive";
+                      const stageBadgeCls = isDescartado
+                        ? "gl-badge-gray"
+                        : isContratado
+                          ? "gl-badge-green"
+                          : "gl-badge-olive";
 
-                  return (
-                    <div
-                      key={gId}
-                      className="flex items-center gap-3 py-3"
-                      style={{
-                        borderTop: "1px solid var(--gl-border)",
-                        opacity: isDescartado ? 0.5 : 1,
-                      }}
-                    >
-                      {c ? (
-                        <Link
-                          href={`/candidatos/${c.id}`}
-                          className="gl-row flex items-center gap-3 flex-1 min-w-0 px-2 py-2 -mx-2"
-                        >
-                          <div
-                            className="h-9 w-9 rounded-full grid place-items-center text-sm font-bold shrink-0"
-                            style={{ background: avatarPal.bg, color: avatarPal.color }}
-                          >
-                            {(c.nombre ?? "?")[0]}{(c.apellido ?? "?")[0]}
-                          </div>
-                          <div className="min-w-0">
-                            <div
-                              className="text-[13.5px] font-semibold truncate"
-                              style={{ color: "var(--gl-ink)" }}
-                            >
-                              {c.nombre} {c.apellido}
-                            </div>
-                            {c.ultimo_puesto && (
-                              <div
-                                className="text-xs mt-0.5 truncate"
-                                style={{ color: "var(--gl-ink-3)" }}
-                              >
-                                {c.ultimo_puesto}
-                              </div>
-                            )}
-                            {/* Stage track */}
-                            {!isDescartado && stageIdx >= 0 && (
-                              <div className="flex items-center gap-0.5 mt-2">
-                                {STAGES.map((stage, i) => (
-                                  <div key={stage.key} className="flex items-center gap-0.5">
-                                    <div
-                                      className="rounded-full"
-                                      style={{
-                                        width:      i === stageIdx ? 8 : 6,
-                                        height:     i === stageIdx ? 8 : 6,
-                                        background: i <= stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
-                                        opacity:    i < stageIdx ? 0.4 : 1,
-                                      }}
-                                    />
-                                    {i < STAGES.length - 1 && (
-                                      <div style={{
-                                        height: 1, width: 12,
-                                        background: i < stageIdx ? "var(--gl-olive)" : "var(--gl-border)",
-                                        opacity: i < stageIdx ? 0.35 : 1,
-                                      }} />
-                                    )}
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </Link>
-                      ) : (
-                        <div className="flex-1" />
-                      )}
-
-                      <div className="text-right shrink-0 space-y-1.5 ml-2">
-                        {c ? (
-                          <GestionEstadoSelect
-                            gestionId={gId}
-                            candidatoId={c.id}
-                            busquedaId={id}
-                            estado={estado}
-                            locked={!editable}
-                          />
-                        ) : (
-                          <span className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap ${stageBadgeCls}`}>
-                            {stageLabel}
-                          </span>
-                        )}
+                      return (
                         <div
-                          className="text-[11px] tabular-nums font-mono"
-                          style={{ color: "var(--gl-ink-3)" }}
+                          key={gId}
+                          className="flex items-center gap-3 py-3"
+                          style={{
+                            borderTop: "1px solid var(--gl-border)",
+                            opacity: isDescartado ? 0.5 : 1,
+                          }}
                         >
-                          {dias}d sin cambio
+                          {c ? (
+                            <Link
+                              href={`/candidatos/${c.id}`}
+                              className="gl-row flex items-center gap-3 flex-1 min-w-0 px-2 py-2 -mx-2"
+                            >
+                              <div
+                                className="h-9 w-9 rounded-full grid place-items-center text-sm font-bold shrink-0"
+                                style={{ background: avatarPal.bg, color: avatarPal.color }}
+                              >
+                                {(c.nombre ?? "?")[0]}
+                                {(c.apellido ?? "?")[0]}
+                              </div>
+                              <div className="min-w-0">
+                                <div
+                                  className="text-[13.5px] font-semibold truncate"
+                                  style={{ color: "var(--gl-ink)" }}
+                                >
+                                  {c.nombre} {c.apellido}
+                                </div>
+                                {c.ultimo_puesto && (
+                                  <div
+                                    className="text-xs mt-0.5 truncate"
+                                    style={{ color: "var(--gl-ink-3)" }}
+                                  >
+                                    {c.ultimo_puesto}
+                                  </div>
+                                )}
+                                {/* Stage track */}
+                                {!isDescartado && stageIdx >= 0 && (
+                                  <div className="flex items-center gap-0.5 mt-2">
+                                    {STAGES.map((stage, i) => (
+                                      <div key={stage.key} className="flex items-center gap-0.5">
+                                        <div
+                                          className="rounded-full"
+                                          style={{
+                                            width: i === stageIdx ? 8 : 6,
+                                            height: i === stageIdx ? 8 : 6,
+                                            background:
+                                              i <= stageIdx
+                                                ? "var(--gl-olive)"
+                                                : "var(--gl-border)",
+                                            opacity: i < stageIdx ? 0.4 : 1,
+                                          }}
+                                        />
+                                        {i < STAGES.length - 1 && (
+                                          <div
+                                            style={{
+                                              height: 1,
+                                              width: 12,
+                                              background:
+                                                i < stageIdx
+                                                  ? "var(--gl-olive)"
+                                                  : "var(--gl-border)",
+                                              opacity: i < stageIdx ? 0.35 : 1,
+                                            }}
+                                          />
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </Link>
+                          ) : (
+                            <div className="flex-1" />
+                          )}
+
+                          <div className="text-right shrink-0 space-y-1.5 ml-2">
+                            {c ? (
+                              <GestionEstadoSelect
+                                gestionId={gId}
+                                candidatoId={c.id}
+                                busquedaId={id}
+                                estado={estado}
+                                locked={!editable}
+                              />
+                            ) : (
+                              <span
+                                className={`text-[10.5px] font-semibold px-2 py-0.5 rounded-md block whitespace-nowrap ${stageBadgeCls}`}
+                              >
+                                {stageLabel}
+                              </span>
+                            )}
+                            <div
+                              className="text-[11px] tabular-nums font-mono"
+                              style={{ color: "var(--gl-ink-3)" }}
+                            >
+                              {dias}d sin cambio
+                            </div>
+                          </div>
+                          {editable && c && (
+                            <BorrarGestionButton
+                              gestionId={gId}
+                              busquedaId={id}
+                              candidatoId={c.id}
+                              nombre={`${c.nombre} ${c.apellido}`}
+                            />
+                          )}
                         </div>
-                      </div>
-                      {editable && c && (
-                        <BorrarGestionButton
-                          gestionId={gId}
-                          busquedaId={id}
-                          candidatoId={c.id}
-                          nombre={`${c.nombre} ${c.apellido}`}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-                <div style={{ borderTop: "1px solid var(--gl-border)" }} />
-              </div>
-            )}
+                      );
+                    })}
+                    <div style={{ borderTop: "1px solid var(--gl-border)" }} />
+                  </div>
+                )
+              }
             />
           </div>
         </div>
 
         {/* ── Derecha: brief + requisitos + datos ── */}
         <div className="space-y-5">
-
           {/* Brief */}
           {busqueda.descripcion && (
             <div className="rounded-2xl border p-6" style={CARD}>
@@ -513,8 +561,13 @@ export default async function BusquedaDetailPage({
                 <div className="gl-eyebrow mb-2">Categorías aceptadas</div>
                 <div className="flex flex-wrap gap-1.5">
                   {criteriosV2.acceptedCats.map((c) => (
-                    <span key={c} className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
-                      style={{ background: "var(--gl-olive)", color: "#fff" }}>{c}</span>
+                    <span
+                      key={c}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
+                      style={{ background: "var(--gl-olive)", color: "#fff" }}
+                    >
+                      {c}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -524,8 +577,13 @@ export default async function BusquedaDetailPage({
                 <div className="gl-eyebrow mb-2">Obligatorio</div>
                 <div className="flex flex-wrap gap-1.5">
                   {obligatoriosV2.map((r, i) => (
-                    <span key={i} className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
-                      style={{ background: "var(--gl-olive)", color: "#fff" }}>{reqLabel(r)}</span>
+                    <span
+                      key={i}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
+                      style={{ background: "var(--gl-olive)", color: "#fff" }}
+                    >
+                      {reqLabel(r)}
+                    </span>
                   ))}
                 </div>
               </div>
@@ -535,7 +593,10 @@ export default async function BusquedaDetailPage({
                 <div className="gl-eyebrow mb-2">Deseable</div>
                 <div className="flex flex-wrap gap-1.5">
                   {deseablesV2.map((r, i) => (
-                    <span key={i} className="text-xs font-semibold px-2.5 py-1.5 rounded-full gl-badge-olive">
+                    <span
+                      key={i}
+                      className="text-xs font-semibold px-2.5 py-1.5 rounded-full gl-badge-olive"
+                    >
                       {reqLabel(r)}
                     </span>
                   ))}
@@ -543,7 +604,9 @@ export default async function BusquedaDetailPage({
               </div>
             )}
             {criteriosV2.acceptedCats.length === 0 && criteriosV2.requisitos.length === 0 && (
-              <p className="text-sm" style={{ color: "var(--gl-ink-3)" }}>Sin criterios cargados.</p>
+              <p className="text-sm" style={{ color: "var(--gl-ink-3)" }}>
+                Sin criterios cargados.
+              </p>
             )}
           </div>
 
@@ -560,7 +623,9 @@ export default async function BusquedaDetailPage({
                     className="flex items-start gap-3 py-2.5"
                     style={{ borderTop: "1px solid var(--gl-border)" }}
                   >
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{a}</span>
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                      {a}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -568,20 +633,30 @@ export default async function BusquedaDetailPage({
           )}
 
           {/* Experiencia requerida */}
-          {(busqueda.puestos_similares || busqueda.personal_a_cargo_min != null || busqueda.idioma_ingles) && (
+          {(busqueda.puestos_similares ||
+            busqueda.personal_a_cargo_min != null ||
+            busqueda.idioma_ingles) && (
             <div className="rounded-2xl border p-6" style={CARD}>
               <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
                 Experiencia requerida
               </h2>
               <div className="space-y-0">
                 {busqueda.puestos_similares && (
-                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <div
+                    className="flex items-center justify-between gap-3 py-3"
+                    style={{ borderBottom: "1px solid var(--gl-border)" }}
+                  >
                     <span className="gl-eyebrow">Puestos similares</span>
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.puestos_similares}</span>
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                      {busqueda.puestos_similares}
+                    </span>
                   </div>
                 )}
                 {busqueda.personal_a_cargo_min != null && (
-                  <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                  <div
+                    className="flex items-center justify-between gap-3 py-3"
+                    style={{ borderBottom: "1px solid var(--gl-border)" }}
+                  >
                     <span className="gl-eyebrow">Gente a cargo</span>
                     <span className="text-sm font-bold" style={{ color: "var(--gl-ink)" }}>
                       {busqueda.personal_a_cargo_min}+
@@ -591,7 +666,9 @@ export default async function BusquedaDetailPage({
                 {busqueda.idioma_ingles && (
                   <div className="flex items-center justify-between gap-3 py-3">
                     <span className="gl-eyebrow">Inglés</span>
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.idioma_ingles}</span>
+                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                      {busqueda.idioma_ingles}
+                    </span>
                   </div>
                 )}
               </div>
@@ -605,19 +682,32 @@ export default async function BusquedaDetailPage({
             </h2>
             <div className="space-y-0">
               {busqueda.reporte_directo && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Reporte directo</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.reporte_directo}</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                    {busqueda.reporte_directo}
+                  </span>
                 </div>
               )}
               {busqueda.rango_salarial && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Rango salarial</span>
-                  <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>{busqueda.rango_salarial}</span>
+                  <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>
+                    {busqueda.rango_salarial}
+                  </span>
                 </div>
               )}
               {(busqueda.edad_minima != null || busqueda.edad_maxima != null) && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Edad</span>
                   <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
                     {busqueda.edad_minima ?? "—"} – {busqueda.edad_maxima ?? "—"} años
@@ -625,40 +715,68 @@ export default async function BusquedaDetailPage({
                 </div>
               )}
               {busqueda.nivel_educacion && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Educación</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.nivel_educacion}</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                    {busqueda.nivel_educacion}
+                  </span>
                 </div>
               )}
               {busqueda.estado_civil && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Estado civil</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>{busqueda.estado_civil}</span>
+                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
+                    {busqueda.estado_civil}
+                  </span>
                 </div>
               )}
               {busqueda.disponibilidad_viaje != null && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Disp. a viajar</span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.disponibilidad_viaje ? "gl-badge-green" : "gl-badge-gray"}`}>
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.disponibilidad_viaje ? "gl-badge-green" : "gl-badge-gray"}`}
+                  >
                     {busqueda.disponibilidad_viaje ? "Sí" : "No"}
                   </span>
                 </div>
               )}
               {busqueda.movilidad_requerida != null && (
-                <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+                <div
+                  className="flex items-center justify-between gap-3 py-3"
+                  style={{ borderBottom: "1px solid var(--gl-border)" }}
+                >
                   <span className="gl-eyebrow">Movilidad propia</span>
-                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.movilidad_requerida ? "gl-badge-green" : "gl-badge-gray"}`}>
+                  <span
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.movilidad_requerida ? "gl-badge-green" : "gl-badge-gray"}`}
+                  >
                     {busqueda.movilidad_requerida ? "Sí" : "No"}
                   </span>
                 </div>
               )}
-              <div className="flex items-center justify-between gap-3 py-3" style={{ borderBottom: "1px solid var(--gl-border)" }}>
+              <div
+                className="flex items-center justify-between gap-3 py-3"
+                style={{ borderBottom: "1px solid var(--gl-border)" }}
+              >
                 <span className="gl-eyebrow">Apertura</span>
-                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>{formatDate(busqueda.fecha_apertura)}</span>
+                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>
+                  {formatDate(busqueda.fecha_apertura)}
+                </span>
               </div>
               <div className="flex items-center justify-between gap-3 py-3">
                 <span className="gl-eyebrow">Tiempo abierta</span>
-                <span className="text-sm font-bold tabular-nums" style={{ color: daysOpen > 30 ? "var(--gl-olive)" : "var(--gl-ink)" }}>
+                <span
+                  className="text-sm font-bold tabular-nums"
+                  style={{ color: daysOpen > 30 ? "var(--gl-olive)" : "var(--gl-ink)" }}
+                >
                   {daysOpen}d
                 </span>
               </div>
@@ -666,11 +784,7 @@ export default async function BusquedaDetailPage({
           </div>
 
           {/* Notas internas */}
-          <NotasBusquedaInline
-            busquedaId={busqueda.id}
-            notas={busqueda.notas_internas ?? null}
-          />
-
+          <NotasBusquedaInline busquedaId={busqueda.id} notas={busqueda.notas_internas ?? null} />
         </div>
       </div>
     </div>
