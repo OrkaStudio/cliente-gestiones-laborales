@@ -4,6 +4,7 @@ import { anthropic } from "@ai-sdk/anthropic"
 import { CATEGORIAS_GL } from "@/lib/cv/categorias"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 import { createServiceClient } from "@/lib/supabase/service"
+import { refrescarHabilidadesResidir } from "./refrescar-habilidades"
 import type { CVParseado } from "@/lib/cv/parse"
 
 const AGRO_KW    = ["campo", "estancia", "tambo", "feedlot", "agrícol", "agropecuar", "ganade", "rural", "tambero", "puestero", "capataz", "tractorista", "cosecha", "siembra", "cultivo", "agro"]
@@ -130,6 +131,13 @@ export async function runPostProcess(candidatoId: string, data: CVParseado): Pro
       remitente_email: null,
     })
   }
+
+  // Extracción de habilidades + residir del CV nuevo (antes solo lo corría el
+  // backfill). Best-effort con log propio a webhook_logs → no rompe el post-process.
+  await refrescarHabilidadesResidir(supabase, candidatoId, data.cv_procesado_texto ?? "", {
+    aditivo: false,
+    emailId: "post-process",
+  })
 
   // El post-process corre en background (after()): al terminar, bustar el caché
   // del perfil para que las categorías / preguntas recién escritas se vean al

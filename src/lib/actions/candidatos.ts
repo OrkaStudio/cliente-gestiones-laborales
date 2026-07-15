@@ -10,6 +10,7 @@ import { generateText } from "ai"
 import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/utils"
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 import { runPostProcess } from "@/lib/cv/post-process"
+import { refrescarHabilidadesResidir } from "@/lib/cv/refrescar-habilidades"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -547,6 +548,12 @@ DATOS PERSONALES: formato "Label: Valor" por línea. Si falta, escribir "sin dat
 
   await sincronizarCamposDesdeCV(candidatoId, text, supabase)
 
+  // El CV se completó con las respuestas → re-extraer habilidades/residir de forma
+  // ADITIVA (nunca pierde skills previas). En background para no demorar la acción.
+  after(async () => {
+    await refrescarHabilidadesResidir(supabase, candidatoId, text, { aditivo: true })
+  })
+
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidateTag(`candidato-${candidatoId}`, {})
   revalidatePath(`/candidatos/${candidatoId}/cv`)
@@ -585,6 +592,11 @@ export async function actualizarCVDesdeConversacion(
     agregarConversacion(candidatoId, conversacion, supabase),
     sincronizarCamposDesdeCV(candidatoId, text, supabase),
   ])
+
+  // El CV se completó con la conversación → re-extraer habilidades/residir aditivo.
+  after(async () => {
+    await refrescarHabilidadesResidir(supabase, candidatoId, text, { aditivo: true })
+  })
 
   revalidatePath(`/candidatos/${candidatoId}`)
   revalidateTag(`candidato-${candidatoId}`, {})
