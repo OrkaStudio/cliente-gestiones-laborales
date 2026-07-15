@@ -11,6 +11,7 @@ import { parseSections, assembleSections, parseKV, type KVPair } from "@/lib/cv/
 import { generarPreguntasMapeadas, type CampoPendienteInput } from "@/lib/cv/generar-preguntas-mapeadas"
 import { runPostProcess } from "@/lib/cv/post-process"
 import { refrescarHabilidadesResidir } from "@/lib/cv/refrescar-habilidades"
+import type { UpdatePropuesto } from "@/lib/cv/inferir-updates-conversacion"
 
 export async function marcarVisto(candidatoId: string) {
   const supabase = createServiceClient()
@@ -596,6 +597,68 @@ export async function actualizarCVDesdeConversacion(
   // El CV se completó con la conversación → re-extraer habilidades/residir aditivo.
   after(async () => {
     await refrescarHabilidadesResidir(supabase, candidatoId, text, { aditivo: true })
+  })
+
+  revalidatePath(`/candidatos/${candidatoId}`)
+  revalidateTag(`candidato-${candidatoId}`, {})
+  revalidatePath(`/candidatos/${candidatoId}/cv`)
+  return { success: true, id: candidatoId }
+}
+
+// ─── Spec A · Slice 2 — aplicar updates confirmados de una conversación ────────
+// Toma las propuestas que Oriana confirmó (de inferirUpdatesDesdeConversacion) y las
+// escribe al almacén ESTRUCTURADO (candidatos + experiencia_laboral), luego regenera
+// el CV desde ahí. Así el dato SOBREVIVE a futuras regeneraciones (era el bug de
+// TASK-053). Las propuestas ya vienen con el expId resuelto en el campo (exp:<expId>:col).
+export async function aplicarUpdatesConfirmados(
+  candidatoId: string,
+  propuestas: UpdatePropuesto[],
+): Promise<ActionResult> {
+  if (!propuestas.length) return { success: true, id: candidatoId }
+  const supabase = createServiceClient()
+
+  const candidatoUpdates: Record<string, unknown> = {}
+  const expUpdates = new Map<string, Record<string, unknown>>()
+
+  for (const p of propuestas) {
+    const parts = p.campo.split(":")
+    const valor = parseCampoValue(p.campo, p.valorPropuesto)
+    if (parts[0] === "candidato" && parts[1]) {
+      candidatoUpdates[parts[1]] = valor
+    } else if (parts[0] === "exp" && parts[1] && parts[2]) {
+      const expId = parts[1]
+      if (!expUpdates.has(expId)) expUpdates.set(expId, {})
+      expUpdates.get(expId)![parts[2]] = valor
+    }
+  }
+
+  if (Object.keys(candidatoUpdates).length) {
+    const { error } = await supabase
+      .from("candidatos")
+      .update(candidatoUpdates as import("@/lib/supabase/types").TablesUpdate<"candidatos">)
+      .eq("id", candidatoId)
+    if (error) return { success: false, error: error.message }
+  }
+  for (const [expId, updates] of expUpdates) {
+    const { error } = await supabase
+      .from("experiencia_laboral")
+      .update(updates as import("@/lib/supabase/types").TablesUpdate<"experiencia_laboral">)
+      .eq("id", expId)
+    if (error) return { success: false, error: `experiencia ${expId}: ${error.message}` }
+  }
+
+  // Regenerar el CV desde el estructurado (ahora incluye lo aplicado).
+  const cvResult = await regenerarCVTextoDesdeDatos(candidatoId)
+  if (!cvResult.success) return cvResult
+
+  // Re-extraer habilidades/residir del CV ya completado (Paso 1), en background.
+  const { data: c } = await supabase
+    .from("candidatos")
+    .select("cv_procesado_texto")
+    .eq("id", candidatoId)
+    .single()
+  after(async () => {
+    await refrescarHabilidadesResidir(supabase, candidatoId, c?.cv_procesado_texto ?? "", { aditivo: true })
   })
 
   revalidatePath(`/candidatos/${candidatoId}`)
