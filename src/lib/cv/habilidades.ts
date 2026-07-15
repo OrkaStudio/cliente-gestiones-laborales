@@ -70,6 +70,56 @@ export const HABILIDADES_GL_PISTAS: Record<string, string[]> = {
 
 export const HABILIDADES_GL = Object.keys(HABILIDADES_GL_PISTAS);
 
+// Los 8 grupos del vocabulario (spec 2026-06-28). Estaban como comentarios; la UI V2 los
+// necesita como dato para agrupar el selector de habilidades por área.
+export const HABILIDADES_GL_AREAS: { area: string; habilidades: string[] }[] = [
+  {
+    area: "Ganadería",
+    habilidades: [
+      "Rodeo de cría/recría",
+      "Feedlot/engorde",
+      "Inseminación artificial",
+      "Manga y corrales",
+      "Sanidad animal",
+      "Parición y destete",
+    ],
+  },
+  { area: "A caballo", habilidades: ["Trabajo de a caballo", "Doma"] },
+  { area: "Tambo", habilidades: ["Ordeñe / tambo"] },
+  {
+    area: "Agricultura",
+    habilidades: ["Siembra y cosecha", "Riego", "Fumigación / pulverización", "Monitoreo de cultivos"],
+  },
+  {
+    area: "Maquinaria",
+    habilidades: [
+      "Manejo de tractor",
+      "Maquinaria agrícola",
+      "Mixer / mixero",
+      "Chofer / camión",
+      "Planta de silo",
+      "Mecánica de maquinaria",
+    ],
+  },
+  {
+    area: "Infraestructura del campo",
+    habilidades: [
+      "Mantenimiento de alambrados",
+      "Control de molinos y aguadas",
+      "Armado de parcelas / pasturas",
+      "Oficios",
+    ],
+  },
+  { area: "Administración", habilidades: ["Registros y reportes (PC/Excel)"] },
+  { area: "Casero / casa", habilidades: ["Tareas domésticas"] },
+];
+
+// Red de seguridad: si alguien agrega una habilidad al vocabulario y se olvida del área,
+// que no desaparezca del selector.
+export const HABILIDADES_SIN_AREA = HABILIDADES_GL.filter(
+  (h) => !HABILIDADES_GL_AREAS.some((g) => g.habilidades.includes(h)),
+);
+
 export type ResultadoExtraccion = {
   habilidades: string[];
   residir: "si" | "no" | "sin_dato";
@@ -131,7 +181,17 @@ function buildVocabPrompt(): string {
 
 const PROMPT_SISTEMA = `Sos un extractor de datos de CVs de trabajadores rurales argentinos. Extraés DOS cosas:
 
-(A) HABILIDADES: de la lista controlada de abajo, cuáles DEMUESTRA el CV. Solo las que el texto evidencia (por las pistas o equivalentes claros). Usá el label EXACTO de la lista. Pueden ser varias o ninguna.
+(A) HABILIDADES: de la lista controlada de abajo, cuáles DEMUESTRA el CV. Usá el label EXACTO de la lista. Pueden ser varias o ninguna.
+
+Leé con atención la sección EXPERIENCIA LABORAL: las tareas de cada puesto son la mejor evidencia. Una habilidad CUENTA aunque el CV la describa con OTRAS palabras y no use el label ni la pista textual — lo que importa es que la tarea demuestre la habilidad. Barré todas las tareas, no te quedes con el perfil. Ejemplos de mapeo:
+- "regulación de sembradoras y cosechadoras", "control de cosecha", "labranza" → "Siembra y cosecha"
+- "maneja sembradora/cosechadora/tolva", "maquinista", "180hp" → "Maquinaria agrícola"
+- "manga", "embretar", "apartes", "encierre de hacienda", "embarques", "caravaneo" → "Manga y corrales"
+- "sincronización de celos", "IATF", "tacto" → "Inseminación artificial"
+- "muestreo de suelos", "control de plagas/malezas" → "Monitoreo de cultivos"
+No fuerces: si la tarea no demuestra la habilidad, no la pongas. Es mejor incluir una habilidad realmente demostrada por las tareas que omitirla por no encontrar la palabra exacta.
+
+IMPORTANTE — SOLO habilidades DEL CANDIDATO: si el CV es de un matrimonio o menciona a la pareja/cónyuge ("su pareja Romina en el ordeñe", "su esposa se dedica a tareas domésticas"), NO le atribuyas al candidato las habilidades que son de la otra persona.
 
 (B) RESIDIR: si el candidato DECLARA EXPLÍCITAMENTE su disponibilidad para residir/mudarse al campo. "si"/"no" SOLO si lo declara de sí mismo. NO infieras de la trayectoria (fue puestero ≠ se muda hoy). NO tomes los beneficios que ofrecía un empleo (vivienda/casa que daba el trabajo) como su disponibilidad. "Me mudo, preferentemente a X" es "si" (guardá X en zona), NUNCA "no". Un "no" real es "no puede mudarse". Ante la duda: "sin_dato".
 
@@ -143,6 +203,10 @@ Respondé SOLO un JSON válido, sin texto alrededor:
 Lista controlada de habilidades (label — pistas):
 `;
 
+// Acumulador de uso de tokens (observabilidad de costo). Se llena en cada llamada;
+// los scripts lo leen para reportar gasto real. No afecta el resultado.
+export const usoHabilidades = { llamadas: 0, inputTokens: 0, outputTokens: 0 };
+
 export async function extraerHabilidadesYResidir(cvTexto: string): Promise<ResultadoExtraccion> {
   const vacio: ResultadoExtraccion = {
     habilidades: [],
@@ -151,11 +215,19 @@ export async function extraerHabilidadesYResidir(cvTexto: string): Promise<Resul
   };
   if (!cvTexto.trim()) return vacio;
 
-  const { text } = await generateText({
+  const { text, usage } = await generateText({
     model: anthropic("claude-haiku-4-5-20251001"),
+    // Extracción, no redacción: temperature 0 → determinístico (mismo CV, mismo
+    // resultado) y lectura más completa. Con el default alto el recall temblaba
+    // entre corridas (un mismo CV daba 7 u 8 habilidades según la tirada).
+    temperature: 0,
     // Texto COMPLETO — sin slice(0,3000): cortar pierde señales del final del CV.
     prompt: `${PROMPT_SISTEMA}${buildVocabPrompt()}\n\nCV:\n${cvTexto}`,
   });
+
+  usoHabilidades.llamadas++;
+  usoHabilidades.inputTokens += usage?.inputTokens ?? 0;
+  usoHabilidades.outputTokens += usage?.outputTokens ?? 0;
 
   const match = text.match(/\{[\s\S]*\}/);
   if (!match) return vacio;
