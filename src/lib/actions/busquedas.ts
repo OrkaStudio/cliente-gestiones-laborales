@@ -163,6 +163,27 @@ export async function cerrarBusqueda(
   return { success: true, id: busquedaId }
 }
 
+export async function deleteBusqueda(id: string): Promise<ActionResult> {
+  const supabase = createServiceClient()
+
+  // Las gestiones tienen busqueda_id NOT NULL y no cascadean: borrarlas primero.
+  const { error: gestionesError } = await supabase
+    .from("gestiones")
+    .delete()
+    .eq("busqueda_id", id)
+  if (gestionesError) return { success: false, error: gestionesError.message }
+
+  // notificaciones cascadea solo (ON DELETE CASCADE, migración 007).
+  const { error } = await supabase.from("busquedas").delete().eq("id", id)
+  if (error) return { success: false, error: error.message }
+
+  revalidatePath("/busquedas")
+  revalidatePath("/candidatos")
+  revalidateTag("candidatos-list", {})
+  revalidatePath("/")
+  return { success: true, id }
+}
+
 export async function updateBusquedaNotas(
   id: string,
   notas: string | null,

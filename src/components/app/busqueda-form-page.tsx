@@ -3,9 +3,9 @@
 import { useState, useTransition, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, Loader2, Trash2, AlertTriangle } from "lucide-react"
 import Link from "next/link"
-import { createBusqueda, updateBusqueda } from "@/lib/actions/busquedas"
+import { createBusqueda, updateBusqueda, deleteBusqueda } from "@/lib/actions/busquedas"
 import type { Tables } from "@/lib/supabase/types"
 
 type Busqueda = Tables<"busquedas">
@@ -218,9 +218,26 @@ const EDUCACION_OPTIONS = [
 
 export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
   const [pending, startTransition] = useTransition()
+  const [deleting, startDeleteTransition] = useTransition()
   const [error, setError]          = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const router = useRouter()
   const isEdit = !!busqueda
+
+  function handleDelete() {
+    if (!busqueda) return
+    startDeleteTransition(async () => {
+      setError(null)
+      const result = await deleteBusqueda(busqueda.id)
+      if (!result.success) {
+        setError(result.error)
+        setShowDeleteConfirm(false)
+        return
+      }
+      toast.success("Búsqueda eliminada")
+      router.push("/busquedas")
+    })
+  }
 
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -469,7 +486,105 @@ export function BusquedaFormPage({ busqueda }: { busqueda?: Busqueda }) {
             </div>
           )}
         </form>
+
+        {/* ── Zona de peligro (solo en edición) ─────────────────────── */}
+        {isEdit && (
+          <Card style={{ marginTop: "1.25rem", borderColor: "#f1aeb5" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", flexWrap: "wrap" }}>
+              <div>
+                <p style={{ fontSize: "13.5px", fontWeight: 600, color: INK, marginBottom: "0.25rem" }}>
+                  Eliminar búsqueda
+                </p>
+                <p style={{ fontSize: "12.5px", color: INK3, maxWidth: "38rem" }}>
+                  Borra esta búsqueda y todas sus gestiones (candidatos en pipeline) de forma permanente.
+                  Los candidatos siguen en la base; solo se elimina esta búsqueda.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "0.375rem",
+                  padding: "0.4rem 1rem", fontSize: "13.5px", fontWeight: 600,
+                  color: "#cf222e", background: "#ffebe9", border: "1px solid #f1aeb5",
+                  borderRadius: "0.5rem", cursor: "pointer", flexShrink: 0,
+                }}
+              >
+                <Trash2 style={{ width: 14, height: 14 }} />
+                Eliminar búsqueda
+              </button>
+            </div>
+          </Card>
+        )}
       </div>
+
+      {/* ── Modal de confirmación de borrado ──────────────────────────── */}
+      {showDeleteConfirm && busqueda && (
+        <div
+          onClick={() => !deleting && setShowDeleteConfirm(false)}
+          style={{
+            position: "fixed", inset: 0, zIndex: 50,
+            background: "rgba(13,17,23,0.45)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "1.5rem",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: SURFACE, borderRadius: "1rem", padding: "1.75rem",
+              maxWidth: "26rem", width: "100%",
+              boxShadow: "0 12px 40px rgba(13,17,23,0.25)",
+            }}
+          >
+            <div style={{
+              width: 40, height: 40, borderRadius: "50%", background: "#ffebe9",
+              display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem",
+            }}>
+              <AlertTriangle style={{ width: 20, height: 20, color: "#cf222e" }} />
+            </div>
+            <h2 style={{
+              fontFamily: "var(--font-fraunces), serif", fontSize: "1.375rem",
+              fontWeight: 400, color: INK, marginBottom: "0.5rem",
+            }}>
+              ¿Eliminar esta búsqueda?
+            </h2>
+            <p style={{ fontSize: "13.5px", color: INK3, lineHeight: 1.5, marginBottom: "1.5rem" }}>
+              Se va a borrar <strong style={{ color: INK }}>{busqueda.puesto}</strong> ({busqueda.cliente})
+              y todas sus gestiones de forma permanente. Esta acción no se puede deshacer.
+            </p>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem" }}>
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirm(false)}
+                disabled={deleting}
+                style={{
+                  padding: "0.45rem 1.1rem", fontSize: "13.5px", fontWeight: 500,
+                  color: INK3, background: "transparent", border: `1px solid ${BORDER_MD}`,
+                  borderRadius: "0.5rem", cursor: deleting ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "0.375rem",
+                  padding: "0.45rem 1.25rem", fontSize: "13.5px", fontWeight: 600,
+                  color: "#ffffff", background: "#cf222e", border: "none",
+                  borderRadius: "0.5rem", cursor: deleting ? "not-allowed" : "pointer",
+                  opacity: deleting ? 0.8 : 1,
+                }}
+              >
+                {deleting && <Loader2 style={{ width: 14, height: 14, animation: "spin 1s linear infinite" }} />}
+                {deleting ? "Eliminando…" : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
