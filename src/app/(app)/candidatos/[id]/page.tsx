@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { unstable_cache } from "next/cache";
+import { after } from "next/server";
 import { MessageCircle, MapPin, TrendingUp, FileText, ArrowLeft, ThumbsUp, ThumbsDown } from "lucide-react";
 import { CopyEmailButton } from "@/components/app/copy-email-button";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { WhatsappMessagePanel } from "@/components/app/whatsapp-message-panel";
 import { AsignarBusquedaDialog } from "@/components/app/asignar-busqueda-dialog";
+import { BotonVolver } from "@/components/app/boton-volver";
 import { CandidatoStickyBar } from "@/components/app/candidato-sticky-bar";
 import { CandidatoEstadoToggle } from "@/components/app/candidato-estado-toggle";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
@@ -99,8 +101,10 @@ export default async function CandidatoDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  // Marcar como visto en background (no bloquea el render)
-  void marcarVisto(id)
+  // Marcar como visto DESPUÉS de enviar la respuesta: la mutación + las revalidaciones
+  // no pueden correr durante el render (revalidatePath lo prohíbe). after() las difiere
+  // fuera del render y además captura errores (evita el unhandledRejection del fire-and-forget).
+  after(() => marcarVisto(id))
 
   // Candidato + experiencia: datos estables → cacheados con tag por ID
   const getCandidatoConExperiencia = unstable_cache(
@@ -171,16 +175,15 @@ export default async function CandidatoDetailPage({
     />
     <div className="px-10 py-10 space-y-5">
 
-      {/* Back */}
-      <Link
-        href="/candidatos"
+      {/* Back — vuelve a la lista tal como estaba (filtros en la URL) */}
+      <BotonVolver
+        fallbackHref="/candidatos"
         className="inline-flex items-center gap-1.5 text-xs font-medium transition-colors"
         style={{ color: "var(--gl-ink-3)", textDecoration: "none" }}
-        onMouseEnter={undefined}
       >
         <ArrowLeft className="h-3.5 w-3.5" />
         Candidatos
-      </Link>
+      </BotonVolver>
 
       {/* ── Header card ──────────────────────────────────────────── */}
       <div id="profile-header" className="rounded-2xl border p-6" style={CARD}>

@@ -42,7 +42,7 @@ export async function createGestion(data: {
 
 const ESTADOS_VALIDOS = [
   "preseleccionado", "entrevista_orka", "presentado_cliente",
-  "entrevista_cliente", "ofertado", "contratado", "descartado",
+  "entrevista_cliente", "ofertado", "contratado", "temporario", "descartado",
 ] as const
 
 export async function updateGestionEstado(
@@ -57,7 +57,7 @@ export async function updateGestionEstado(
   const supabase = createServiceClient()
   const { error } = await supabase
     .from("gestiones")
-    .update({ estado: estado as "preseleccionado" | "entrevista_orka" | "presentado_cliente" | "entrevista_cliente" | "ofertado" | "contratado" | "descartado" })
+    .update({ estado: estado as (typeof ESTADOS_VALIDOS)[number] })
     .eq("id", gestionId)
 
   if (error) return { success: false, error: error.message }

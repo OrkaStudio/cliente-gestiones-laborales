@@ -650,6 +650,7 @@ export type Database = {
         | "entrevista_cliente"
         | "ofertado"
         | "contratado"
+        | "temporario"
         | "descartado"
     }
     CompositeTypes: {
@@ -793,6 +794,7 @@ export const Constants = {
         "entrevista_cliente",
         "ofertado",
         "contratado",
+        "temporario",
         "descartado",
       ],
     },

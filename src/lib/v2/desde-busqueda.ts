@@ -31,6 +31,9 @@ export type CandRow = {
   notas_recruiter?: string | null;
   referencias?: unknown;
   pareja_declarada?: string | null;
+  habilidades?: string[] | null;
+  // `residir` es text + check en la DB (no enum) → llega como string. Se estrecha al mapear.
+  residir?: string | null;
 };
 
 export type ExpRow = {
@@ -41,6 +44,16 @@ export type ExpRow = {
   hasta: string | null;
   ubicacion: string | null;
   descripcion: string | null;
+  // La tabla ya guarda todo esto (lo extrae el parser del CV) y el drawer lo ignoraba:
+  // el tamaño del campo es justo el requisito de hectáreas, y el motivo de salida es de
+  // lo más valioso que puede leer una recruiter antes de levantar el teléfono.
+  nombre_propietario: string | null;
+  dimension_establecimiento: string | null;
+  personal_a_cargo: string | null;
+  en_blanco: boolean | null;
+  ingresos_actuales: string | null;
+  beneficios: string | null;
+  motivo_cambio_o_salida: string | null;
 };
 
 export type Ficha = {
@@ -51,26 +64,80 @@ export type Ficha = {
   perfilLaboral: string | null;
   notas: string | null;
   parejaDeclarada: string | null;
-  referencias: { de: string; calif: "buena" | "mala"; nota: string }[];
+  // Shape REAL de la base: {nombre, contacto, relacion}. No hay calificación — antes se
+  // mapeaba a {de, calif, nota} y, al no encontrarla, marcaba "buena" por defecto: pintaba
+  // de verde un juicio que nadie emitió, y tiraba el teléfono (lo único accionable).
+  referencias: { nombre: string; relacion: string | null; contacto: string | null }[];
   trayectoria: {
     rol: string;
     empresa: string;
-    periodo: string;
+    periodo: string | null;
+    antiguedad: string | null;
     lugar: string | null;
     descripcion: string | null;
+    propietario: string | null;
+    dimension: string | null;
+    personalACargo: string | null;
+    enBlanco: boolean | null;
+    ingresos: string | null;
+    beneficios: string | null;
+    motivoSalida: string | null;
   }[];
 };
 
+function txt(v: unknown): string | null {
+  const s = typeof v === "string" ? v.trim() : "";
+  return s ? s : null;
+}
+
 function parseRefs(raw: unknown): Ficha["referencias"] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((r) => {
-    const o = (r ?? {}) as Record<string, unknown>;
-    const de = String(o.de ?? o.fuente ?? o.nombre ?? "Referencia");
-    const calRaw = String(o.calif ?? o.calificacion ?? o.tipo ?? "").toLowerCase();
-    const calif: "buena" | "mala" =
-      calRaw.includes("mal") || calRaw.includes("neg") ? "mala" : "buena";
-    return { de, calif, nota: String(o.nota ?? o.comentario ?? "") };
-  });
+  return raw
+    .map((r) => {
+      const o = (r ?? {}) as Record<string, unknown>;
+      return {
+        nombre: txt(o.nombre) ?? txt(o.de) ?? txt(o.fuente) ?? "Referencia",
+        relacion: txt(o.relacion),
+        contacto: txt(o.contacto) ?? txt(o.telefono),
+      };
+    })
+    .filter((r) => r.nombre !== "Referencia" || r.contacto);
+}
+
+/** Sólo el año, y sólo si lo hay. */
+function anio(f: string | null): string | null {
+  if (!f) return null;
+  const m = f.match(/\d{4}/);
+  return m ? m[0] : null;
+}
+
+/**
+ * El período tal como se puede afirmar. El 19% de las experiencias no tiene NINGUNA fecha:
+ * el "? – actual" que salía antes era ruido inventado.
+ */
+function periodoDe(desde: string | null, hasta: string | null): string | null {
+  const d = anio(desde);
+  const h = anio(hasta);
+  if (d && h) return `${d} – ${h}`;
+  if (d) return `desde ${d}`;
+  if (h) return `hasta ${h}`;
+  return null;
+}
+
+/** Cuánto duró en el puesto. Es la señal que mira una recruiter: no el año, la permanencia. */
+function antiguedadDe(desde: string | null, hasta: string | null): string | null {
+  if (!desde) return null;
+  const d = new Date(desde);
+  if (Number.isNaN(d.getTime())) return null;
+  const h = hasta ? new Date(hasta) : new Date();
+  if (Number.isNaN(h.getTime())) return null;
+  const meses = Math.max(0, Math.round((h.getTime() - d.getTime()) / (30.44 * 864e5)));
+  if (meses < 1) return null;
+  const a = Math.floor(meses / 12);
+  const m = meses % 12;
+  if (a === 0) return `${m} ${m === 1 ? "mes" : "meses"}`;
+  if (m === 0) return `${a} ${a === 1 ? "año" : "años"}`;
+  return `${a} ${a === 1 ? "año" : "años"} y ${m} ${m === 1 ? "mes" : "meses"}`;
 }
 
 export function fichasDesdeRows(cands: CandRow[], exps: ExpRow[]): Record<string, Ficha> {
@@ -91,9 +158,17 @@ export function fichasDesdeRows(cands: CandRow[], exps: ExpRow[]): Record<string
       trayectoria: (porCand[c.id] ?? []).map((e) => ({
         rol: e.rol ?? "—",
         empresa: e.empresa ?? "—",
-        periodo: `${e.desde ?? "?"} – ${e.hasta ?? "actual"}`,
+        periodo: periodoDe(e.desde, e.hasta),
+        antiguedad: antiguedadDe(e.desde, e.hasta),
         lugar: e.ubicacion,
         descripcion: e.descripcion,
+        propietario: e.nombre_propietario ?? null,
+        dimension: e.dimension_establecimiento ?? null,
+        personalACargo: e.personal_a_cargo ?? null,
+        enBlanco: e.en_blanco ?? null,
+        ingresos: e.ingresos_actuales ?? null,
+        beneficios: e.beneficios ?? null,
+        motivoSalida: e.motivo_cambio_o_salida ?? null,
       })),
     };
   }
@@ -169,7 +244,10 @@ export function candidatoDesdeRow(c: CandRow): CandidatoMatch {
     cats: c.categorias ?? [],
     edad: edadDe(c.fecha_nacimiento),
     vehiculo: c.vehiculo_propio,
-    residir: "sin_dato",
+    // Columnas del backfill (Haiku, con citas validadas contra el CV). Antes se derivaban
+    // en cada render con keyword-match sobre el CV completo de los 180 candidatos.
+    // El fallback por pistas queda solo para los que todavía no tengan backfill.
+    residir: c.residir === "si" || c.residir === "no" ? c.residir : "sin_dato",
     edu: mapEdu(c.educacion),
     ha: c.hectareas_max,
     gente: c.personal_a_cargo_max,
@@ -177,7 +255,11 @@ export function candidatoDesdeRow(c: CandRow): CandidatoMatch {
     licencia: c.licencia_conducir,
     civil: c.estado_civil,
     hijos: tieneHijos(c.hijos),
-    habilidades: derivarHabilidadesPorPistas(c.cv_procesado_texto ?? ""),
+    habilidades: c.habilidades?.length
+      ? c.habilidades
+      : derivarHabilidadesPorPistas(c.cv_procesado_texto ?? ""),
+    // Declaró pareja → viene acompañado. Sin dato → null (no descarta; se pregunta).
+    pareja: c.pareja_declarada?.trim() ? true : null,
   };
 }
 

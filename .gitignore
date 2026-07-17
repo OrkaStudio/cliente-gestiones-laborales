@@ -46,3 +46,7 @@ next-env.d.ts
 
 # fixtures locales con PII (datos reales para build local de V2) — no committear
 .fixtures/
+
+# artefactos de dev/debug — no committear (ab-out tiene CVs parseados = PII)
+/ab-out/
+_shot.png

@@ -1,22 +1,20 @@
-import { ArrowLeft, Calendar, Lock, MapPin, Target, Users } from "lucide-react";
+import { ArrowLeft, Calendar, Lock, MapPin, Users } from "lucide-react";
 import { unstable_cache } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BorrarGestionButton } from "@/components/app/borrar-gestion-button";
 import { CandidatosTabs } from "@/components/app/candidatos-tabs";
 import { CerrarBusquedaButton } from "@/components/app/cerrar-busqueda-button";
+import { CriteriosPanel } from "@/components/app/criterios-panel";
+import { CriteriosProvider } from "@/components/app/criterios-provider";
 import { GestionEstadoSelect } from "@/components/app/gestion-estado-select";
 import { MatchingWorkspace } from "@/components/app/matching-workspace";
 import { NotasBusquedaInline } from "@/components/app/notas-busqueda-inline";
 import { SumarCandidatoDialog } from "@/components/app/sumar-candidato-dialog";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import {
-  candidatoDesdeRow,
-  criteriosDesdeBusqueda,
-  fichasDesdeRows,
-} from "@/lib/v2/desde-busqueda";
-import { rankear, reqLabel } from "@/lib/v2/matching";
+import { borradorDesdeBusqueda, parseCriterios } from "@/lib/v2/criterios";
+import { candidatoDesdeRow, fichasDesdeRows } from "@/lib/v2/desde-busqueda";
 
 const AVATAR_HEX = [
   { bg: "#dafbe1", color: "#1a7f37" },
@@ -91,7 +89,7 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
     reader
       .from("candidatos")
       .select(
-        "id, nombre, apellido, ultimo_puesto, ubicacion, estado, fecha_nacimiento, educacion, hectareas_max, personal_a_cargo_max, tipos_ganaderia, vehiculo_propio, licencia_conducir, estado_civil, hijos, categorias, cv_procesado_texto, telefono, disponibilidad, pretension_salarial, vehiculo_detalle, perfil_laboral, notas_recruiter, referencias, pareja_declarada",
+        "id, nombre, apellido, ultimo_puesto, ubicacion, estado, fecha_nacimiento, educacion, hectareas_max, personal_a_cargo_max, tipos_ganaderia, vehiculo_propio, licencia_conducir, estado_civil, hijos, categorias, cv_procesado_texto, telefono, disponibilidad, pretension_salarial, vehiculo_detalle, perfil_laboral, notas_recruiter, referencias, pareja_declarada, habilidades, residir, residir_zona_preferida",
       )
       .eq("estado", "activo")
       .order("apellido"),
@@ -99,27 +97,23 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
 
   if (!busqueda) notFound();
 
-  // ── Matching V2 (provisional, en memoria): criterios derivados de los campos de la
-  // búsqueda + candidatos reales rankeados. Las habilidades se derivan del CV con pistas.
-  // Al pasar a prod: criterios desde la columna `criterios` + habilidades del backfill Haiku.
-  const criteriosV2 = criteriosDesdeBusqueda(busqueda);
-  const rankedV2 = rankear((candidatosActivos ?? []).map(candidatoDesdeRow), criteriosV2).map(
-    (r) => ({
-      c: r.c,
-      tier: r.tier,
-      score: r.score.s,
-    }),
-  );
+  // ── Matching V2. Los criterios GUARDADOS mandan; si la búsqueda todavía no tiene
+  // (las viejas, cargadas en V1), se deriva un borrador del brief y la recruiter lo
+  // confirma desde el panel. El ranking se calcula en el cliente para que el embudo
+  // se mueva en vivo al editar un chip.
+  const criteriosGuardados = parseCriterios(busqueda.criterios);
+  const criteriosV2 = criteriosGuardados ?? borradorDesdeBusqueda(busqueda);
+  const candidatosV2 = (candidatosActivos ?? []).map(candidatoDesdeRow);
   const enBusquedaIds = (gestionesData ?? [])
     .map((g) => (g.candidatos as { id: string } | null)?.id ?? "")
     .filter(Boolean);
-  const obligatoriosV2 = criteriosV2.requisitos.filter((r) => r.nivel === "obligatorio");
-  const deseablesV2 = criteriosV2.requisitos.filter((r) => r.nivel === "deseable");
 
   // Ficha + trayectoria reales para el drawer (experiencia_laboral de los activos).
   const { data: expData } = await reader
     .from("experiencia_laboral")
-    .select("candidato_id, rol, empresa, desde, hasta, ubicacion, descripcion")
+    .select(
+      "candidato_id, rol, empresa, desde, hasta, ubicacion, descripcion, nombre_propietario, dimension_establecimiento, personal_a_cargo, en_blanco, ingresos_actuales, beneficios, motivo_cambio_o_salida",
+    )
     .in(
       "candidato_id",
       (candidatosActivos ?? []).map((c) => c.id),
@@ -131,6 +125,17 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
   const descartados = gestionesData?.filter((g) => g.estado === "descartado").length ?? 0;
   const contratados = gestionesData?.filter((g) => g.estado === "contratado").length ?? 0;
   const activos = (gestionesData?.length ?? 0) - descartados;
+
+  // "Temporario" (pedido de Andrea): alguien cubre el puesto por día mientras la búsqueda
+  // SIGUE abierta. La búsqueda no cambia de estado — se avisa acá con el nombre de quién
+  // la está cubriendo, que es el dato que se perdía si lo guardábamos como estado de la búsqueda.
+  const cubriendo = (gestionesData ?? [])
+    .filter((g) => g.estado === "temporario")
+    .map((g) => {
+      const c = g.candidatos as { nombre: string; apellido: string } | null;
+      return c ? `${c.nombre} ${c.apellido}` : null;
+    })
+    .filter((n): n is string => n !== null);
 
   const funnel = STAGES.map((s) => ({
     ...s,
@@ -148,9 +153,40 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
   const headerStats = [
     { label: "Días abierta", value: `${daysOpen}`, accent: daysOpen > 30 },
     { label: "En gestión", value: `${activos}` },
-    { label: "Requisitos", value: `${busqueda.requisitos?.length ?? 0}` },
+    // Antes contaba `requisitos[]` (el array V1 de texto): decía "0 requisitos" en búsquedas
+    // con el brief lleno. Ahora cuenta los criterios reales del matching.
+    { label: "Requisitos", value: `${criteriosV2.requisitos.length + criteriosV2.categorias.length}` },
     { label: "Descartados", value: `${descartados}` },
   ];
+
+  // "Datos" de la posición: movidos al header (antes vivían en un card suelto abajo).
+  const datosPos = [
+    busqueda.reporte_directo && { label: "Reporte directo", value: busqueda.reporte_directo },
+    busqueda.rango_salarial && {
+      label: "Rango salarial",
+      value: busqueda.rango_salarial,
+      accent: true,
+    },
+    (busqueda.edad_minima != null || busqueda.edad_maxima != null) && {
+      label: "Edad",
+      value:
+        busqueda.edad_minima != null && busqueda.edad_maxima != null
+          ? `${busqueda.edad_minima}–${busqueda.edad_maxima} años`
+          : busqueda.edad_maxima != null
+            ? `hasta ${busqueda.edad_maxima} años`
+            : `desde ${busqueda.edad_minima} años`,
+    },
+    busqueda.nivel_educacion && { label: "Educación", value: busqueda.nivel_educacion },
+    busqueda.estado_civil && { label: "Estado civil", value: busqueda.estado_civil },
+    busqueda.disponibilidad_viaje != null && {
+      label: "Disp. a viajar",
+      value: busqueda.disponibilidad_viaje ? "Sí" : "No",
+    },
+    busqueda.movilidad_requerida != null && {
+      label: "Movilidad propia",
+      value: busqueda.movilidad_requerida ? "Sí" : "No",
+    },
+  ].filter(Boolean) as { label: string; value: string; accent?: boolean }[];
 
   return (
     <div className="px-10 py-10 space-y-5">
@@ -275,6 +311,14 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
           className="mt-5 pt-5 flex items-center gap-8 flex-wrap"
           style={{ borderTop: "1px solid var(--gl-border)" }}
         >
+          {cubriendo.length > 0 && (
+            <div
+              className="w-full -mt-1 mb-1 px-3 py-2 rounded-xl text-[13px] font-semibold"
+              style={{ background: "var(--gl-amber-bg)", color: "var(--gl-amber)" }}
+            >
+              Cubierta temporalmente por {cubriendo.join(", ")} — la búsqueda sigue abierta.
+            </div>
+          )}
           {headerStats.map((s, i) => (
             <div key={i} className="flex flex-col gap-0.5">
               <span className="gl-eyebrow">{s.label}</span>
@@ -287,49 +331,76 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
             </div>
           ))}
         </div>
+
+        {/* Datos de la posición — al principio, junto al header */}
+        {datosPos.length > 0 && (
+          <div
+            className="mt-4 pt-4 flex items-center gap-x-8 gap-y-3 flex-wrap"
+            style={{ borderTop: "1px solid var(--gl-border)" }}
+          >
+            {datosPos.map((d, i) => (
+              <div key={i} className="flex flex-col gap-0.5">
+                <span className="gl-eyebrow">{d.label}</span>
+                <span
+                  className="text-[13.5px] font-semibold"
+                  style={{ color: d.accent ? "var(--gl-olive)" : "var(--gl-ink)" }}
+                >
+                  {d.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Main grid ─────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* ── Izquierda: pipeline + candidatos ── */}
-        <div className="lg:col-span-2 space-y-5">
-          {/* Pipeline */}
-          <div className="rounded-2xl border p-6" style={CARD}>
-            <div className="flex items-center justify-between mb-5">
-              <div>
+      {/* El provider envuelve las DOS columnas: el panel de criterios (derecha) y la lista
+          de sugeridos (izquierda) comparten estado, así el embudo se recalcula en vivo. */}
+      <CriteriosProvider
+        busquedaId={busqueda.id}
+        puesto={busqueda.puesto}
+        cliente={busqueda.cliente}
+        criteriosIniciales={criteriosV2}
+        esBorrador={criteriosGuardados === null}
+        candidatos={candidatosV2}
+        preview={devNoAuth}
+      >
+      {/* Brief a lo ancho y colapsable: es CONTEXTO, no algo que se mire todo el tiempo.
+          Antes empujaba los requisitos hacia abajo, lejos de los candidatos. */}
+      {busqueda.descripcion && (
+        <details open className="rounded-2xl border p-6" style={CARD}>
+          <summary className="cursor-pointer text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
+            Brief
+          </summary>
+          <p className="text-sm leading-relaxed mt-3" style={{ color: "var(--gl-ink-3)" }}>
+            {busqueda.descripcion}
+          </p>
+        </details>
+      )}
+
+      {/* ── Zona de trabajo: los requisitos y los candidatos, uno al lado del otro y a la
+          misma altura. Tocás un requisito y ves cambiar la lista sin que se mueva nada. */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 items-start">
+        <div className="lg:col-span-2 lg:sticky lg:top-6">
+          <CriteriosPanel />
+        </div>
+        <div className="lg:col-span-3 space-y-5">
+          {/* Pipeline — arriba de los candidatos, mismo ancho que la lista */}
+          {funnel.length > 0 && (
+            <div className="rounded-2xl border p-5" style={CARD}>
+              <div className="flex items-center justify-between mb-3">
                 <h2 className="text-[15px] font-bold" style={{ color: "var(--gl-ink)" }}>
                   Pipeline
                 </h2>
-                <p className="text-xs mt-0.5" style={{ color: "var(--gl-ink-3)" }}>
-                  Distribución de candidatos por etapa
-                </p>
-              </div>
-              {funnel.length > 0 && (
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full gl-badge-olive">
                   {activos} activo{activos !== 1 ? "s" : ""}
                 </span>
-              )}
-            </div>
-
-            {funnel.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Target
-                  className="h-8 w-8 mb-3"
-                  style={{ color: "var(--gl-olive)", opacity: 0.3 }}
-                />
-                <p className="text-sm font-medium" style={{ color: "var(--gl-ink)" }}>
-                  Sin candidatos en pipeline
-                </p>
-                <p className="text-xs mt-1" style={{ color: "var(--gl-ink-3)" }}>
-                  Sumá un candidato a esta búsqueda para ver el pipeline.
-                </p>
               </div>
-            ) : (
               <div className="space-y-0">
                 {funnel.map((stage) => (
                   <div
                     key={stage.key}
-                    className="flex items-center gap-4 py-3.5"
+                    className="flex items-center gap-4 py-2.5"
                     style={{ borderTop: "1px solid var(--gl-border)" }}
                   >
                     <span className="gl-eyebrow shrink-0 w-36" style={{ color: "var(--gl-ink-3)" }}>
@@ -358,25 +429,19 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
                     </span>
                   </div>
                 ))}
-                <div style={{ borderTop: "1px solid var(--gl-border)" }} />
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Candidatos — En la búsqueda / Sugeridos */}
-          <div className="rounded-2xl border p-6" style={CARD}>
+          <div>
             <CandidatosTabs
               enBusquedaCount={gestionesData?.length ?? 0}
-              sugeridosCount={rankedV2.length}
-              porConfirmar={rankedV2.filter((r) => r.tier === "amber").length}
               sugeridos={
                 <MatchingWorkspace
-                  busqueda={criteriosV2}
                   busquedaId={busqueda.id}
-                  ranked={rankedV2}
                   enBusquedaIds={enBusquedaIds}
                   fichas={fichas}
-                  preview={devNoAuth}
                 />
               }
               enBusqueda={
@@ -536,257 +601,11 @@ export default async function BusquedaDetailPage({ params }: { params: Promise<{
             />
           </div>
         </div>
-
-        {/* ── Derecha: brief + requisitos + datos ── */}
-        <div className="space-y-5">
-          {/* Brief */}
-          {busqueda.descripcion && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <h2 className="text-[15px] font-bold mb-3" style={{ color: "var(--gl-ink)" }}>
-                Brief
-              </h2>
-              <p className="text-sm leading-relaxed" style={{ color: "var(--gl-ink-3)" }}>
-                {busqueda.descripcion}
-              </p>
-            </div>
-          )}
-
-          {/* Qué busca esta posición (matching V2) */}
-          <div className="rounded-2xl border p-6" style={CARD}>
-            <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
-              Qué busca esta posición
-            </h2>
-            {criteriosV2.acceptedCats.length > 0 && (
-              <div className="mb-3">
-                <div className="gl-eyebrow mb-2">Categorías aceptadas</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {criteriosV2.acceptedCats.map((c) => (
-                    <span
-                      key={c}
-                      className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
-                      style={{ background: "var(--gl-olive)", color: "#fff" }}
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {obligatoriosV2.length > 0 && (
-              <div className="mb-3">
-                <div className="gl-eyebrow mb-2">Obligatorio</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {obligatoriosV2.map((r, i) => (
-                    <span
-                      key={i}
-                      className="text-xs font-semibold px-2.5 py-1.5 rounded-full"
-                      style={{ background: "var(--gl-olive)", color: "#fff" }}
-                    >
-                      {reqLabel(r)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {deseablesV2.length > 0 && (
-              <div>
-                <div className="gl-eyebrow mb-2">Deseable</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {deseablesV2.map((r, i) => (
-                    <span
-                      key={i}
-                      className="text-xs font-semibold px-2.5 py-1.5 rounded-full gl-badge-olive"
-                    >
-                      {reqLabel(r)}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {criteriosV2.acceptedCats.length === 0 && criteriosV2.requisitos.length === 0 && (
-              <p className="text-sm" style={{ color: "var(--gl-ink-3)" }}>
-                Sin criterios cargados.
-              </p>
-            )}
-          </div>
-
-          {/* Actitudes */}
-          {(busqueda.actitudes?.length ?? 0) > 0 && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <h2 className="text-[15px] font-bold mb-3" style={{ color: "var(--gl-ink)" }}>
-                Actitud laboral
-              </h2>
-              <div className="space-y-0">
-                {busqueda.actitudes.map((a: string, i: number) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-3 py-2.5"
-                    style={{ borderTop: "1px solid var(--gl-border)" }}
-                  >
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                      {a}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Experiencia requerida */}
-          {(busqueda.puestos_similares ||
-            busqueda.personal_a_cargo_min != null ||
-            busqueda.idioma_ingles) && (
-            <div className="rounded-2xl border p-6" style={CARD}>
-              <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
-                Experiencia requerida
-              </h2>
-              <div className="space-y-0">
-                {busqueda.puestos_similares && (
-                  <div
-                    className="flex items-center justify-between gap-3 py-3"
-                    style={{ borderBottom: "1px solid var(--gl-border)" }}
-                  >
-                    <span className="gl-eyebrow">Puestos similares</span>
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                      {busqueda.puestos_similares}
-                    </span>
-                  </div>
-                )}
-                {busqueda.personal_a_cargo_min != null && (
-                  <div
-                    className="flex items-center justify-between gap-3 py-3"
-                    style={{ borderBottom: "1px solid var(--gl-border)" }}
-                  >
-                    <span className="gl-eyebrow">Gente a cargo</span>
-                    <span className="text-sm font-bold" style={{ color: "var(--gl-ink)" }}>
-                      {busqueda.personal_a_cargo_min}+
-                    </span>
-                  </div>
-                )}
-                {busqueda.idioma_ingles && (
-                  <div className="flex items-center justify-between gap-3 py-3">
-                    <span className="gl-eyebrow">Inglés</span>
-                    <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                      {busqueda.idioma_ingles}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Datos */}
-          <div className="rounded-2xl border p-6" style={CARD}>
-            <h2 className="text-[15px] font-bold mb-4" style={{ color: "var(--gl-ink)" }}>
-              Datos
-            </h2>
-            <div className="space-y-0">
-              {busqueda.reporte_directo && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Reporte directo</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                    {busqueda.reporte_directo}
-                  </span>
-                </div>
-              )}
-              {busqueda.rango_salarial && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Rango salarial</span>
-                  <span className="text-sm font-bold" style={{ color: "var(--gl-olive)" }}>
-                    {busqueda.rango_salarial}
-                  </span>
-                </div>
-              )}
-              {(busqueda.edad_minima != null || busqueda.edad_maxima != null) && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Edad</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                    {busqueda.edad_minima ?? "—"} – {busqueda.edad_maxima ?? "—"} años
-                  </span>
-                </div>
-              )}
-              {busqueda.nivel_educacion && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Educación</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                    {busqueda.nivel_educacion}
-                  </span>
-                </div>
-              )}
-              {busqueda.estado_civil && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Estado civil</span>
-                  <span className="text-sm" style={{ color: "var(--gl-ink)" }}>
-                    {busqueda.estado_civil}
-                  </span>
-                </div>
-              )}
-              {busqueda.disponibilidad_viaje != null && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Disp. a viajar</span>
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.disponibilidad_viaje ? "gl-badge-green" : "gl-badge-gray"}`}
-                  >
-                    {busqueda.disponibilidad_viaje ? "Sí" : "No"}
-                  </span>
-                </div>
-              )}
-              {busqueda.movilidad_requerida != null && (
-                <div
-                  className="flex items-center justify-between gap-3 py-3"
-                  style={{ borderBottom: "1px solid var(--gl-border)" }}
-                >
-                  <span className="gl-eyebrow">Movilidad propia</span>
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${busqueda.movilidad_requerida ? "gl-badge-green" : "gl-badge-gray"}`}
-                  >
-                    {busqueda.movilidad_requerida ? "Sí" : "No"}
-                  </span>
-                </div>
-              )}
-              <div
-                className="flex items-center justify-between gap-3 py-3"
-                style={{ borderBottom: "1px solid var(--gl-border)" }}
-              >
-                <span className="gl-eyebrow">Apertura</span>
-                <span className="text-sm font-mono tabular-nums" style={{ color: "var(--gl-ink)" }}>
-                  {formatDate(busqueda.fecha_apertura)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between gap-3 py-3">
-                <span className="gl-eyebrow">Tiempo abierta</span>
-                <span
-                  className="text-sm font-bold tabular-nums"
-                  style={{ color: daysOpen > 30 ? "var(--gl-olive)" : "var(--gl-ink)" }}
-                >
-                  {daysOpen}d
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Notas internas */}
-          <NotasBusquedaInline busquedaId={busqueda.id} notas={busqueda.notas_internas ?? null} />
-        </div>
       </div>
+
+      {/* Notas internas — a lo ancho, debajo de la zona de trabajo */}
+      <NotasBusquedaInline busquedaId={busqueda.id} notas={busqueda.notas_internas ?? null} />
+      </CriteriosProvider>
     </div>
   );
 }

@@ -1,22 +1,24 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
+import { useCriterios } from "@/components/app/criterios-provider";
 
 // Toggle "En la búsqueda / Sugeridos". Ambos contenidos los renderiza el server (la
 // gestión de etapas usa server actions); este wrapper sólo alterna cuál se muestra.
 export function CandidatosTabs({
   enBusquedaCount,
-  sugeridosCount,
-  porConfirmar,
   enBusqueda,
   sugeridos,
 }: {
   enBusquedaCount: number;
-  sugeridosCount: number;
-  porConfirmar: number;
   enBusqueda: ReactNode;
   sugeridos: ReactNode;
 }) {
+  // Los conteos de Sugeridos salen del contexto, no de props: al editar un criterio en el
+  // panel, el badge "a confirmar" tiene que moverse junto con la lista.
+  const { ranked, conteos } = useCriterios();
+  const sugeridosCount = ranked.length;
+  const porConfirmar = conteos.amber;
   const [tab, setTab] = useState<"enb" | "sug">(enBusquedaCount > 0 ? "enb" : "sug");
 
   // Para screenshots headless: ?tab=sug / ?tab=enb fuerza la pestaña.

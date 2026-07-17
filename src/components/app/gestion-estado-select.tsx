@@ -13,9 +13,14 @@ const PIPELINE = [
   { key: "contratado",         label: "Contratado",      bg: "#dafbe1", color: "#1a7f37" },
 ] as const
 
+// Pedido de Andrea (15/06): el peón que cubre el puesto POR DÍA mientras la búsqueda sigue
+// abierta. No es "Contratado" (la búsqueda no se cerró) ni un estado de la búsqueda (seguiría
+// siendo "activa"): es la etapa de ESTE candidato en ESTA búsqueda.
+const TEMPORARIO = { key: "temporario", label: "Temporario", bg: "#fff8c5", color: "#9a6700" } as const
+
 const DESCARTADO = { key: "descartado", label: "Descartado", bg: "#ffebe9", color: "#cf222e" } as const
 
-const ALL_STAGES = [...PIPELINE, DESCARTADO]
+const ALL_STAGES = [...PIPELINE, TEMPORARIO, DESCARTADO]
 
 function stageStyle(key: string) {
   return ALL_STAGES.find((s) => s.key === key) ?? { key, label: key, bg: "var(--gl-gray-bg)", color: "var(--gl-gray)" }
@@ -116,9 +121,10 @@ export function GestionEstadoSelect({
             ))}
           </div>
 
-          {/* Separator + Descartado */}
+          {/* Separator + fuera del pipeline: Temporario y Descartado */}
           <div style={{ height: 1, background: "var(--gl-border)", margin: "0 8px" }} />
-          <div className="p-1.5">
+          <div className="p-1.5 space-y-0.5">
+            <DropdownItem stage={TEMPORARIO} active={current === "temporario"} onSelect={select} />
             <DropdownItem stage={DESCARTADO} active={current === "descartado"} onSelect={select} />
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useCriterios } from "@/components/app/criterios-provider";
 import type { Ficha } from "@/lib/v2/desde-busqueda";
 import { createGestion } from "@/lib/actions/gestiones";
 import {
@@ -11,6 +12,8 @@ import {
   evalCat,
   evalReq,
   gapsDe,
+  motivoDe,
+  motivoDesglose,
   type Requisito,
   reqLabel,
   type Tier,
@@ -61,28 +64,57 @@ function candValTxt(c: CandidatoMatch, r: Requisito): string {
       return c.ganaderia.length ? c.ganaderia.join(", ") : "sin dato";
     case "civil":
       return c.civil ?? "sin dato";
+    case "pareja":
+      return c.pareja === true ? "viene en pareja" : "sin dato";
   }
 }
 
 const EST_CLS = { ok: "v2d-ok", no: "v2d-no", sd: "v2d-sd" } as const;
 
+/** El hueco de dato, convertido en la pregunta que hay que hacerle al candidato. */
+function preguntaDe(r: Requisito): string {
+  switch (r.campo) {
+    case "hab":
+      return `¿Tenés experiencia en ${r.hab.toLowerCase()}?`;
+    case "residir":
+      return "¿Estarías dispuesto a vivir en el campo?";
+    case "vehiculo":
+      return "¿Tenés vehículo propio?";
+    case "licencia":
+      return "¿Tenés licencia de conducir?";
+    case "ha":
+      return "¿De qué tamaño eran los campos que manejaste (en hectáreas)?";
+    case "gente":
+      return "¿Cuánta gente tuviste a cargo?";
+    case "educacion":
+      return "¿Qué nivel de estudios tenés?";
+    case "edad":
+      return "¿Cuál es tu fecha de nacimiento?";
+    case "ganaderia":
+      return "¿Con qué tipo de ganadería trabajaste?";
+    case "civil":
+      return "¿Cuál es tu estado civil?";
+    case "hijos":
+      return "¿Tenés hijos?";
+    case "pareja":
+      return "¿Venís en pareja? ¿Tu pareja también estaría buscando trabajo en el campo?";
+  }
+}
+
 export function MatchingWorkspace({
-  busqueda,
   busquedaId,
-  ranked,
   enBusquedaIds,
   fichas,
-  preview = false,
 }: {
-  busqueda: BusquedaMatch;
   busquedaId: string;
-  ranked: Row[];
   enBusquedaIds: string[];
   fichas: Record<string, Ficha>;
-  // En el preview local (sin auth) NO escribe en prod: simula el alta en la UI.
-  preview?: boolean;
 }) {
+  // Los criterios y el ranking vienen del contexto: así, cuando la recruiter toca un chip
+  // en el panel de la derecha, esta lista se re-rankea en el momento.
+  const { busqueda, ranked, preview } = useCriterios();
   const [q, setQ] = useState("");
+  const [expandida, setExpandida] = useState(false);
   const [tierF, setTierF] = useState<"all" | Tier>("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [agregados, setAgregados] = useState<Set<string>>(new Set());
@@ -169,8 +201,14 @@ export function MatchingWorkspace({
         </div>
       </div>
 
+      {/* La lista scrollea DENTRO de su card: con 179 candidatos estiraba la página hasta
+          dejar los requisitos fuera de pantalla, y ahí se perdía el efecto de editarlos. */}
+      <div
+        className="overflow-y-auto -mx-1 px-1"
+        style={{ maxHeight: expandida ? "none" : 520 }}
+      >
       {list.length === 0 && <div className="v2d-noresults">Sin candidatos con ese filtro.</div>}
-      {list.slice(0, 60).map((r) => {
+      {list.slice(0, expandida ? list.length : 60).map((r) => {
         const p = av(r.c.nombre);
         return (
           <div
@@ -190,6 +228,18 @@ export function MatchingWorkspace({
                 {r.c.cats.slice(0, 2).join(", ") || "sin categoría"}
                 {r.c.zona ? ` · ${r.c.zona}` : ""}
               </div>
+              {/* Buen match: el encaje completo (Cumple / A confirmar / No cumple) para decidir
+                  a quién llamar. Ámbar y rojo: la línea de motivo de siempre, con su color. */}
+              {r.tier === "green" ? (
+                <DesgloseLineas c={r.c} busqueda={busqueda} />
+              ) : (
+                <div
+                  className="text-[12px] mt-0.5"
+                  style={{ color: r.tier === "red" ? "var(--gl-ink-3)" : "var(--gl-amber)" }}
+                >
+                  {motivoDe(r.c, busqueda)}
+                </div>
+              )}
             </div>
             <span className={`v2d-badge ${TIER_CLS[r.tier]}`}>{TIER_LABEL[r.tier]}</span>
             {yaEsta(r.c.id) ? (
@@ -210,7 +260,18 @@ export function MatchingWorkspace({
           </div>
         );
       })}
-      {list.length > 60 && <div className="v2d-more">+{list.length - 60} más…</div>}
+      </div>
+
+      {list.length > 6 && (
+        <button
+          type="button"
+          onClick={() => setExpandida((v) => !v)}
+          className="w-full mt-2 py-2 text-[12px] font-bold rounded-xl"
+          style={{ background: "var(--gl-gray-bg)", color: "var(--gl-ink-2)" }}
+        >
+          {expandida ? "Achicar la lista ↑" : `Ver los ${list.length} ↓`}
+        </button>
+      )}
 
       {open && (
         <>
@@ -291,7 +352,6 @@ export function MatchingWorkspace({
             {(() => {
               const fch = fichas[open.c.id];
               if (!fch) return null;
-              const tel = fch.telefono?.replace(/[^\d]/g, "");
               const kv: [string, string][] = [];
               if (open.c.zona) kv.push(["Ubicación", open.c.zona]);
               if (open.c.edad != null) kv.push(["Edad", `${open.c.edad} años`]);
@@ -311,24 +371,9 @@ export function MatchingWorkspace({
               if (fch.pretension) kv.push(["Pretensión", fch.pretension]);
               return (
                 <>
-                  {tel && (
-                    <div className="v2d-dsec">
-                      <h4>Contacto</h4>
-                      <a
-                        className="v2d-wa"
-                        href={`https://wa.me/${tel}`}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <span className="v2d-waic">✆</span>
-                        <span>
-                          <span className="v2d-wal">WhatsApp</span>
-                          <span className="v2d-wav">{fch.telefono}</span>
-                        </span>
-                      </a>
-                    </div>
-                  )}
-
+                  {/* Sección "Contacto" quitada: el WhatsApp del candidato ya está en el
+                      botón "Preguntar por WhatsApp" (abajo) y en "+ Agregar". Mostrarlo
+                      también acá era repetir. */}
                   {kv.length > 0 && (
                     <div className="v2d-dsec">
                       <h4>Ficha</h4>
@@ -356,14 +401,21 @@ export function MatchingWorkspace({
                     <div className="v2d-dsec">
                       <h4>Referencias</h4>
                       {fch.referencias.map((r, i) => (
-                        <div className={`v2d-ref ${r.calif}`} key={i}>
+                        <div className="v2d-ref" key={i}>
                           <div className="v2d-reftop">
-                            <span className="v2d-refde">{r.de}</span>
-                            <span className={`v2d-refpill ${r.calif}`}>
-                              {r.calif === "buena" ? "👍 Buena" : "👎 Mala"}
-                            </span>
+                            <span className="v2d-refde">{r.nombre}</span>
+                            {r.relacion && <span className="v2d-dchip">{r.relacion}</span>}
                           </div>
-                          {r.nota && <div className="v2d-refnota">{r.nota}</div>}
+                          {r.contacto && (
+                            <a
+                              className="v2d-refcont"
+                              href={`https://wa.me/${r.contacto.replace(/\D/g, "")}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              {r.contacto}
+                            </a>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -384,13 +436,32 @@ export function MatchingWorkspace({
             {(() => {
               const gaps = gapsDe(open.c, busqueda);
               if (!gaps.length) return null;
+              // El botón no hacía nada. Ahora abre el chat con las preguntas ya escritas:
+              // el motor sabe QUÉ falta, y el teléfono ya lo tenemos. Ese es el loop que hoy
+              // hacen a mano.
+              const tel = (fichas[open.c.id]?.telefono ?? "").replace(/\D/g, "");
+              const preguntas = gaps.map((g) => `· ${preguntaDe(g)}`).join("\n");
+              const msg = `Hola ${open.c.nombre}! Te escribo de Gestiones Laborales por una búsqueda de ${busqueda.puesto}. Para avanzar necesitaría confirmar:\n${preguntas}\n\nGracias!`;
               return (
                 <div className="v2d-gaps">
                   <div className="v2d-gh">
                     Faltan {gaps.length} dato{gaps.length > 1 ? "s" : ""} para confirmar
                   </div>
                   <div className="v2d-gl">{gaps.map(reqLabel).join(" · ")}</div>
-                  <button type="button">Preguntar por WhatsApp</button>
+                  {tel ? (
+                    <a
+                      href={`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ display: "block", textAlign: "center", textDecoration: "none" }}
+                    >
+                      <button type="button">Preguntar por WhatsApp</button>
+                    </a>
+                  ) : (
+                    <button type="button" disabled title="El candidato no tiene teléfono cargado">
+                      Sin teléfono cargado
+                    </button>
+                  )}
                 </div>
               );
             })()}
@@ -423,23 +494,96 @@ export function MatchingWorkspace({
 
 function ExpCard({ exp, actual }: { exp: Ficha["trayectoria"][number]; actual: boolean }) {
   const [open, setOpen] = useState(actual);
+
+  // Todo esto ya estaba en la tabla `experiencia_laboral` y el drawer lo tiraba a la basura.
+  // El tamaño del campo es el requisito de hectáreas; el motivo de salida es lo primero que
+  // quiere saber una recruiter antes de llamar.
+  const detalle: [string, string][] = [];
+  if (exp.dimension) detalle.push(["Campo", exp.dimension]);
+  if (exp.personalACargo) detalle.push(["Gente a cargo", exp.personalACargo]);
+  if (exp.propietario) detalle.push(["Dueño", exp.propietario]);
+  if (exp.enBlanco != null) detalle.push(["En blanco", exp.enBlanco ? "Sí" : "No"]);
+  if (exp.ingresos) detalle.push(["Sueldo", exp.ingresos]);
+  if (exp.beneficios) detalle.push(["Beneficios", exp.beneficios]);
+
   return (
     <div className={`v2d-exp ${open ? "open" : ""}`}>
       <div className="v2d-exphead" onClick={() => setOpen(!open)}>
         <div style={{ minWidth: 0 }}>
           <div className="v2d-exptop">
             {actual && <span className="v2d-expact">Actual</span>}
-            <span className="v2d-exptitle">{exp.rol}</span>
+            {/* 13% de las experiencias no tienen puesto cargado: que el campo haga de título
+                en vez de dejar el renglón vacío. */}
+            <span className="v2d-exptitle">{exp.rol !== "—" ? exp.rol : exp.empresa}</span>
           </div>
           <div className="v2d-expsub">
-            {exp.empresa}
-            {exp.lugar ? ` · ${exp.lugar}` : ""}
+            {exp.rol !== "—" ? exp.empresa : ""}
+            {exp.rol !== "—" && exp.lugar ? " · " : ""}
+            {exp.lugar ?? ""}
           </div>
-          <div className="v2d-expper">{exp.periodo}</div>
+          {(exp.periodo || exp.antiguedad) && (
+            <div className="v2d-expper">
+              {exp.periodo ?? ""}
+              {/* La permanencia es la señal, no la fecha: cambiar cada 8 meses dice algo. */}
+              {exp.periodo && exp.antiguedad ? " · " : ""}
+              {exp.antiguedad ?? ""}
+            </div>
+          )}
         </div>
         <span className="v2d-expchev">{open ? "▾" : "▸"}</span>
       </div>
-      {open && exp.descripcion && <div className="v2d-expbody">{exp.descripcion}</div>}
+      {open && (
+        <div className="v2d-expbody">
+          {detalle.length > 0 && (
+            <div className="v2d-expkv">
+              {detalle.map(([k, v]) => (
+                <div key={k}>
+                  <span>{k}</span>
+                  <b>{v}</b>
+                </div>
+              ))}
+            </div>
+          )}
+          {exp.descripcion && <p style={{ margin: 0 }}>{exp.descripcion}</p>}
+          {exp.motivoSalida && (
+            <p className="v2d-expsalida">
+              <span>Por qué se fue</span>
+              {exp.motivoSalida}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+const capitalizar = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/**
+ * El encaje del candidato contra la búsqueda para BUEN MATCH: qué falta CONFIRMAR (ámbar) y qué
+ * NO CUMPLE (rojo). No listamos lo que cumple — eso ya lo dice el badge "Buen match"; la lista
+ * sirve para ver qué le falta a cada uno. Formato de una línea por estado: "Estado · Ítem, Ítem"
+ * (con mayúscula inicial), coloreada según su estado. Sin nada pendiente ni roto, "Cumple todo".
+ */
+function DesgloseLineas({ c, busqueda }: { c: CandidatoMatch; busqueda: BusquedaMatch }) {
+  const g = motivoDesglose(c, busqueda);
+  const lineas = [
+    { lbl: "A confirmar", items: g.confirmar, color: "var(--gl-amber)" },
+    { lbl: "No cumple", items: g.noCumple, color: "var(--gl-red)" },
+  ].filter((x) => x.items.length > 0);
+  return (
+    <div className="v2d-desg">
+      {lineas.length === 0 ? (
+        <div className="v2d-dgline" style={{ color: "var(--gl-green)" }}>
+          Cumple todo
+        </div>
+      ) : (
+        lineas.map((x) => (
+          <div className="v2d-dgline" key={x.lbl} style={{ color: x.color }}>
+            {x.lbl} · {x.items.map(capitalizar).join(", ")}
+          </div>
+        ))
+      )}
     </div>
   );
 }
@@ -489,6 +633,8 @@ const CSS = `
 .v2d-nm{font-weight:600;font-size:13.5px;color:var(--gl-ink);display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
 .v2d-enb{font-size:10.5px;font-weight:600;color:var(--gl-olive)}
 .v2d-rsub{font-size:12px;color:var(--gl-ink-3);margin-top:.15rem}
+.v2d-desg{margin-top:.2rem;display:flex;flex-direction:column;gap:1px}
+.v2d-dgline{font-size:12px;line-height:1.4}
 .v2d-badge{font-size:10.5px;padding:.16rem .55rem;border-radius:999px;font-weight:600;white-space:nowrap}
 .v2d-green{background:var(--gl-green-bg);color:var(--gl-green)}
 .v2d-amber{background:var(--gl-amber-bg);color:var(--gl-amber)}
@@ -544,6 +690,14 @@ const CSS = `
 .v2d-expper{font-size:11px;color:var(--gl-ink-3);margin-top:1px;font-variant-numeric:tabular-nums}
 .v2d-expchev{color:var(--gl-ink-3);font-size:11px;flex-shrink:0;padding-top:3px}
 .v2d-expbody{padding:.5rem .9rem .8rem;border-top:1px solid var(--gl-border);font-size:12.5px;color:var(--gl-ink-2);line-height:1.5}
+.v2d-expkv{display:grid;grid-template-columns:1fr 1fr;gap:.35rem .8rem;margin:.15rem 0 .6rem}
+.v2d-expkv > div{display:flex;flex-direction:column}
+.v2d-expkv span{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--gl-ink-3)}
+.v2d-expkv b{font-size:12.5px;color:var(--gl-ink);font-weight:600}
+.v2d-expsalida{margin:.6rem 0 0;padding:.5rem .65rem;background:var(--gl-amber-bg);border-radius:.5rem;color:var(--gl-amber);font-size:12px;line-height:1.45}
+.v2d-expsalida span{display:block;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:.15rem}
+.v2d-refcont{display:inline-block;margin-top:.3rem;font-size:12.5px;font-weight:600;color:var(--gl-olive);text-decoration:none}
+.v2d-refcont:hover{text-decoration:underline}
 .v2d-ref{position:relative;padding:.6rem .75rem .6rem .9rem;border:1px solid var(--gl-border);border-radius:.7rem;margin-bottom:.5rem;overflow:hidden}
 .v2d-ref:last-child{margin-bottom:0}
 .v2d-ref::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}

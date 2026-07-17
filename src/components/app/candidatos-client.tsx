@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Search, Users, MessageCircle, ThumbsUp, ThumbsDown, X, ArrowUpDown, ArrowUp } from "lucide-react"
 import { CandidatoSheet } from "@/components/app/candidato-sheet"
@@ -78,11 +78,34 @@ const COLS = "minmax(180px,2fr) minmax(140px,1.5fr) 52px minmax(120px,1.2fr) 48p
 // ── Component ────────────────────────────────────────────────────────────────
 
 export function CandidatosClient({ todos }: { todos: CandidatoRow[] }) {
-  const [query, setQuery] = useState("")
-  const [estadoFilter, setEstadoFilter] = useState<"todos" | "activo" | "inactivo">("todos")
-  const [catFilter, setCatFilter] = useState<string[]>([])
-  const [sortOrder, setSortOrder] = useState<"llegada" | "alfabetico">("llegada")
+  // Los filtros arrancan desde la URL: así, al entrar a un perfil y volver atrás, se
+  // restauran (el back devuelve la misma URL). Ver el effect de sincronización más abajo.
+  const searchParams = useSearchParams()
+  const [query, setQuery] = useState(() => searchParams.get("q") ?? "")
+  const [estadoFilter, setEstadoFilter] = useState<"todos" | "activo" | "inactivo">(() => {
+    const v = searchParams.get("estado")
+    return v === "activo" || v === "inactivo" ? v : "todos"
+  })
+  const [catFilter, setCatFilter] = useState<string[]>(() => {
+    const v = searchParams.get("cat")
+    return v ? v.split(",").filter(Boolean) : []
+  })
+  const [sortOrder, setSortOrder] = useState<"llegada" | "alfabetico">(() =>
+    searchParams.get("sort") === "alfabetico" ? "alfabetico" : "llegada",
+  )
   const router = useRouter()
+
+  // Reflejamos los filtros en la URL con replaceState (sin navegar ni refetchear el server):
+  // deja la URL lista para que el back la restaure con los filtros puestos.
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (query.trim()) params.set("q", query.trim())
+    if (estadoFilter !== "todos") params.set("estado", estadoFilter)
+    if (catFilter.length > 0) params.set("cat", catFilter.join(","))
+    if (sortOrder !== "llegada") params.set("sort", sortOrder)
+    const qs = params.toString()
+    window.history.replaceState(null, "", qs ? `${window.location.pathname}?${qs}` : window.location.pathname)
+  }, [query, estadoFilter, catFilter, sortOrder])
 
   useEffect(() => {
     let cancelado = false
